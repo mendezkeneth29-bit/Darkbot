@@ -59,10 +59,11 @@ async def buscar_roblox(usuario):
         res_foto = requests.get(url_foto, headers=headers).json()
         foto_url = res_foto['data'][0]['imageUrl'] if 'data' in res_foto and res_foto['data'] else "https://www.roblox.com/headshot-thumbnail/image?width=420&height=420&format=png"
 
+        # Embed en color negro (0x000000 o 0x010101 para que Discord lo reconozca)
         embed = discord.Embed(
             title=f"Perfil de {display_name}",
             description=f"**Usuario:** @{username}\n**ID:** `{user_id}`",
-            color=0x2ecc71,
+            color=0x010101, 
             url=f"https://www.roblox.com/users/{user_id}/profile"
         )
         embed.set_thumbnail(url=foto_url)
@@ -98,12 +99,35 @@ async def roblox_prefijo(ctx, usuario: str):
         await ctx.send(embed=resultado)
 
 # --- 5. COMANDO DELETE ---
+
+@bot.tree.command(name="delete", description="Borra una cantidad de mensajes")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def delete_slash(interaction: discord.Interaction, cantidad: int):
+    await interaction.channel.purge(limit=cantidad)
+    await interaction.response.send_message(f"Limpieza terminada: {cantidad} mensajes borrados.", ephemeral=True)
+
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def delete(ctx, cantidad: int):
     await ctx.channel.purge(limit=cantidad + 1)
 
-# --- 6. EJECUCIÓN ---
+# --- 6. COMANDO EMBED (COLOR PERSONALIZABLE) ---
+
+@bot.tree.command(name="embed", description="Crea un embed personalizado")
+@app_commands.describe(titulo="El título del mensaje", descripcion="El contenido", color="Color en HEX (ej: #FF5733)", canal="Donde enviar el mensaje")
+async def embed_slash(interaction: discord.Interaction, titulo: str, descripcion: str, color: str, canal: Optional[discord.TextChannel] = None):
+    destino = canal or interaction.channel
+    try:
+        # Convierte el color HEX a entero
+        color_hex = int(color.replace("#", ""), 16)
+    except:
+        color_hex = 0x010101 # Negro por defecto si fallas el código
+
+    emb = discord.Embed(title=titulo, description=descripcion, color=color_hex)
+    await destino.send(embed=emb)
+    await interaction.response.send_message("Embed enviado correctamente.", ephemeral=True)
+
+# --- 7. EJECUCIÓN ---
 if __name__ == "__main__":
     keep_alive()
     token = os.getenv('TOKEN')
