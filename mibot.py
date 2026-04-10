@@ -2,25 +2,22 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
+import requests # <-- ¡Asegúrate de que esto esté en tus imports!
 from flask import Flask
 from threading import Thread
 from typing import Optional
 
-# --- 1. CONFIGURACIÓN PARA RENDER ---
+# --- CONFIGURACIÓN PARA RENDER ---
 app = Flask(__name__)
-
 @app.route('/')
-def home():
-    return "Darky Slash Edition 💜"
+def home(): return "Darky Roblox Edition 💜"
 
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
+def run(): app.run(host='0.0.0.0', port=8080)
 def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# --- 2. CONFIGURACIÓN DEL BOT ---
+# --- CONFIGURACIÓN DEL BOT ---
 class MyBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
@@ -28,56 +25,55 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="darky!", intents=intents)
 
     async def setup_hook(self):
-        # Esto sincroniza los comandos de barra con Discord
         await self.tree.sync()
-        print(f"¡Comandos slash sincronizados! 💜🤣")
+        print(f"¡Slash commands sincronizados! 💜🤣")
 
 bot = MyBot()
 
-@bot.event
-async def on_ready():
-    print(f'¡MimiBot ya despertó en modo Slash! 💜🤣')
-
-# --- 3. COMANDO /EMBED ---
-@bot.tree.command(name="embed", description="Crea un mensaje embed bien pro")
-@app_commands.describe(
-    canal="Canal donde se enviará (opcional)",
-    titulo="El título del mensaje",
-    descripcion="Lo que dirá el mensaje",
-    color="Color en HEX (ej: #ff0000)",
-    imagen="Link de la imagen (opcional)"
-)
-async def embed(interaction: discord.Interaction, titulo: str, descripcion: str, color: str, canal: Optional[discord.TextChannel] = None, imagen: Optional[str] = None):
+# --- NUEVO COMANDO /ROBLOX ---
+@bot.tree.command(name="roblox", description="Busca el perfil de alguien en Roblox")
+@app_commands.describe(usuario="El nombre de usuario de Roblox")
+async def roblox(interaction: discord.Interaction, usuario: str):
     try:
-        destino = canal or interaction.channel
-        color_hex = int(color.replace("#", ""), 16)
-        
-        embed_final = discord.Embed(title=titulo, description=descripcion, color=color_hex)
-        if imagen:
-            embed_final.set_image(url=imagen)
+        # 1. Buscamos el ID del usuario por su nombre
+        url_busqueda = f"https://users.roblox.com/v1/users/search?keyword={usuario}&limit=1"
+        res = requests.get(url_busqueda).json()
 
-        await destino.send(embed=embed_final)
-        await interaction.response.send_message(f"✅ ¡Ija! Mensaje enviado a {destino.mention}", ephemeral=True)
+        if not res['data']:
+            await interaction.response.send_message(f"Ija ke dice... no encontré a ningún '{usuario}' en Roblox. 💜🤣", ephemeral=True)
+            return
+
+        user_id = res['data'][0]['id']
+        display_name = res['data'][0]['displayName']
+        username = res['data'][0]['name']
+
+        # 2. Buscamos la foto de perfil (Avatar)
+        url_foto = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png&isCircular=false"
+        res_foto = requests.get(url_foto).json()
+        foto_url = res_foto['data'][0]['imageUrl']
+
+        # 3. Armamos el Embed pro
+        embed = discord.Embed(
+            title=f"👤 Perfil de {display_name}",
+            description=f"**Username:** @{username}\n**ID:** `{user_id}`",
+            color=0x00FF00, # Color verde Roblox
+            url=f"https://www.roblox.com/users/{user_id}/profile"
+        )
+        embed.set_thumbnail(url=foto_url)
+        embed.add_field(name="Link al Perfil", value=f"[Haz clic aquí](https://www.roblox.com/users/{user_id}/profile)")
+        embed.set_footer(text="¡Ija! El DarkyBot te lo encontró. 💜🤣")
+
+        await interaction.response.send_message(embed=embed)
+
     except Exception as e:
-        await interaction.response.send_message(f"Ija 💜🤣 Algo salió mal: {e}", ephemeral=True)
+        await interaction.response.send_message(f"Ija 💜🤣 Algo salió mal con la API: {e}", ephemeral=True)
 
-# --- 4. COMANDO /DELETE ---
-@bot.tree.command(name="delete", description="Borra una cantidad de mensajes")
-@app_commands.describe(cantidad="Cuántos mensajes quieres borrar")
-@app_commands.checks.has_permissions(manage_messages=True)
-async def delete(interaction: discord.Interaction, cantidad: int):
-    try:
-        # En Slash commands no podemos borrar el mensaje del comando, así que borramos exactos
-        await interaction.channel.purge(limit=cantidad)
-        await interaction.response.send_message(f"✅ ¡Ija! Borré {cantidad} mensajes. 💜🤣", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"Ija 💜🤣 No tengo permisos o algo pasó: {e}", ephemeral=True)
+# --- (Aquí irían tus otros comandos como embed y delete...) ---
 
-# --- 5. ENCENDIDO ---
 if __name__ == "__main__":
     keep_alive()
     token = os.getenv('TOKEN')
     if token:
         bot.run(token)
     else:
-        print("❌ ERROR: Falta el TOKEN en Render.")
+        print("❌ ERROR: Falta el TOKEN.")
