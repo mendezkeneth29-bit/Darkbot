@@ -4,15 +4,14 @@ import os
 from flask import Flask
 from threading import Thread
 
-# --- 1. CONFIGURACIÓN PARA RENDER (FLASK) ---
+# --- 1. CONFIGURACIÓN PARA RENDER ---
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Darky está vivo y dominando el mundo 💜"
+    return "Darky modo inteligente activado 💜"
 
 def run():
-    # Render usa el puerto 8080 por defecto
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
@@ -21,19 +20,20 @@ def keep_alive():
 
 # --- 2. CONFIGURACIÓN DEL BOT ---
 intents = discord.Intents.default()
-intents.message_content = True # Importante para que lea tus comandos
-
+intents.message_content = True
 bot = commands.Bot(command_prefix="darky!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f'¡MimiBot ya despertó! 💜🤣')
+    print(f'¡MimiBot ya despertó y ahora es adivino! 💜🤣')
 
-# --- 3. COMANDO EMBED CON SELECCIÓN DE CANAL ---
+# --- 3. COMANDO EMBED (CANAL OPCIONAL) ---
 @bot.command()
-async def embed(ctx, canal: discord.TextChannel, titulo, descripcion, color, imagen=None):
+async def embed(ctx, canal: discord.Optional[discord.TextChannel], titulo, descripcion, color, imagen=None):
     try:
-        # Limpiamos el color por si ponen el #
+        # Si no pusiste canal, usamos el canal donde escribiste el comando
+        destino = canal or ctx.channel
+        
         color_limpio = color.replace("#", "")
         color_hex = int(color_limpio, 16)
 
@@ -43,26 +43,24 @@ async def embed(ctx, canal: discord.TextChannel, titulo, descripcion, color, ima
             color=color_hex
         )
 
-        if imagen and imagen.startswith("http"):
+        if imagen:
             embed_final.set_image(url=imagen)
 
-        # Enviamos el embed al canal mencionado
-        await canal.send(embed=embed_final)
-        # Confirmamos en el canal donde se envió el comando
-        await ctx.send(f"✅ Ija, ya envié el mensaje a {canal.mention} 💜")
+        await destino.send(embed=embed_final)
         
+        # Solo avisamos si se envió a OTRO canal para no llenar el chat
+        if canal:
+            await ctx.send(f"✅ ¡Listo! Mensaje enviado a {canal.mention}")
+            
     except Exception as e:
-        await ctx.send(f"Ija ke dice 💜🤣 Algo falló. \nUso: `darky!embed #canal \"Titulo\" \"Desc\" #Color`")
+        await ctx.send(f"Ija 💜🤣 Uso: `darky!embed #canal(opcional) \"Tit\" \"Desc\" #Color` ")
         print(f"Error: {e}")
 
-# --- 4. ENCENDIDO FINAL ---
+# --- 4. ENCENDIDO ---
 if __name__ == "__main__":
-    keep_alive() # Mantiene la web activa
-    
-    # Saca el token de la pestaña Environment de Render
-    token_secreto = os.getenv('TOKEN')
-    
-    if token_secreto:
-        bot.run(token_secreto)
+    keep_alive()
+    token = os.getenv('TOKEN')
+    if token:
+        bot.run(token)
     else:
-        print("❌ ERROR: No hay variable TOKEN en el panel de Render.")
+        print("❌ ERROR: No hay variable TOKEN en Render.")
