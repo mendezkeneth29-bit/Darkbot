@@ -3,6 +3,7 @@ from discord.ext import commands
 import os
 from flask import Flask
 from threading import Thread
+from typing import Optional  # <-- ¡ESTA ES LA QUE FALTABA! 🤣
 
 # --- 1. CONFIGURACIÓN PARA RENDER ---
 app = Flask(__name__)
@@ -29,7 +30,7 @@ async def on_ready():
 
 # --- 3. COMANDO EMBED (CANAL OPCIONAL) ---
 @bot.command()
-async def embed(ctx, canal: discord.Optional[discord.TextChannel], titulo, descripcion, color, imagen=None):
+async def embed(ctx, canal: Optional[discord.TextChannel], titulo, descripcion, color, imagen=None):
     try:
         # Si no pusiste canal, usamos el canal donde escribiste el comando
         destino = canal or ctx.channel
@@ -48,7 +49,6 @@ async def embed(ctx, canal: discord.Optional[discord.TextChannel], titulo, descr
 
         await destino.send(embed=embed_final)
         
-        # Solo avisamos si se envió a OTRO canal para no llenar el chat
         if canal:
             await ctx.send(f"✅ ¡Listo! Mensaje enviado a {canal.mention}")
             
