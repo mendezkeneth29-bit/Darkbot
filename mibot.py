@@ -19,7 +19,10 @@ def run():
 def keep_alive():
     Thread(target=run).start()
 
-# --- DATOS ---
+# --- CONFIG ---
+TOKEN = os.getenv("TOKEN")
+TENOR_KEY = "LIVDSRZULELA"  # clave pública de Tenor
+
 cartera = {}
 cooldowns = {}
 COLOR = 0x000000
@@ -34,6 +37,12 @@ class DarkyBot(commands.Bot):
         await self.tree.sync()
 
 bot = DarkyBot()
+
+# --- FUNCION GIF TENOR ---
+def get_gif(query):
+    url = f"https://g.tenor.com/v1/search?q={query}&key={TENOR_KEY}&limit=10"
+    r = requests.get(url).json()
+    return random.choice(r["results"])["media"][0]["gif"]["url"]
 
 # --- DINERO POR MENSAJE ---
 @bot.event
@@ -50,48 +59,46 @@ async def on_message(message):
 
 # --- CARTERA ---
 @bot.tree.command(name="cartera")
-async def cartera_cmd(interaction: discord.Interaction):
-    money = cartera.get(str(interaction.user.id), 0)
+async def cartera_cmd(i: discord.Interaction):
+    money = cartera.get(str(i.user.id), 0)
 
-    embed = discord.Embed(title="SISTEMA FINANCIERO GLOBAL", color=COLOR)
-    embed.set_thumbnail(url=interaction.user.display_avatar.url)
-
-    embed.description = (
-        f"Usuario: {interaction.user.mention}\n"
-        f"Saldo actual: ${money:,}\n\n"
+    e = discord.Embed(title="SISTEMA FINANCIERO CENTRAL", color=COLOR)
+    e.set_thumbnail(url=i.user.display_avatar.url)
+    e.description = (
+        f"Usuario: {i.user.mention}\n"
+        f"Saldo disponible: ${money:,}\n\n"
         f"{SEP}\n"
-        f"Ingreso automático:\n"
-        f"+5 cada 10 segundos por actividad\n\n"
+        f"Generación automática:\n"
+        f"+5 cada 10 segundos\n"
         f"Estado: ACTIVO"
     )
-
-    await interaction.response.send_message(embed=embed)
+    await i.response.send_message(embed=e)
 
 # --- SHIP ---
 @bot.tree.command(name="ship")
-async def ship(interaction: discord.Interaction, u1: discord.Member, u2: discord.Member):
+async def ship(i: discord.Interaction, u1: discord.Member, u2: discord.Member):
     p = random.randint(0, 100)
 
     img1 = Image.open(io.BytesIO(requests.get(u1.display_avatar.url).content)).resize((256,256))
     img2 = Image.open(io.BytesIO(requests.get(u2.display_avatar.url).content)).resize((256,256))
 
-    final = Image.new("RGBA",(800,256),(0,0,0,0))
+    final = Image.new("RGBA",(820,256),(0,0,0,0))
     final.paste(img1,(0,0))
-    final.paste(img2,(544,0))
+    final.paste(img2,(564,0))
 
     draw = ImageDraw.Draw(final)
 
     try:
-        font = ImageFont.truetype("arial.ttf", 150)
+        font = ImageFont.truetype("arial.ttf", 160)
     except:
         font = ImageFont.load_default()
 
     text = f"{p}%"
     bbox = draw.textbbox((0,0),text,font=font)
-    x = 400 - (bbox[2]//2)
+    x = 410 - (bbox[2]//2)
 
-    draw.text((x+6,90+6),text,fill=(0,0,0),font=font)
-    draw.text((x,90),text,fill=(255,255,255),font=font)
+    draw.text((x+6,80+6),text,fill=(0,0,0),font=font)
+    draw.text((x,80),text,fill=(255,255,255),font=font)
 
     buf = io.BytesIO()
     final.save(buf,"PNG")
@@ -99,65 +106,109 @@ async def ship(interaction: discord.Interaction, u1: discord.Member, u2: discord
 
     file = discord.File(buf,"ship.png")
 
-    embed = discord.Embed(title="ANÁLISIS DE COMPATIBILIDAD", color=COLOR)
-    embed.description = (
-        f"Usuarios analizados:\n"
+    e = discord.Embed(title="ANÁLISIS DE COMPATIBILIDAD", color=COLOR)
+    e.description = (
         f"{u1.mention} + {u2.mention}\n\n"
-        f"Resultado final: {p}%\n\n"
+        f"Resultado: {p}%\n\n"
         f"{SEP}\n"
-        f"Este cálculo es generado por algoritmo aleatorio."
+        f"Compatibilidad generada mediante algoritmo aleatorio."
     )
-    embed.set_image(url="attachment://ship.png")
+    e.set_image(url="attachment://ship.png")
 
-    await interaction.response.send_message(embed=embed,file=file)
+    await i.response.send_message(embed=e,file=file)
 
 # --- REGALAR ---
 @bot.tree.command(name="regalar")
 @app_commands.checks.has_permissions(administrator=True)
-async def regalar(interaction, user:discord.Member, cantidad:int):
+async def regalar(i, user:discord.Member, cantidad:int):
     uid=str(user.id)
     cartera[uid]=cartera.get(uid,0)+cantidad
 
-    embed=discord.Embed(title="TRANSFERENCIA AUTORIZADA",color=COLOR)
-    embed.set_thumbnail(url=user.display_avatar.url)
-
-    embed.description=(
-        f"Usuario beneficiado: {user.mention}\n"
-        f"Monto entregado: ${cantidad:,}\n"
-        f"Autorizado por: {interaction.user.mention}\n"
-        f"Saldo actualizado: ${cartera[uid]:,}\n\n"
-        f"{SEP}"
+    e=discord.Embed(title="TRANSFERENCIA AUTORIZADA",color=COLOR)
+    e.set_thumbnail(url=user.display_avatar.url)
+    e.description=(
+        f"Beneficiario: {user.mention}\n"
+        f"Monto: ${cantidad:,}\n"
+        f"Administrador: {i.user.mention}\n"
+        f"Nuevo saldo: ${cartera[uid]:,}\n\n{SEP}"
     )
+    await i.response.send_message(embed=e)
 
-    await interaction.response.send_message(embed=embed)
+# --- TRANSFERIR ---
+@bot.tree.command(name="transferir")
+async def transferir(i, user:discord.Member, cantidad:int):
+    uid=str(i.user.id)
+    uid2=str(user.id)
 
-# --- GESTOS CON GIFS ---
+    if cartera.get(uid,0)<cantidad:
+        return await i.response.send_message("Fondos insuficientes",ephemeral=True)
+
+    cartera[uid]-=cantidad
+    cartera[uid2]=cartera.get(uid2,0)+cantidad
+
+    e=discord.Embed(title="TRANSFERENCIA EJECUTADA",color=COLOR)
+    e.description=(
+        f"Emisor: {i.user.mention}\n"
+        f"Receptor: {user.mention}\n"
+        f"Monto: ${cantidad:,}\n\n{SEP}"
+    )
+    await i.response.send_message(embed=e)
+
+# --- TRABAJO ---
+@bot.tree.command(name="trabajo")
+async def trabajo(i):
+    dinero=random.randint(50,300)
+    uid=str(i.user.id)
+    cartera[uid]+=dinero
+
+    e=discord.Embed(title="ACTIVIDAD LABORAL COMPLETADA",color=COLOR)
+    e.description=f"Ingreso generado: ${dinero:,}\n\n{SEP}"
+    await i.response.send_message(embed=e)
+
+# --- ROBLOX ---
+@bot.tree.command(name="roblox")
+async def roblox(i,usuario:str):
+    try:
+        r=requests.post("https://users.roblox.com/v1/usernames/users",json={"usernames":[usuario]}).json()
+        if not r["data"]:
+            return await i.response.send_message("No encontrado",ephemeral=True)
+
+        uid=r["data"][0]["id"]
+        avatar=requests.get(f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={uid}&size=420x420&format=Png").json()["data"][0]["imageUrl"]
+
+        e=discord.Embed(title="PERFIL ROBLOX",color=COLOR)
+        e.description=f"Usuario: {usuario}\nID: {uid}"
+        e.set_image(url=avatar)
+
+        await i.response.send_message(embed=e)
+    except:
+        await i.response.send_message("Error",ephemeral=True)
+
+# --- INTERACCIONES CON GIFS ---
 @bot.tree.command(name="beso")
 async def beso(i,u:discord.Member):
-    gifs=["https://media.tenor.com/images/8c4e0.gif"]
+    gif=get_gif("anime kiss")
     e=discord.Embed(title="INTERACCIÓN: BESO",color=COLOR)
     e.description=f"{i.user.mention} besa a {u.mention}"
-    e.set_image(url=random.choice(gifs))
+    e.set_image(url=gif)
     await i.response.send_message(embed=e)
 
 @bot.tree.command(name="abrazo")
 async def abrazo(i,u:discord.Member):
-    gifs=["https://media.tenor.com/images/3c1a7.gif"]
+    gif=get_gif("anime hug")
     e=discord.Embed(title="INTERACCIÓN: ABRAZO",color=COLOR)
     e.description=f"{i.user.mention} abraza a {u.mention}"
-    e.set_image(url=random.choice(gifs))
+    e.set_image(url=gif)
     await i.response.send_message(embed=e)
 
-# --- MÁS COMANDOS DETALLADOS ---
-@bot.tree.command(name="iq")
-async def iq(i,u:Optional[discord.Member]=None):
-    u=u or i.user
-    iq_val=random.randint(50,200)
-
-    e=discord.Embed(title="ANÁLISIS INTELECTUAL AVANZADO",color=COLOR)
-    e.description=f"Usuario: {u.mention}\nResultado IQ: {iq_val}\n\n{SEP}\nEvaluación generada automáticamente."
+@bot.tree.command(name="golpe")
+async def golpe(i,u:discord.Member):
+    gif=get_gif("anime slap")
+    e=discord.Embed(title="INTERACCIÓN: GOLPE",color=COLOR)
+    e.description=f"{i.user.mention} golpea a {u.mention}"
+    e.set_image(url=gif)
     await i.response.send_message(embed=e)
 
 # --- START ---
 keep_alive()
-bot.run(os.getenv("TOKEN"))
+bot.run(TOKEN)
