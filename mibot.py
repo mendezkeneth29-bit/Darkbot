@@ -87,6 +87,7 @@ class DarkyBot(commands.Bot):
 bot = DarkyBot()
 
 # --- 5. COMANDOS DE ECONOMÍA Y JUEGOS ---
+
 @bot.tree.command(name="work", description="Trabajar para el imperio")
 async def work(interaction: discord.Interaction):
     trabajos = ["desarrollador de software", "asesino a sueldo", "minero de criptos", "chef de lujo", "piloto de carreras"]
@@ -138,19 +139,26 @@ async def banco(interaction: discord.Interaction, usuario: Optional[discord.Memb
     emb.set_footer(text=f"Solicitado por {interaction.user.name}")
     await interaction.response.send_message(embed=emb)
 
-@bot.tree.command(name="pay", description="Enviar dinero a alguien")
-async def pay(interaction: discord.Interaction, usuario: discord.Member, cantidad: int):
-    uid, tid = str(interaction.user.id), str(usuario.id)
-    if usuario.bot or usuario == interaction.user or cantidad <= 0:
-        return await interaction.response.send_message("❌ Operación inválida.", ephemeral=True)
-    if banco_datos.get(uid, 0) < cantidad:
-        return await interaction.response.send_message("❌ Saldo insuficiente.", ephemeral=True)
+@bot.tree.command(name="regalar", description="Regalar dinero a otro usuario (Admins tienen infinito)")
+async def regalar(interaction: discord.Interaction, miembro: discord.Member, cantidad: int):
+    uid, tid = str(interaction.user.id), str(miembro.id)
+    es_admin = interaction.user.guild_permissions.administrator
 
-    banco_datos[uid] -= cantidad
+    if miembro.bot or miembro == interaction.user or cantidad <= 0:
+        return await interaction.response.send_message("❌ Operación inválida.", ephemeral=True)
+
+    # Lógica de dinero infinito para Admins / Límite para usuarios
+    if not es_admin:
+        if banco_datos.get(uid, 0) < cantidad:
+            return await interaction.response.send_message(f"❌ No tienes suficiente dinero. Tu saldo es de **${banco_datos.get(uid, 0):,}**.", ephemeral=True)
+        banco_datos[uid] -= cantidad
+    
+    # El dinero siempre se suma al destino
     banco_datos[tid] = banco_datos.get(tid, 0) + cantidad
     
-    emb = discord.Embed(title="💸 TRANSFERENCIA PROCESADA", color=COLOR_SISTEMA)
-    emb.description = f"{SEPARADOR}\nSe ha realizado el envío de capital correctamente.\n{SEPARADOR}"
-    emb.add_field(name="📤 Remitente", value=interaction.user.mention, inline=True)
-    emb.add_field(name="📥 Destinatario", value=usuario.mention, inline=True)
+    emb = discord.Embed(title="💠 TRANSFERENCIA DE CAPITAL", color=COLOR_SISTEMA)
+    status = "Inyección Administrativa (Infinito)" if es_admin else "Transferencia de Usuario"
+    emb.description = f"{SEPARADOR}\n{status}\n{SEPARADOR}"
+    emb.add_field(name="📤 Emisor", value=interaction.user.mention, inline=True)
+    emb.add_field(name="📥 Beneficiario", value=miembro.mention, inline=True)
     emb.add_field(name="💰 Monto", value=f"
