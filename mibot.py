@@ -13,7 +13,7 @@ from typing import Optional
 # --- 1. HOSTING PARA RENDER ---
 app = Flask(__name__)
 @app.route('/')
-def home(): return "Darky Bot Ultimate Online"
+def home(): return "Darky Bot Admin Edition Online"
 
 def run(): app.run(host='0.0.0.0', port=8080)
 def keep_alive():
@@ -33,82 +33,80 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="darky!", intents=intents)
 
     async def setup_hook(self):
-        # Sincroniza todos los comandos slash con Discord
         await self.tree.sync()
-        print("¡Todos los comandos sincronizados con éxito! 💜🤣")
+        print("¡Comandos sincronizados! Incluyendo el poder de Admin. 💜🤣")
 
-    # SISTEMA DE PAGO POR MENSAJE ($5)
     async def on_message(self, message):
         if message.author.bot: return
-        
-        user_id = str(message.author.id)
-        if user_id not in banco_datos:
-            banco_datos[user_id] = 0
-            
-        banco_datos[user_id] += 5 # Pago por actividad
-        
+        uid = str(message.author.id)
+        if uid not in banco_datos: banco_datos[uid] = 0
+        banco_datos[uid] += 5
         await self.process_commands(message)
 
 bot = MyBot()
 
-# --- 4. COMANDOS DE BANCO ---
+# --- 4. COMANDOS DE BANCO & ADMIN ---
 
 @bot.tree.command(name="banco", description="Mira tu saldo bancario")
-@app_commands.describe(usuario="Mira el saldo de alguien más")
 async def banco(interaction: discord.Interaction, usuario: Optional[discord.Member] = None):
     target = usuario or interaction.user
-    user_id = str(target.id)
-    saldo = banco_datos.get(user_id, 0)
-    
-    emb = discord.Embed(title=f"🏦 Banco de {target.display_name}", description=f"Saldo actual: **${saldo}**", color=0x010101)
+    uid = str(target.id)
+    saldo = banco_datos.get(uid, 0)
+    emb = discord.Embed(title=f"🏦 Banco de {target.display_name}", description=f"Saldo: **${saldo}**", color=0x010101)
     emb.set_thumbnail(url=target.display_avatar.url)
-    emb.set_footer(text="Ganas $5 por cada mensaje que envías. 💜")
     await interaction.response.send_message(embed=emb)
 
-@bot.tree.command(name="transferir", description="Envía dinero a un amigo")
-@app_commands.describe(miembro="A quién le das dinero", cantidad="Monto a enviar")
+@bot.tree.command(name="transferir", description="Pásale dinero a un amigo")
 async def transferir(interaction: discord.Interaction, miembro: discord.Member, cantidad: int):
-    autor_id = str(interaction.user.id)
+    aid = str(interaction.user.id)
+    mid = str(miembro.id)
+    if cantidad <= 0 or banco_datos.get(aid, 0) < cantidad:
+        return await interaction.response.send_message("No tienes dinero suficiente, ija. 🤣", ephemeral=True)
+    banco_datos[aid] -= cantidad
+    banco_datos[mid] = banco_datos.get(mid, 0) + cantidad
+    await interaction.response.send_message(f"✅ Has enviado **${cantidad}** a {miembro.mention}.")
+
+# --- COMANDO DE REGALAR (SOLO ADMINS) ---
+@bot.tree.command(name="regalar", description="Genera dinero infinito para alguien (Solo Admins)")
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(miembro="A quién le darás el regalo", cantidad="Monto a generar")
+async def regalar(interaction: discord.Interaction, miembro: discord.Member, cantidad: int):
+    mid = str(miembro.id)
     if cantidad <= 0:
-        return await interaction.response.send_message("Ija ke dice... pon una cantidad válida. 🤣", ephemeral=True)
+        return await interaction.response.send_message("No puedes regalar deudas, ija. 🤣", ephemeral=True)
     
-    saldo_autor = banco_datos.get(autor_id, 0)
-    if saldo_autor < cantidad:
-        return await interaction.response.send_message("No tienes dinero suficiente, estás pobre. 💜🤣", ephemeral=True)
+    # Sumamos el dinero sin quitarle al admin
+    banco_datos[mid] = banco_datos.get(mid, 0) + cantidad
     
-    banco_datos[autor_id] -= cantidad
-    banco_datos[str(miembro.id)] = banco_datos.get(str(miembro.id), 0) + cantidad
-    await interaction.response.send_message(f"✅ Transferencia exitosa: Envaste **${cantidad}** a {miembro.mention}. ¡Ok mañana!")
+    emb = discord.Embed(
+        title="🎁 ¡Regalo de la Administración!",
+        description=f"Se han generado **${cantidad}** dólares para {miembro.mention}.",
+        color=0x010101
+    )
+    emb.set_footer(text="Cortesía del dueño del bot. 💜🤣")
+    await interaction.response.send_message(embed=emb)
 
-# --- 5. COMANDOS SOCIALES Y ENTRETENIMIENTO ---
+# --- 5. COMANDOS SOCIALES ---
 
-@bot.tree.command(name="ship", description="Calcula el amor entre dos personas")
-@app_commands.describe(miembro1="Primer miembro", miembro2="Segundo miembro")
+@bot.tree.command(name="ship", description="Amor entre dos miembros")
 async def ship(interaction: discord.Interaction, miembro1: discord.Member, miembro2: discord.Member):
     await interaction.response.defer()
-    porcentaje = random.randint(1, 100)
-    
-    # Procesamiento de imagen
+    porcent = random.randint(1, 100)
     av1 = io.BytesIO(await miembro1.display_avatar.read())
     av2 = io.BytesIO(await miembro2.display_avatar.read())
     img1 = Image.open(av1).convert("RGBA").resize((200, 200))
     img2 = Image.open(av2).convert("RGBA").resize((200, 200))
-    
     lienzo = Image.new("RGBA", (500, 200), (0, 0, 0, 0))
     lienzo.paste(img1, (0, 0))
     lienzo.paste(img2, (300, 0))
-    
-    output = io.BytesIO()
-    lienzo.save(output, format='PNG')
-    output.seek(0)
-    archivo = discord.File(output, filename="ship.png")
-    
-    emb = discord.Embed(title=f"💘 Nivel de Amor: {porcentaje}%", color=0x010101)
+    out = io.BytesIO()
+    lienzo.save(out, format='PNG')
+    out.seek(0)
+    emb = discord.Embed(title=f"💘 Ship: {porcent}%", color=0x010101)
     emb.set_image(url="attachment://ship.png")
-    await interaction.followup.send(file=archivo, embed=emb)
+    await interaction.followup.send(file=discord.File(out, filename="ship.png"), embed=emb)
 
-@bot.tree.command(name="roblox", description="Busca un perfil de Roblox")
-@app_commands.describe(usuario="Nombre de usuario exacto")
+@bot.tree.command(name="roblox", description="Perfil de Roblox")
 async def roblox(interaction: discord.Interaction, usuario: str):
     await interaction.response.defer()
     headers = {'User-Agent': 'Mozilla/5.0'}
@@ -119,50 +117,43 @@ async def roblox(interaction: discord.Interaction, usuario: str):
             uid = u['id']
             thumb = requests.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={uid}&size=420x420&format=Png", headers=headers).json()
             foto = thumb['data'][0]['imageUrl'] if 'data' in thumb else ""
-            
             emb = discord.Embed(title=f"Perfil de {u['displayName']}", url=f"https://www.roblox.com/users/{uid}/profile", color=0x010101)
-            emb.add_field(name="Usuario", value=f"@{u['name']}")
-            emb.add_field(name="ID", value=f"`{uid}`")
             if foto: emb.set_image(url=foto)
             await interaction.followup.send(embed=emb)
-        else:
-            await interaction.followup.send("No encontré a ese usuario.")
-    except:
-        await interaction.followup.send("Error conectando con la API de Roblox.")
+        else: await interaction.followup.send("No lo encontré.")
+    except: await interaction.followup.send("Error en Roblox.")
 
-@bot.tree.command(name="avatar", description="Muestra el avatar de un usuario")
+@bot.tree.command(name="avatar", description="Mira un avatar")
 async def avatar(interaction: discord.Interaction, usuario: Optional[discord.Member] = None):
     target = usuario or interaction.user
     emb = discord.Embed(title=f"Avatar de {target.name}", color=0x010101)
     emb.set_image(url=target.display_avatar.url)
     await interaction.response.send_message(embed=emb)
 
-@bot.tree.command(name="userinfo", description="Muestra información del miembro")
+@bot.tree.command(name="userinfo", description="Info del miembro")
 async def userinfo(interaction: discord.Interaction, usuario: Optional[discord.Member] = None):
     target = usuario or interaction.user
     emb = discord.Embed(title=f"Info de {target.name}", color=0x010101)
     emb.set_thumbnail(url=target.display_avatar.url)
-    emb.add_field(name="ID", value=f"`{target.id}`", inline=True)
-    emb.add_field(name="Creación", value=target.created_at.strftime("%d/%m/%Y"), inline=True)
+    emb.add_field(name="ID", value=f"`{target.id}`")
     await interaction.response.send_message(embed=emb)
 
-# --- 6. COMANDOS DE MODERACIÓN Y UTILIDAD ---
+# --- 6. UTILIDAD ---
 
-@bot.tree.command(name="embed", description="Crea un mensaje embed personalizado")
+@bot.tree.command(name="embed", description="Crea un embed")
 async def embed(interaction: discord.Interaction, titulo: str, descripcion: str, color: Optional[str] = None):
     try: c = int(color.replace("#", ""), 16) if color else 0x010101
     except: c = 0x010101
     await interaction.channel.send(embed=discord.Embed(title=titulo, description=descripcion, color=c))
-    await interaction.response.send_message("Mensaje enviado correctamente. 💜", ephemeral=True)
+    await interaction.response.send_message("Enviado. 💜", ephemeral=True)
 
-@bot.tree.command(name="delete", description="Borra una cantidad de mensajes")
+@bot.tree.command(name="delete", description="Borra mensajes")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def delete(interaction: discord.Interaction, cantidad: int):
     await interaction.channel.purge(limit=cantidad)
-    await interaction.response.send_message(f"🧹 Se han borrado {cantidad} mensajes.", ephemeral=True)
+    await interaction.response.send_message(f"Borrados {cantidad}.", ephemeral=True)
 
-# --- 7. INICIO DEL BOT ---
+# --- 7. INICIO ---
 if __name__ == "__main__":
     keep_alive()
-    token = os.getenv('TOKEN')
-    bot.run(token)
+    bot.run(os.getenv('TOKEN'))
