@@ -75,12 +75,13 @@ class DarkyBot(commands.Bot):
     async def on_message(self, message):
         if message.author.bot: return
         uid = str(message.author.id)
+        # Ganancia pasiva por mensaje
         banco_datos[uid] = banco_datos.get(uid, 0) + 2
         await self.process_commands(message)
 
 bot = DarkyBot()
 
-# --- 5. COMANDOS DE ECONOMÍA ---
+# --- 5. COMANDOS DE ECONOMÍA Y TIENDA ---
 @bot.tree.command(name="work", description="Realizar un turno laboral")
 async def work(interaction: discord.Interaction):
     ganancia = random.randint(80, 300)
@@ -107,14 +108,28 @@ async def pay(interaction: discord.Interaction, usuario: discord.Member, cantida
     banco_datos[str(usuario.id)] = banco_datos.get(str(usuario.id), 0) + cantidad
     await interaction.response.send_message(f"✅ Has enviado **${cantidad}** a {usuario.mention}.")
 
-@bot.tree.command(name="regalar", description="Dar dinero administrativo (Solo Admin)")
+@bot.tree.command(name="tienda_config", description="Configurar un rol en la tienda (Admin)")
 @app_commands.checks.has_permissions(administrator=True)
-async def regalar(interaction: discord.Interaction, miembro: discord.Member, cantidad: int):
-    uid = str(miembro.id)
-    banco_datos[uid] = banco_datos.get(uid, 0) + cantidad
-    emb = discord.Embed(title="🎁 DEPÓSITO ADMINISTRATIVO", color=COLOR_BOT)
-    emb.description = f"Se han acreditado **${cantidad:,}** a {miembro.mention}.\nBalance actual: **${banco_datos[uid]:,}**"
-    await interaction.response.send_message(embed=emb)
+async def tienda_config(interaction: discord.Interaction, rol: discord.Role, precio: int, stock: int):
+    tienda_roles[rol.id] = {"precio": precio, "stock": stock, "nombre": rol.name}
+    await interaction.response.send_message(f"✅ Rol {rol.name} configurado a ${precio}.", ephemeral=True)
+
+@bot.tree.command(name="tienda", description="Ver catálogo de la tienda")
+async def tienda(interaction: discord.Interaction):
+    if not tienda_roles:
+        return await interaction.response.send_message("🛒 La tienda está vacía actualmente.", ephemeral=True)
+    
+    options = []
+    emb = discord.Embed(title="🏪 CATÁLOGO DE ELITE", color=COLOR_BOT)
+    for rid, data in tienda_roles.items():
+        if data['stock'] > 0:
+            emb.add_field(name=data['nombre'], value=f"💰 `${data['precio']}` | 📦 `{data['stock']}`")
+            options.append(discord.SelectMenuOption(label=data['nombre'], value=str(rid), description=f"Precio: ${data['precio']}"))
+    
+    if not options:
+        options.append(discord.SelectMenuOption(label="Sin stock", value="none"))
+        
+    await interaction.response.send_message(embed=emb, view=TiendaView(options))
 
 # --- 6. COMANDOS DE ENTRETENIMIENTO ---
 @bot.tree.command(name="roblox", description="Muestra perfil de Roblox")
@@ -146,12 +161,46 @@ async def ship(interaction: discord.Interaction, m1: discord.Member, m2: discord
     emb.set_image(url="attachment://ship.png")
     await interaction.followup.send(file=discord.File(o, filename="ship.png"), embed=emb)
 
+@bot.tree.command(name="avatar", description="Ver el avatar de un usuario")
+async def avatar(interaction: discord.Interaction, usuario: Optional[discord.Member] = None):
+    t = usuario or interaction.user
+    emb = discord.Embed(title=f"Avatar de {t.name}", color=COLOR_BOT)
+    emb.set_image(url=t.display_avatar.url)
+    await interaction.response.send_message(embed=emb)
+
 # --- 7. ADMINISTRACIÓN ---
 @bot.tree.command(name="delete", description="Limpiar mensajes")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def delete(interaction: discord.Interaction, cantidad: int):
     await interaction.channel.purge(limit=cantidad)
     await interaction.response.send_message(f"✅ Se han borrado {cantidad} mensajes.", ephemeral=True)
+
+@bot.tree.command(name="regalar", description="Dar dinero administrativo (Solo Admin)")
+@app_commands.checks.has_permissions(administrator=True)
+async def regalar(interaction: discord.Interaction, miembro: discord.Member, cantidad: int):
+    uid = str(miembro.id)
+    banco_datos[uid] = banco_datos.get(uid, 0) + cantidad
+    emb = discord.Embed(title="🎁 DEPÓSITO ADMINISTRATIVO", color=COLOR_BOT)
+    emb.description = f"Se han acreditado **${cantidad:,}** a {miembro.mention}.\nBalance actual: **${banco_datos[uid]:,}**"
+    await interaction.response.send_message(embed=emb)
+
+@bot.tree.command(name="giveaway", description="Lanzar un sorteo de dinero")
+@app_commands.checks.has_permissions(administrator=True)
+async def giveaway(interaction: discord.Interaction, premio: int, tiempo_segundos: int, canal: discord.TextChannel):
+    view = GiveawayView(timeout=tiempo_segundos)
+    final = int(time.time() + tiempo_segundos)
+    emb = discord.Embed(title="🎉 ¡SORTEO DE CAPITAL!", color=COLOR_BOT)
+    emb.description = f"💰 **Premio:** `${premio:,}`\n⏰ **Termina:** <t:{final}:R>\n\n¡Haz clic en el botón de abajo para entrar!"
+    await interaction.response.send_message(f"Sorteo iniciado en {canal.mention}", ephemeral=True)
+    msg = await canal.send(embed=emb, view=view)
+    
+    await asyncio.sleep(tiempo_segundos)
+    if not view.participantes:
+        return await canal.send(f"❌ El sorteo por **${premio}** terminó sin participantes.")
+    
+    ganador = random.choice(view.participantes)
+    banco_datos[str(ganador.id)] = banco_datos.get(str(ganador.id), 0) + premio
+    await canal.send(f"🏆 ¡Felicidades {ganador.mention}! Ganaste el sorteo de **${premio:,}**.")
 
 # --- 8. EJECUCIÓN ---
 if __name__ == "__main__":
