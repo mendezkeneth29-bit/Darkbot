@@ -1,12 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import os
-import requests
-import random
-import io
-import asyncio
-import time
+import os, requests, random, io, asyncio, time
 from PIL import Image
 from flask import Flask
 from threading import Thread
@@ -15,173 +10,151 @@ from typing import Optional
 # --- 1. HOSTING ---
 app = Flask(__name__)
 @app.route('/')
-def home(): return "Darky Bot Giveaway Elite Online"
-
+def home(): return "Darky Bot Mega Store Online"
 def run(): app.run(host='0.0.0.0', port=8080)
 def keep_alive():
-    t = Thread(target=run)
-    t.daemon = True
-    t.start()
+    t = Thread(target=run); t.daemon = True; t.start()
 
-# --- 2. BASE DE DATOS DEL BANCO ---
+# --- 2. BASES DE DATOS TEMPORALES ---
 banco_datos = {}
+tienda_roles = {} # Estructura: {rol_id: {"precio": int, "stock": int, "nombre": str}}
 
-# --- 3. VISTA DEL BOTÓN DE PARTICIPAR ---
+# --- 3. VISTAS (TIENDA Y SORTEOS) ---
+
+class TiendaView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        options = []
+        for rid, data in tienda_roles.items():
+            if data['stock'] > 0:
+                options.append(discord.SelectMenuOption(
+                    label=data['nombre'], 
+                    value=str(rid), 
+                    description=f"Precio: ${data['precio']} | Stock: {data['stock']}"
+                ))
+        
+        if not options:
+            options.append(discord.SelectMenuOption(label="Sin stock", value="none"))
+
+        self.add_item(TiendaSelect(options))
+
+class TiendaSelect(discord.ui.Select):
+    def __init__(self, options):
+        super().__init__(placeholder="Selecciona un rol para comprar...", options=options, custom_id="select_tienda")
+
+    async def callback(self, interaction: discord.Interaction):
+        role_id = self.values[0]
+        if role_id == "none": return await interaction.response.send_message("No hay nada que comprar, ija. 🤣", ephemeral=True)
+        
+        data = tienda_roles.get(int(role_id))
+        user_id = str(interaction.user.id)
+        user_money = banco_datos.get(user_id, 0)
+
+        if user_money < data['precio']:
+            return await interaction.response.send_message(f"Estás pobre, te faltan ${data['precio'] - user_money}. 💜🤣", ephemeral=True)
+        
+        if data['stock'] <= 0:
+            return await interaction.response.send_message("¡Se agotó! Ok mañana. 💔", ephemeral=True)
+
+        # Proceso de compra
+        role = interaction.guild.get_role(int(role_id))
+        if role in interaction.user.roles:
+            return await interaction.response.send_message("¡Ya tienes este rol! No gastes por gastar. 🤣", ephemeral=True)
+
+        banco_datos[user_id] -= data['precio']
+        tienda_roles[int(role_id)]['stock'] -= 1
+        await interaction.user.add_roles(role)
+        
+        await interaction.response.send_message(f"✅ ¡Compraste **{data['nombre']}**! Se te descontaron ${data['precio']}. ¡YIPIEEE! 💜", ephemeral=True)
+
 class GiveawayView(discord.ui.View):
     def __init__(self, timeout):
         super().__init__(timeout=timeout)
         self.participantes = []
-
-    @discord.ui.button(label="Participar 🎉", style=discord.ButtonStyle.green, custom_id="participar_btn")
+    @discord.ui.button(label="Participar 🎉", style=discord.ButtonStyle.green, custom_id="giveaway_btn")
     async def participar(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user in self.participantes:
-            return await interaction.response.send_message("¡Ija ke dice! Ya estás participando, no te desesperes. 🤣", ephemeral=True)
-        
+        if interaction.user in self.participantes: return await interaction.response.send_message("Ya estás dentro, ija. 🤣", ephemeral=True)
         self.participantes.append(interaction.user)
-        await interaction.response.send_message("¡Ok mañana! Te has anotado correctamente. 💜", ephemeral=True)
+        await interaction.response.send_message("¡Ok mañana! Anotado. 💜", ephemeral=True)
 
-# --- 4. CONFIGURACIÓN DEL BOT ---
+# --- 4. BOT CORE ---
 class MyBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        intents.members = True 
-        intents.message_content = True
+        intents.members = True; intents.message_content = True
         super().__init__(command_prefix="darky!", intents=intents)
 
     async def setup_hook(self):
         await self.tree.sync()
-        print("¡Sistema de Sorteos Elite Sincronizado! 💜🤣")
+        print("¡Sincronización Total! Banco, Tienda y Sorteos listos. 💜🤣")
 
     async def on_message(self, message):
         if message.author.bot: return
         uid = str(message.author.id)
-        if uid not in banco_datos: banco_datos[uid] = 0
-        banco_datos[uid] += 5
+        banco_datos[uid] = banco_datos.get(uid, 0) + 5
         await self.process_commands(message)
 
 bot = MyBot()
 
-# --- 5. COMANDO GIVEAWAY ELITE ---
+# --- 5. COMANDOS DE TIENDA (ADMIN) ---
 
-@bot.tree.command(name="giveaway", description="Crea un sorteo de dinero con depósito automático")
+@bot.tree.command(name="tienda_config", description="Agrega o actualiza un rol en la tienda")
 @app_commands.checks.has_permissions(administrator=True)
-@app_commands.choices(unidad=[
-    app_commands.Choice(name="Minutos", value="m"),
-    app_commands.Choice(name="Horas", value="h"),
-    app_commands.Choice(name="Días", value="d")
-])
-@app_commands.describe(
-    tiempo="Número de minutos/horas/días", 
-    unidad="Elige la unidad de tiempo", 
-    premio="Cantidad de dólares a regalar", 
-    canal_ganador="Canal donde se anunciará al ganador"
-)
-async def giveaway(
-    interaction: discord.Interaction, 
-    tiempo: int, 
-    unidad: str, 
-    premio: int, 
-    canal_ganador: discord.TextChannel
-):
-    # Calcular segundos totales
-    segundos = tiempo * 60 if unidad == "m" else tiempo * 3600 if unidad == "h" else tiempo * 86400
+async def tienda_config(interaction: discord.Interaction, rol: discord.Role, precio: int, stock: int):
+    tienda_roles[rol.id] = {"precio": precio, "stock": stock, "nombre": rol.name}
+    await interaction.response.send_message(f"✅ Rol **{rol.name}** configurado a ${precio} con {stock} unidades. ¡Ok mañana! 💜", ephemeral=True)
+
+@bot.tree.command(name="tienda", description="Abre la tienda de roles")
+async def tienda(interaction: discord.Interaction):
+    if not tienda_roles:
+        return await interaction.response.send_message("La tienda está vacía, ija ke dice. 🤣", ephemeral=True)
     
-    if premio <= 0:
-        return await interaction.response.send_message("¡Ija! No puedes sortear deudas. Pon un premio real. 🤣", ephemeral=True)
-
-    finaliza_en = int(time.time() + segundos)
-    view = GiveawayView(timeout=segundos)
+    emb = discord.Embed(title="🏪 DARKY STORE - ROLES EXCLUSIVOS", description="Usa tus dólares ganados por chatear para comprar rangos.", color=0x010101)
+    for rid, data in tienda_roles.items():
+        emb.add_field(name=data['nombre'], value=f"💰 Precio: `${data['precio']}`\n📦 Stock: `{data['stock']}`", inline=True)
     
-    # Embed del sorteo (El que todos ven)
-    emb = discord.Embed(
-        title="🎊 ¡GRAN SORTEO DE DÓLARES! 🎊",
-        description=f"Participa para ganar una fortuna del DarkyBot.\n\n"
-                    f"💰 **Premio:** `${premio}` dólares\n"
-                    f"📢 **Se anuncia en:** {canal_ganador.mention}\n"
-                    f"⏰ **Finaliza:** <t:{finaliza_en}:R>",
-        color=0x010101
-    )
-    emb.set_footer(text="Haz clic en el botón de abajo para entrar. 💜")
+    await interaction.response.send_message(embed=emb, view=TiendaView())
 
-    await interaction.response.send_message(f"Sorteo iniciado con éxito. Suerte a todos. 🚀", ephemeral=True)
-    mensaje_sorteo = await interaction.channel.send(embed=emb, view=view)
+# --- 6. COMANDO GIVEAWAY ELITE ---
 
-    # Esperar el tiempo configurado
-    await asyncio.sleep(segundos)
-
-    # Desactivar el botón al terminar
-    view.children[0].disabled = True
-    await mensaje_sorteo.edit(view=view)
-
-    # Lógica del ganador al azar
-    if not view.participantes:
-        return await canal_ganador.send(f"❌ El sorteo de **${premio}** terminó, pero nadie se anotó. Ija ke dice... 💔🤣")
-
+@bot.tree.command(name="giveaway", description="Sorteo con depósito automático")
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.choices(unidad=[app_commands.Choice(name="Minutos", value="m"), app_commands.Choice(name="Horas", value="h")])
+async def giveaway(interaction: discord.Interaction, tiempo: int, unidad: str, premio: int, canal_ganador: discord.TextChannel):
+    seg = tiempo * 60 if unidad == "m" else tiempo * 3600
+    finaliza = int(time.time() + seg)
+    view = GiveawayView(timeout=seg)
+    emb = discord.Embed(title="🎊 SORTEO ACTIVO 🎊", description=f"💰 **Premio:** `${premio}`\n⏰ **Termina:** <t:{finaliza}:R>", color=0x010101)
+    await interaction.response.send_message("Sorteo lanzado. 🚀", ephemeral=True)
+    msg = await interaction.channel.send(embed=emb, view=view)
+    await asyncio.sleep(seg)
+    if not view.participantes: return await canal_ganador.send("Nadie participó. 🤣")
     ganador = random.choice(view.participantes)
-    uid_ganador = str(ganador.id)
+    banco_datos[str(ganador.id)] = banco_datos.get(str(ganador.id), 0) + premio
+    await canal_ganador.send(f"🏆 ¡{ganador.mention} ganó **${premio}**! Depositados. 💜🤣")
 
-    # DEPÓSITO AUTOMÁTICO AL BANCO
-    banco_datos[uid_ganador] = banco_datos.get(uid_ganador, 0) + premio
+# --- 7. COMANDOS BÁSICOS (BANCO, SHIP, ROBLOX, DELETE) ---
 
-    # Embed del Ganador
-    emb_win = discord.Embed(
-        title="🏆 ¡TENEMOS UN GANADOR! 🏆",
-        description=f"¡Felicidades {ganador.mention}!\n\n"
-                    f"Has ganado el premio de **${premio}** dólares.\n"
-                    f"💸 **Estado:** Dinero depositado automáticamente en tu `/banco`.\n\n"
-                    f"🔗 [Ver sorteo original]({mensaje_sorteo.jump_url})",
-        color=0x010101
-    )
-    emb_win.set_thumbnail(url=ganador.display_avatar.url)
-    emb_win.set_footer(text="¡Gracias por participar! Ok mañana. 💜🤣")
-    
-    await canal_ganador.send(content=f"¡Felicidades {ganador.mention}! 🎉", embed=emb_win)
-
-# --- 6. COMANDOS DE BANCO & GESTIÓN ---
-
-@bot.tree.command(name="banco", description="Mira tu saldo")
+@bot.tree.command(name="banco", description="Mira tu dinero")
 async def banco(interaction: discord.Interaction, usuario: Optional[discord.Member] = None):
     target = usuario or interaction.user
-    saldo = banco_datos.get(str(target.id), 0)
-    emb = discord.Embed(title=f"🏦 Banco de {target.display_name}", description=f"Saldo: **${saldo}**", color=0x010101)
-    await interaction.response.send_message(embed=emb)
+    await interaction.response.send_message(embed=discord.Embed(title=f"🏦 Banco de {target.name}", description=f"Saldo: **${banco_datos.get(str(target.id), 0)}**", color=0x010101))
 
-@bot.tree.command(name="transferir", description="Envía dinero a alguien")
-async def transferir(interaction: discord.Interaction, miembro: discord.Member, cantidad: int):
-    aid = str(interaction.user.id)
-    if cantidad <= 0 or banco_datos.get(aid, 0) < cantidad:
-        return await interaction.response.send_message("No tienes fondos o cantidad inválida, ija. 🤣", ephemeral=True)
-    banco_datos[aid] -= cantidad
-    banco_datos[str(miembro.id)] = banco_datos.get(str(miembro.id), 0) + cantidad
-    await interaction.response.send_message(f"✅ Has enviado **${cantidad}** a {miembro.mention}.")
-
-# --- 7. OTROS COMANDOS (SHIP, ROBLOX) ---
-
-@bot.tree.command(name="ship", description="Nivel de amor")
-async def ship(interaction: discord.Interaction, miembro1: discord.Member, miembro2: discord.Member):
+@bot.tree.command(name="ship", description="Amor")
+async def ship(interaction: discord.Interaction, m1: discord.Member, m2: discord.Member):
     await interaction.response.defer()
     p = random.randint(1, 100)
-    av1 = io.BytesIO(await miembro1.display_avatar.read()); av2 = io.BytesIO(await miembro2.display_avatar.read())
+    av1 = io.BytesIO(await m1.display_avatar.read()); av2 = io.BytesIO(await m2.display_avatar.read())
     i1 = Image.open(av1).convert("RGBA").resize((200, 200)); i2 = Image.open(av2).convert("RGBA").resize((200, 200))
     l = Image.new("RGBA", (500, 200), (0, 0, 0, 0)); l.paste(i1, (0, 0)); l.paste(i2, (300, 0))
     o = io.BytesIO(); l.save(o, format='PNG'); o.seek(0)
-    await interaction.followup.send(file=discord.File(o, filename="s.png"), embed=discord.Embed(title=f"💘 Ship: {p}%", color=0x010101).set_image(url="attachment://s.png"))
+    await interaction.followup.send(file=discord.File(o, filename="s.png"), embed=discord.Embed(title=f"💘 {p}%", color=0x010101).set_image(url="attachment://s.png"))
 
-@bot.tree.command(name="roblox", description="Perfil de Roblox")
-async def roblox(interaction: discord.Interaction, usuario: str):
-    await interaction.response.defer()
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        r = requests.post("https://users.roblox.com/v1/usernames/users", json={"usernames": [usuario], "excludeBannedUsers": False}, headers=headers).json()
-        if 'data' in r and r['data']:
-            u = r['data'][0]; uid = u['id']
-            thumb = requests.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={uid}&size=420x420&format=Png", headers=headers).json()
-            foto = thumb['data'][0]['imageUrl'] if 'data' in thumb else ""
-            emb = discord.Embed(title=f"Perfil de {u['displayName']}", url=f"https://www.roblox.com/users/{uid}/profile", color=0x010101)
-            if foto: emb.set_image(url=foto)
-            await interaction.followup.send(embed=emb)
-        else: await interaction.followup.send("No lo encontré.")
-    except: await interaction.followup.send("Error en Roblox.")
+@bot.tree.command(name="delete", description="Borrar mensajes")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def delete(interaction: discord.Interaction, cantidad: int):
+    await interaction.channel.purge(limit=cantidad)
+    await interaction.response.send_message(f"Borrados {cantidad}. 💜", ephemeral=True)
 
 # --- 8. EJECUCIÓN ---
 if __name__ == "__main__":
