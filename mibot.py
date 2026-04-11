@@ -31,14 +31,17 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
-# --- 3. LÓGICA DE MÚSICA (BUSCAR Y DESCARGAR) ---
+# --- 3. LÓGICA DE MÚSICA ---
 def buscar_y_descargar(nombre_cancion):
+    # Nombre de archivo fijo para evitar caracteres raros
+    archivo_destino = "audio_descargado.mp3"
+    
     ydl_opts = {
         'format': 'bestaudio/best',
         'noplaylist': True,
         'quiet': True,
         'default_search': 'ytsearch1',
-        'outtmpl': 'cancion.mp3', # Nombre temporal del archivo
+        'outtmpl': archivo_destino,
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -50,34 +53,37 @@ def buscar_y_descargar(nombre_cancion):
             return {
                 'titulo': info.get('title'),
                 'portada': info.get('thumbnail'),
-                'archivo': 'cancion.mp3'
+                'archivo': archivo_destino
             }
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error en descarga: {e}")
             return None
 
 # --- 4. COMANDOS SLASH ---
 
-@bot.tree.command(name="play", description="Busca una canción y envía el audio")
+@bot.tree.command(name="play", description="Busca una canción y envía el audio con su portada")
 @app_commands.describe(cancion="Nombre de la canción o artista")
 async def play(interaction: discord.Interaction, cancion: str):
-    await interaction.response.defer() # Esto da tiempo porque descargar audio tarda
+    await interaction.response.defer() # Da tiempo para descargar
     
     datos = buscar_y_descargar(cancion)
     
     if datos:
-        emb = discord.Embed(title=f"🎵 {datos['titulo']}", color=0x010101)
-        emb.set_image(url=datos['portada'])
+        embed = discord.Embed(
+            title=f"🎶 {datos['titulo']}", 
+            color=0x010101
+        )
+        embed.set_image(url=datos['portada'])
         
-        # Enviamos el embed con la portada y el archivo de audio
-        archivo_audio = discord.File(datos['archivo'], filename=f"{datos['titulo']}.mp3")
-        await interaction.followup.send(embed=emb, file=archivo_audio)
+        archivo = discord.File(datos['archivo'], filename="musica.mp3")
         
-        # Borramos el archivo después de enviarlo para no llenar el disco de Render
+        await interaction.followup.send(embed=embed, file=archivo)
+        
+        # Limpiar archivo después de enviar
         if os.path.exists(datos['archivo']):
             os.remove(datos['archivo'])
     else:
-        await interaction.followup.send("No pude encontrar o descargar esa canción.")
+        await interaction.followup.send("No encontré la canción.")
 
 @bot.tree.command(name="delete", description="Borra mensajes")
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -94,7 +100,7 @@ async def roblox(interaction: discord.Interaction, usuario: str):
         emb = discord.Embed(title=f"Perfil de {u['displayName']}", url=f"https://www.roblox.com/users/{u['id']}/profile", color=0x010101)
         await interaction.followup.send(embed=emb)
     else:
-        await interaction.followup.send("Usuario no encontrado.")
+        await interaction.followup.send("No encontrado.")
 
 # --- 5. EJECUCIÓN ---
 if __name__ == "__main__":
