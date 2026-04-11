@@ -159,43 +159,44 @@ async def roblox(interaction: discord.Interaction, usuario: str):
     except:
         await interaction.response.send_message("Error en Roblox", ephemeral=True)
 
-# --- SHIP ---
+# --- SHIP PRO ---
 @bot.tree.command(name="ship", description="Shipear")
 async def ship(interaction: discord.Interaction, u1: discord.Member, u2: discord.Member):
     porcentaje = random.randint(0, 100)
 
     if porcentaje < 30:
-        msg = "No funciona"
+        msg = "Compatibilidad muy baja"
     elif porcentaje < 60:
-        msg = "Puede que funcione"
+        msg = "Relación inestable"
     elif porcentaje < 85:
-        msg = "Buena química"
+        msg = "Buena conexión"
     else:
-        msg = "Muy compatibles"
+        msg = "Compatibilidad casi perfecta"
 
     img1 = Image.open(io.BytesIO(requests.get(u1.display_avatar.url).content)).convert("RGBA").resize((256,256))
     img2 = Image.open(io.BytesIO(requests.get(u2.display_avatar.url).content)).convert("RGBA").resize((256,256))
 
-    final = Image.new("RGBA", (600, 256), (0, 0, 0, 0))
+    final = Image.new("RGBA", (700, 256), (0, 0, 0, 0))
     final.paste(img1, (0, 0))
-    final.paste(img2, (344, 0))
+    final.paste(img2, (444, 0))
 
     draw = ImageDraw.Draw(final)
 
     texto = f"{porcentaje}%"
 
     try:
-        font = ImageFont.truetype("arial.ttf", 60)
+        font = ImageFont.truetype("arial.ttf", 90)
     except:
-        font = None
+        font = ImageFont.load_default()
 
     bbox = draw.textbbox((0,0), texto, font=font)
     w = bbox[2] - bbox[0]
     h = bbox[3] - bbox[1]
 
-    x = 300 - (w // 2)
+    x = 350 - (w // 2)
     y = (256 - h) // 2
 
+    draw.text((x+3, y+3), texto, fill=(0,0,0), font=font)
     draw.text((x, y), texto, fill=(255,255,255), font=font)
 
     buffer = io.BytesIO()
@@ -204,11 +205,37 @@ async def ship(interaction: discord.Interaction, u1: discord.Member, u2: discord
 
     file = discord.File(buffer, "ship.png")
 
-    embed = discord.Embed(title="SHIP RESULT", color=COLOR)
-    embed.description = f"{msg}\n{u1.mention} + {u2.mention}"
+    embed = discord.Embed(title="ANÁLISIS DE COMPATIBILIDAD", color=COLOR)
+    embed.description = (
+        f"{msg}\n\n"
+        f"Usuario 1: {u1.mention}\n"
+        f"Usuario 2: {u2.mention}\n"
+        f"Resultado: {porcentaje}%"
+    )
     embed.set_image(url="attachment://ship.png")
 
     await interaction.response.send_message(embed=embed, file=file)
+
+# --- DADO ---
+@bot.tree.command(name="dado", description="Lanzar dado")
+async def dado(interaction: discord.Interaction):
+    num = random.randint(1, 6)
+
+    embed = discord.Embed(title="LANZAMIENTO DE DADO", color=COLOR)
+    embed.description = f"Resultado: {num}"
+
+    await interaction.response.send_message(embed=embed)
+
+# --- IQ ---
+@bot.tree.command(name="iq", description="Medir IQ")
+async def iq(interaction: discord.Interaction, usuario: Optional[discord.Member]=None):
+    u = usuario or interaction.user
+    iq_val = random.randint(50, 200)
+
+    embed = discord.Embed(title="ANÁLISIS INTELECTUAL", color=COLOR)
+    embed.description = f"{u.mention} tiene un IQ de {iq_val}"
+
+    await interaction.response.send_message(embed=embed)
 
 # --- EMBED ---
 @bot.tree.command(name="embed", description="Crear embed")
