@@ -8,10 +8,10 @@ from flask import Flask
 from threading import Thread
 from typing import Optional
 
-# --- 1. HOSTING (RENDER) ---
+# --- 1. HOSTING (PARA QUE RENDER NO SE APAGUE) ---
 app = Flask(__name__)
 @app.route('/')
-def home(): return "Darky Bot Final Online"
+def home(): return "Darky Bot v2.0 Online"
 
 def run(): app.run(host='0.0.0.0', port=8080)
 def keep_alive():
@@ -27,102 +27,93 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="darky!", intents=intents)
 
     async def setup_hook(self):
+        # Sincroniza los comandos para que aparezcan en Discord
         await self.tree.sync()
-        print("Todos los comandos han sido sincronizados.")
+        print("Comandos sincronizados con Discord.")
 
 bot = MyBot()
 
-# --- 3. LÓGICA DE BÚSQUEDA DE MÚSICA ---
-def buscar_musica(nombre):
-    ydl_opts = {
-        'format': 'best',
-        'quiet': True,
-        'default_search': 'ytsearch1',
-        'noplaylist': True,
-    }
+# --- 3. COMANDOS SLASH ---
+
+# --- COMANDO MÚSICA (PLAY) ---
+@bot.tree.command(name="play", description="Busca una canción y muestra su portada")
+@app_commands.describe(cancion="¿Qué canción quieres?")
+async def play(interaction: discord.Interaction, cancion: str):
+    await interaction.response.defer() # Da tiempo para buscar
+    
+    ydl_opts = {'format': 'best', 'quiet': True, 'default_search': 'ytsearch1', 'noplaylist': True}
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
-            info = ydl.extract_info(nombre, download=False)
-            if 'entries' in info:
-                info = info['entries'][0]
-            return {
-                'titulo': info.get('title'),
-                'url': info.get('webpage_url'),
-                'portada': info.get('thumbnail')
-            }
-        except:
-            return None
+            info = ydl.extract_info(cancion, download=False)
+            if 'entries' in info: info = info['entries'][0]
+            
+            emb = discord.Embed(
+                title=info.get('title'),
+                url=info.get('webpage_url'),
+                description=f"🎶 **[Escuchar en YouTube]({info.get('webpage_url')})**",
+                color=0x010101
+            )
+            emb.set_image(url=info.get('thumbnail'))
+            await interaction.followup.send(embed=emb)
+        except Exception as e:
+            await interaction.followup.send("❌ No encontré esa canción.")
 
-# --- 4. COMANDOS SLASH ---
-
-# --- COMANDO: PLAY (MÚSICA) ---
-@bot.tree.command(name="play", description="Busca una canción y muestra su portada")
-@app_commands.describe(cancion="Nombre de la canción")
-async def play(interaction: discord.Interaction, cancion: str):
+# --- COMANDO ROBLOX (REPARADO) ---
+@bot.tree.command(name="roblox", description="Busca un perfil de Roblox")
+@app_commands.describe(usuario="Nombre de usuario de Roblox")
+async def roblox(interaction: discord.Interaction, usuario: str):
     await interaction.response.defer()
-    datos = buscar_musica(cancion)
-    if datos:
-        embed = discord.Embed(
-            title=datos['titulo'],
-            url=datos['url'],
-            description=f"✅ [Haz clic aquí para escuchar en YouTube]({datos['url']})",
-            color=0x010101
-        )
-        embed.set_image(url=datos['portada'])
-        await interaction.followup.send(embed=embed)
-    else:
-        await interaction.followup.send("No encontré la canción.")
-
-# --- COMANDO: EMBED (PERSONALIZADO) ---
-@bot.tree.command(name="embed", description="Crea un mensaje embed elegante")
-@app_commands.describe(
-    titulo="El título del embed", 
-    descripcion="El texto del mensaje", 
-    color="Color en HEX (ej: #FF5733 o deja vacío para negro)"
-)
-async def embed_slash(interaction: discord.Interaction, titulo: str, descripcion: str, color: Optional[str] = None):
-    # Si no pones color, se pone negro (0x010101)
+    
+    # Usamos headers para que Roblox no nos bloquee
+    headers = {'User-Agent': 'Mozilla/5.0'}
     try:
-        if color:
-            color_hex = int(color.replace("#", ""), 16)
+        # 1. Buscamos el ID del usuario
+        url_id = f"https://users.roblox.com/v1/users/search?keyword={usuario}&limit=1"
+        res_id = requests.get(url_id, headers=headers).json()
+        
+        if 'data' in res_id and res_id['data']:
+            user = res_id['data'][0]
+            uid = user['id']
+            
+            # 2. Buscamos la miniatura (avatar)
+            url_thumb = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={uid}&size=420x420&format=Png"
+            res_thumb = requests.get(url_thumb, headers=headers).json()
+            foto = res_thumb['data'][0]['imageUrl'] if 'data' in res_thumb else ""
+
+            emb = discord.Embed(
+                title=f"Perfil de {user['displayName']}",
+                url=f"https://www.roblox.com/users/{uid}/profile",
+                color=0x010101
+            )
+            emb.add_field(name="Usuario", value=f"@{user['name']}", inline=True)
+            emb.add_field(name="ID", value=f"`{uid}`", inline=True)
+            if foto: emb.set_thumbnail(url=foto)
+            
+            await interaction.followup.send(embed=emb)
         else:
-            color_hex = 0x010101
+            await interaction.followup.send("❌ No encontré a ese usuario en Roblox.")
     except:
-        color_hex = 0x010101
+        await interaction.followup.send("❌ Error al conectar con Roblox.")
 
-    emb = discord.Embed(title=titulo, description=descripcion, color=color_hex)
+# --- COMANDO EMBED ---
+@bot.tree.command(name="embed", description="Crea un mensaje embed")
+async def embed(interaction: discord.Interaction, titulo: str, descripcion: str, color: Optional[str] = None):
+    try:
+        c = int(color.replace("#", ""), 16) if color else 0x010101
+    except:
+        c = 0x010101
+    emb = discord.Embed(title=titulo, description=descripcion, color=c)
     await interaction.channel.send(embed=emb)
-    await interaction.response.send_message("¡Embed enviado!", ephemeral=True)
+    await interaction.response.send_message("Embed enviado.", ephemeral=True)
 
-# --- COMANDO: DELETE ---
-@bot.tree.command(name="delete", description="Borra una cantidad de mensajes")
-@app_commands.describe(cantidad="Número de mensajes a eliminar")
+# --- COMANDO DELETE ---
+@bot.tree.command(name="delete", description="Limpia mensajes")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def delete(interaction: discord.Interaction, cantidad: int):
     await interaction.channel.purge(limit=cantidad)
-    await interaction.response.send_message(f"Se han borrado {cantidad} mensajes.", ephemeral=True)
+    await interaction.response.send_message(f"Se borraron {cantidad} mensajes.", ephemeral=True)
 
-# --- COMANDO: ROBLOX ---
-@bot.tree.command(name="roblox", description="Busca un perfil de Roblox")
-async def roblox(interaction: discord.Interaction, usuario: str):
-    await interaction.response.defer()
-    r = requests.get(f"https://users.roblox.com/v1/users/search?keyword={usuario}&limit=1").json()
-    if 'data' in r and r['data']:
-        u = r['data'][0]
-        id_u = u['id']
-        emb = discord.Embed(
-            title=f"Perfil de {u['displayName']}", 
-            url=f"https://www.roblox.com/users/{id_u}/profile", 
-            color=0x010101
-        )
-        emb.add_field(name="Usuario", value=f"@{u['name']}")
-        emb.add_field(name="ID", value=f"`{id_u}`")
-        await interaction.followup.send(embed=emb)
-    else:
-        await interaction.followup.send("Usuario de Roblox no encontrado.")
-
-# --- 5. EJECUCIÓN ---
+# --- 4. EJECUCIÓN ---
 if __name__ == "__main__":
     keep_alive()
-    token = os.getenv('TOKEN')
-    bot.run(token)
+    bot.run(os.getenv('TOKEN'))
