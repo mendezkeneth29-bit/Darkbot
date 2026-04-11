@@ -3,14 +3,14 @@ from discord import app_commands
 from discord.ext import commands
 import os
 import requests
-import google.generativeai as genai
+import yt_dlp
 from flask import Flask
 from threading import Thread
 
 # --- 1. HOSTING (RENDER) ---
 app = Flask(__name__)
 @app.route('/')
-def home(): return "Darky Online"
+def home(): return "Darky Music Edition Online"
 
 def run(): app.run(host='0.0.0.0', port=8080)
 def keep_alive():
@@ -18,22 +18,7 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# --- 2. CONFIGURACIÓN IA ---
-# Usando tu nueva key directamente
-genai.configure(api_key="AIzaSyCbgKH1WXr52AumroH7jZK_Le7fa32XOFY")
-
-def generar_ia(texto):
-    # Intentamos con varios modelos por si uno falla
-    for modelo_nombre in ['gemini-1.5-flash', 'gemini-pro']:
-        try:
-            model = genai.GenerativeModel(modelo_nombre)
-            response = model.generate_content(f"Responde corto: {texto}")
-            return response.text
-        except:
-            continue
-    return "No pude pensar la respuesta, ija. Intenta de nuevo."
-
-# --- 3. BOT CORE ---
+# --- 2. CONFIGURACIÓN DEL BOT ---
 class MyBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
@@ -41,20 +26,58 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="darky!", intents=intents)
 
     async def setup_hook(self):
-        # Sincroniza los comandos de "/" para que aparezcan
         await self.tree.sync()
-        print("Comandos slash listos.")
+        print("Comandos sincronizados.")
 
 bot = MyBot()
 
-# --- 4. COMANDOS ---
+# --- 3. LÓGICA DE MÚSICA (BUSCAR Y DESCARGAR) ---
+def buscar_y_descargar(nombre_cancion):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'noplaylist': True,
+        'quiet': True,
+        'default_search': 'ytsearch1',
+        'outtmpl': 'cancion.mp3', # Nombre temporal del archivo
+    }
+    
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            info = ydl.extract_info(nombre_cancion, download=True)
+            if 'entries' in info:
+                info = info['entries'][0]
+            
+            return {
+                'titulo': info.get('title'),
+                'portada': info.get('thumbnail'),
+                'archivo': 'cancion.mp3'
+            }
+        except Exception as e:
+            print(f"Error: {e}")
+            return None
 
-@bot.tree.command(name="sayme", description="Habla con la IA")
-async def sayme(interaction: discord.Interaction, pregunta: str):
-    await interaction.response.defer()
-    respuesta = generar_ia(pregunta)
-    emb = discord.Embed(description=f"**Tú:** {pregunta}\n**Darky:** {respuesta}", color=0x010101)
-    await interaction.followup.send(embed=emb)
+# --- 4. COMANDOS SLASH ---
+
+@bot.tree.command(name="play", description="Busca una canción y envía el audio")
+@app_commands.describe(cancion="Nombre de la canción o artista")
+async def play(interaction: discord.Interaction, cancion: str):
+    await interaction.response.defer() # Esto da tiempo porque descargar audio tarda
+    
+    datos = buscar_y_descargar(cancion)
+    
+    if datos:
+        emb = discord.Embed(title=f"🎵 {datos['titulo']}", color=0x010101)
+        emb.set_image(url=datos['portada'])
+        
+        # Enviamos el embed con la portada y el archivo de audio
+        archivo_audio = discord.File(datos['archivo'], filename=f"{datos['titulo']}.mp3")
+        await interaction.followup.send(embed=emb, file=archivo_audio)
+        
+        # Borramos el archivo después de enviarlo para no llenar el disco de Render
+        if os.path.exists(datos['archivo']):
+            os.remove(datos['archivo'])
+    else:
+        await interaction.followup.send("No pude encontrar o descargar esa canción.")
 
 @bot.tree.command(name="delete", description="Borra mensajes")
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -62,27 +85,18 @@ async def delete(interaction: discord.Interaction, cantidad: int):
     await interaction.channel.purge(limit=cantidad)
     await interaction.response.send_message(f"Borrados {cantidad} mensajes.", ephemeral=True)
 
-@bot.tree.command(name="roblox", description="Busca usuario")
+@bot.tree.command(name="roblox", description="Busca perfil de Roblox")
 async def roblox(interaction: discord.Interaction, usuario: str):
     await interaction.response.defer()
-    # Buscador básico funcional
     r = requests.get(f"https://users.roblox.com/v1/users/search?keyword={usuario}&limit=1").json()
     if 'data' in r and r['data']:
         u = r['data'][0]
         emb = discord.Embed(title=f"Perfil de {u['displayName']}", url=f"https://www.roblox.com/users/{u['id']}/profile", color=0x010101)
         await interaction.followup.send(embed=emb)
     else:
-        await interaction.followup.send("No lo hallé.")
+        await interaction.followup.send("Usuario no encontrado.")
 
-@bot.tree.command(name="embed", description="Crea un embed")
-async def embed(interaction: discord.Interaction, titulo: str, desc: str, color: str = "010101"):
-    try: c = int(color.replace("#",""), 16)
-    except: c = 0x010101
-    emb = discord.Embed(title=titulo, description=desc, color=c)
-    await interaction.channel.send(embed=emb)
-    await interaction.response.send_message("Hecho", ephemeral=True)
-
-# --- 5. IGNICIÓN ---
+# --- 5. EJECUCIÓN ---
 if __name__ == "__main__":
     keep_alive()
     token = os.getenv('TOKEN')
