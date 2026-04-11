@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import os
 import requests
+import google.generativeai as genai
 from flask import Flask
 from threading import Thread
 from typing import Optional
@@ -10,14 +11,19 @@ from typing import Optional
 # --- 1. CONFIGURACIÓN PARA RENDER ---
 app = Flask(__name__)
 @app.route('/')
-def home(): return "Darky Bot Online"
+def home(): return "Darky AI Online"
 
 def run(): app.run(host='0.0.0.0', port=8080)
 def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# --- 2. CONFIGURACIÓN DEL BOT ---
+# --- 2. CONFIGURACIÓN DE LA IA (GEMINI) ---
+# Usando la API Key que proporcionaste
+genai.configure(api_key="AIzaSyDN5wWuYbxn20ruuOR3Ad6AwAX-9BBcNr8")
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+# --- 3. CONFIGURACIÓN DEL BOT ---
 class MyBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
@@ -26,112 +32,111 @@ class MyBot(commands.Bot):
 
     async def setup_hook(self):
         await self.tree.sync()
-        print(f"Comandos sincronizados.")
+        print("Comandos sincronizados.")
 
 bot = MyBot()
 
-# --- 3. LÓGICA DE BÚSQUEDA DE ROBLOX ---
+# --- 4. COMANDO SAYME (INTELIGENCIA ARTIFICIAL) ---
+
+async def obtener_respuesta_ia(pregunta):
+    try:
+        # Instrucción para que la respuesta sea coherente y breve
+        prompt = f"Eres un asistente de Discord. Responde de forma breve a esto: {pregunta}"
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        print(f"Error IA: {e}")
+        return "Hubo un error al procesar tu pregunta."
+
+@bot.tree.command(name="sayme", description="Hazle una pregunta a la IA")
+@app_commands.describe(pregunta="¿Qué quieres preguntar?")
+async def sayme_slash(interaction: discord.Interaction, pregunta: str):
+    await interaction.response.defer()
+    respuesta = await obtener_respuesta_ia(pregunta)
+    
+    embed = discord.Embed(
+        title="Chat IA",
+        description=f"**Pregunta:** {pregunta}\n\n**Respuesta:** {respuesta}",
+        color=0x010101
+    )
+    await interaction.followup.send(embed=embed)
+
+@bot.command(name="sayme")
+async def sayme_prefijo(ctx, *, pregunta: str):
+    async with ctx.typing():
+        respuesta = await obtener_respuesta_ia(pregunta)
+        embed = discord.Embed(
+            title="Chat IA",
+            description=f"**Pregunta:** {pregunta}\n\n**Respuesta:** {respuesta}",
+            color=0x010101
+        )
+        await ctx.send(embed=embed)
+
+# --- 5. LÓGICA Y COMANDOS DE ROBLOX ---
+
 async def buscar_roblox(usuario):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'}
-        user_id = None
-
+        headers = {'User-Agent': 'Mozilla/5.0'}
         url_search = f"https://users.roblox.com/v1/users/search?keyword={usuario}&limit=1"
         res_search = requests.get(url_search, headers=headers).json()
-
+        
+        user_id = None
         if 'data' in res_search and res_search['data']:
             user_id = res_search['data'][0]['id']
         else:
             url_exact = "https://users.roblox.com/v1/usernames/users"
-            data_exact = {"usernames": [usuario], "excludeBannedUsers": False}
-            res_exact = requests.post(url_exact, json=data_exact, headers=headers).json()
+            data = {"usernames": [usuario], "excludeBannedUsers": False}
+            res_exact = requests.post(url_exact, json=data, headers=headers).json()
             if 'data' in res_exact and res_exact['data']:
                 user_id = res_exact['data'][0]['id']
 
-        if not user_id:
-            return None
+        if not user_id: return None
 
         info = requests.get(f"https://users.roblox.com/v1/users/{user_id}", headers=headers).json()
-        display_name = info.get('displayName', usuario)
-        username = info.get('name', usuario)
-
-        url_foto = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png&isCircular=false"
+        
+        url_foto = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png"
         res_foto = requests.get(url_foto, headers=headers).json()
-        foto_url = res_foto['data'][0]['imageUrl'] if 'data' in res_foto and res_foto['data'] else "https://www.roblox.com/headshot-thumbnail/image?width=420&height=420&format=png"
+        foto_url = res_foto['data'][0]['imageUrl'] if 'data' in res_foto and res_foto['data'] else ""
 
-        # Embed en color negro (0x000000 o 0x010101 para que Discord lo reconozca)
         embed = discord.Embed(
-            title=f"Perfil de {display_name}",
-            description=f"**Usuario:** @{username}\n**ID:** `{user_id}`",
-            color=0x010101, 
+            title=f"Perfil de {info.get('displayName')}",
+            description=f"**Usuario:** @{info.get('name')}\n**ID:** `{user_id}`",
+            color=0x010101,
             url=f"https://www.roblox.com/users/{user_id}/profile"
         )
         embed.set_thumbnail(url=foto_url)
-        embed.add_field(name="Enlace", value=f"[Ver perfil](https://www.roblox.com/users/{user_id}/profile)")
-        
         return embed
-    except Exception as e:
-        print(f"Error: {e}")
-        return "error"
-
-# --- 4. COMANDOS DE ROBLOX ---
+    except: return "error"
 
 @bot.tree.command(name="roblox", description="Busca un perfil de Roblox")
-@app_commands.describe(usuario="Nombre de usuario")
 async def roblox_slash(interaction: discord.Interaction, usuario: str):
     await interaction.response.defer()
     resultado = await buscar_roblox(usuario)
-    if resultado is None:
-        await interaction.followup.send(f"No se encontró al usuario '{usuario}'.")
-    elif resultado == "error":
-        await interaction.followup.send("Hubo un error con la API de Roblox.")
-    else:
-        await interaction.followup.send(embed=resultado)
+    if isinstance(resultado, discord.Embed): await interaction.followup.send(embed=resultado)
+    else: await interaction.followup.send("No encontrado.")
 
 @bot.command(name="roblox")
 async def roblox_prefijo(ctx, usuario: str):
     resultado = await buscar_roblox(usuario)
-    if resultado is None:
-        await ctx.send(f"No se encontró al usuario '{usuario}'.")
-    elif resultado == "error":
-        await ctx.send("Error al conectar con Roblox.")
-    else:
-        await ctx.send(embed=resultado)
+    if isinstance(resultado, discord.Embed): await ctx.send(embed=resultado)
+    else: await ctx.send("No encontrado.")
 
-# --- 5. COMANDO DELETE ---
-
-@bot.tree.command(name="delete", description="Borra una cantidad de mensajes")
-@app_commands.checks.has_permissions(manage_messages=True)
-async def delete_slash(interaction: discord.Interaction, cantidad: int):
-    await interaction.channel.purge(limit=cantidad)
-    await interaction.response.send_message(f"Limpieza terminada: {cantidad} mensajes borrados.", ephemeral=True)
+# --- 6. COMANDOS DE ADMINISTRACIÓN (DELETE Y EMBED) ---
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def delete(ctx, cantidad: int):
     await ctx.channel.purge(limit=cantidad + 1)
 
-# --- 6. COMANDO EMBED (COLOR PERSONALIZABLE) ---
-
-@bot.tree.command(name="embed", description="Crea un embed personalizado")
-@app_commands.describe(titulo="El título del mensaje", descripcion="El contenido", color="Color en HEX (ej: #FF5733)", canal="Donde enviar el mensaje")
-async def embed_slash(interaction: discord.Interaction, titulo: str, descripcion: str, color: str, canal: Optional[discord.TextChannel] = None):
-    destino = canal or interaction.channel
-    try:
-        # Convierte el color HEX a entero
-        color_hex = int(color.replace("#", ""), 16)
-    except:
-        color_hex = 0x010101 # Negro por defecto si fallas el código
-
+@bot.tree.command(name="embed", description="Crea un embed")
+async def embed_slash(interaction: discord.Interaction, titulo: str, descripcion: str, color: str):
+    try: color_hex = int(color.replace("#", ""), 16)
+    except: color_hex = 0x010101
     emb = discord.Embed(title=titulo, description=descripcion, color=color_hex)
-    await destino.send(embed=emb)
-    await interaction.response.send_message("Embed enviado correctamente.", ephemeral=True)
+    await interaction.channel.send(embed=emb)
+    await interaction.response.send_message("Enviado", ephemeral=True)
 
 # --- 7. EJECUCIÓN ---
 if __name__ == "__main__":
     keep_alive()
-    token = os.getenv('TOKEN')
-    if token:
-        bot.run(token)
-    else:
-        print("Falta el TOKEN.")
+    bot.run(os.getenv('TOKEN'))
