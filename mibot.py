@@ -59,6 +59,21 @@ class GView(discord.ui.View):
             await interaction.response.send_message("🎫 Su participación ha sido registrada.", ephemeral=True)
         else:
             await interaction.response.send_message("⚠️ Ya se encuentra inscrito.", ephemeral=True)
+@bot.tree.command(name="regalar", description="👑 Otorgar capital de élite a un usuario (Solo Administradores)")
+@app_commands.checks.has_permissions(administrator=True)
+async def regalar(interaction: discord.Interaction, miembro: discord.Member, cantidad: int):
+    # Actualizar la base de datos (asegúrate de que tu diccionario se llame banco_datos)
+    uid = str(miembro.id)
+    banco_datos[uid] = banco_datos.get(uid, 0) + cantidad
+    
+    # Creación del Embed Ultra Detallado
+    emb = discord.Embed(title="💠 INYECCIÓN DE CAPITAL SUPREMA", color=0x000001)
+    emb.description = f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSe ha ejecutado una transferencia administrativa de alto nivel.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Campos detallados
+    emb.add_field(name="📥 Beneficiario", value=f"> {miembro.mention}", inline=True)
+    emb.add_field(name="💰 Monto Inyectado", value=f"> `$ {cantidad:,}`", inline=True)
+    emb.add_field(name="🏦 Balance Actual", value=f"
 
 # --- 4. CLASE DEL BOT ---
 class DarkyBot(commands.Bot):
@@ -221,22 +236,6 @@ async def tienda(interaction: discord.Interaction):
             opts.append(discord.SelectMenuOption(label=d['nombre'], value=str(rid)))
     if not opts: return await interaction.response.send_message("❌ No hay stock disponible.")
     await interaction.response.send_message(embed=emb, view=TiendaView(opts))
-
-@bot.tree.command(name="regalar", description="👑 Otorgar capital de élite a un usuario (Solo Administradores)")
-@app_commands.checks.has_permissions(administrator=True)
-async def regalar(interaction: discord.Interaction, miembro: discord.Member, cantidad: int):
-    # Actualizar la base de datos (asegúrate de que tu diccionario se llame banco_datos)
-    uid = str(miembro.id)
-    banco_datos[uid] = banco_datos.get(uid, 0) + cantidad
-    
-    # Creación del Embed Ultra Detallado
-    emb = discord.Embed(title="💠 INYECCIÓN DE CAPITAL SUPREMA", color=0x000001)
-    emb.description = f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSe ha ejecutado una transferencia administrativa de alto nivel.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
-    # Campos detallados
-    emb.add_field(name="📥 Beneficiario", value=f"> {miembro.mention}", inline=True)
-    emb.add_field(name="💰 Monto Inyectado", value=f"> `$ {cantidad:,}`", inline=True)
-    emb.add_field(name="🏦 Balance Actual", value=f"
 
 @bot.tree.command(name="giveaway", description="Lanzar un sorteo de créditos")
 @app_commands.checks.has_permissions(administrator=True)
