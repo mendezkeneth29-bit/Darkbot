@@ -4,9 +4,12 @@ from discord.ext import commands
 import os
 import random
 import requests
+import time
+import io
 from flask import Flask
 from threading import Thread
 from typing import Optional
+from PIL import Image, ImageDraw
 
 # --- KEEP ALIVE ---
 app = Flask('')
@@ -24,10 +27,10 @@ def keep_alive():
     t.start()
 
 # --- DATOS ---
-banco = {}
 cartera = {}
-
+cooldowns = {}
 COLOR = 0x000000
+SEPARADOR = "━━━━━━━━━━━━━━━━━━━━"
 
 # --- BOT ---
 class DarkyBot(commands.Bot):
@@ -44,17 +47,38 @@ class DarkyBot(commands.Bot):
 
 bot = DarkyBot()
 
-# --- BALANCE ---
+# --- DINERO POR MENSAJE ---
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    uid = str(message.author.id)
+    ahora = time.time()
+    ultimo = cooldowns.get(uid, 0)
+
+    if ahora - ultimo > 10:
+        cartera[uid] = cartera.get(uid, 0) + 5
+        cooldowns[uid] = ahora
+
+    await bot.process_commands(message)
+
+# --- CARTERA ---
 @bot.tree.command(name="cartera", description="Ver dinero")
 async def cartera_cmd(interaction: discord.Interaction, usuario: Optional[discord.Member]=None):
     u = usuario or interaction.user
     uid = str(u.id)
-
     money = cartera.get(uid, 0)
 
-    embed = discord.Embed(title="💰 CARTERA", color=COLOR)
-    embed.description = f"Usuario: {u.mention}\nDinero disponible: **${money:,}**"
-    embed.set_footer(text="Sistema financiero Darky")
+    embed = discord.Embed(title="💰 SISTEMA FINANCIERO DARKY", color=COLOR)
+    embed.set_thumbnail(url=u.display_avatar.url)
+
+    embed.description = (
+        f"👤 Usuario: {u.mention}\n"
+        f"💵 Dinero actual: **${money:,}**\n\n"
+        f"{SEPARADOR}\n"
+        f"💡 +$5 por mensaje cada 10 segundos."
+    )
 
     await interaction.response.send_message(embed=embed)
 
@@ -63,94 +87,138 @@ async def cartera_cmd(interaction: discord.Interaction, usuario: Optional[discor
 @app_commands.checks.has_permissions(administrator=True)
 async def regalar(interaction: discord.Interaction, usuario: discord.Member, cantidad: int):
     uid = str(usuario.id)
-
     cartera[uid] = cartera.get(uid, 0) + cantidad
 
-    embed = discord.Embed(title="🎁 REGALO", color=COLOR)
-    embed.description = f"{interaction.user.mention} regaló **${cantidad:,}** a {usuario.mention}"
+    embed = discord.Embed(title="🎁 TRANSACCIÓN COMPLETADA", color=COLOR)
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    embed.description = (
+        f"💜 Sistema Darky\n\n"
+        f"👤 Usuario: {usuario.mention}\n"
+        f"💵 Recibió: **${cantidad:,}**\n"
+        f"📤 De: {interaction.user.mention}\n"
+        f"📊 Nuevo saldo: **${cartera[uid]:,}**\n\n"
+        f"{SEPARADOR}"
+    )
+
     await interaction.response.send_message(embed=embed)
 
 # --- TRANSFERIR ---
-@bot.tree.command(name="transferir", description="Dar dinero a otro usuario")
+@bot.tree.command(name="transferir", description="Transferir dinero")
 async def transferir(interaction: discord.Interaction, usuario: discord.Member, cantidad: int):
     uid = str(interaction.user.id)
     uid2 = str(usuario.id)
 
     if cartera.get(uid, 0) < cantidad:
-        return await interaction.response.send_message("❌ No tienes suficiente dinero", ephemeral=True)
+        return await interaction.response.send_message("❌ No tienes dinero suficiente", ephemeral=True)
 
     cartera[uid] -= cantidad
     cartera[uid2] = cartera.get(uid2, 0) + cantidad
 
     embed = discord.Embed(title="💸 TRANSFERENCIA", color=COLOR)
     embed.description = f"{interaction.user.mention} envió **${cantidad:,}** a {usuario.mention}"
+
     await interaction.response.send_message(embed=embed)
 
 # --- TRABAJO ---
-@bot.tree.command(name="trabajo", description="Ganar dinero")
+@bot.tree.command(name="trabajo", description="Trabajar")
 async def trabajo(interaction: discord.Interaction):
     dinero = random.randint(50, 300)
     uid = str(interaction.user.id)
 
     cartera[uid] = cartera.get(uid, 0) + dinero
 
-    embed = discord.Embed(title="💼 TRABAJO COMPLETADO", color=COLOR)
-    embed.description = f"Trabajaste duro...\nGanaste: **${dinero:,}** 💸"
+    embed = discord.Embed(title="💼 TRABAJO", color=COLOR)
+    embed.description = f"Ganaste **${dinero:,}** 💸"
+
     await interaction.response.send_message(embed=embed)
 
 # --- ROBLOX ---
-@bot.tree.command(name="roblox", description="Ver perfil de Roblox")
+@bot.tree.command(name="roblox", description="Perfil Roblox")
 async def roblox(interaction: discord.Interaction, usuario: str):
-    url = f"https://api.roblox.com/users/get-by-username?username={usuario}"
-    data = requests.get(url).json()
+    try:
+        res = requests.post(
+            "https://users.roblox.com/v1/usernames/users",
+            json={"usernames": [usuario]}
+        ).json()
 
-    if "Id" not in data:
-        return await interaction.response.send_message("❌ Usuario no encontrado", ephemeral=True)
+        if not res["data"]:
+            return await interaction.response.send_message("❌ No encontrado", ephemeral=True)
 
-    user_id = data["Id"]
-    avatar = f"https://www.roblox.com/headshot-thumbnail/image?userId={user_id}&width=420&height=420&format=png"
+        user_id = res["data"][0]["id"]
 
-    embed = discord.Embed(title="🧱 ROBLOX PROFILE", color=COLOR)
-    embed.description = f"Usuario: **{usuario}**"
-    embed.set_image(url=avatar)
+        avatar = requests.get(
+            f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={user_id}&size=420x420&format=Png"
+        ).json()["data"][0]["imageUrl"]
 
-    await interaction.response.send_message(embed=embed)
+        embed = discord.Embed(title="🧱 ROBLOX", color=COLOR)
+        embed.description = f"Usuario: **{usuario}**\nID: {user_id}"
+        embed.set_image(url=avatar)
+
+        await interaction.response.send_message(embed=embed)
+
+    except:
+        await interaction.response.send_message("❌ Error Roblox", ephemeral=True)
 
 # --- SHIP ---
-@bot.tree.command(name="ship", description="Shipear usuarios")
+@bot.tree.command(name="ship", description="Shipear")
 async def ship(interaction: discord.Interaction, u1: discord.Member, u2: discord.Member):
     porcentaje = random.randint(0, 100)
 
+    if porcentaje < 30:
+        msg = "💀 No funciona"
+    elif porcentaje < 60:
+        msg = "😐 raro..."
+    elif porcentaje < 85:
+        msg = "💜 buena química"
+    else:
+        msg = "🔥 almas gemelas"
+
+    img1 = Image.open(io.BytesIO(requests.get(u1.display_avatar.url).content)).resize((256,256))
+    img2 = Image.open(io.BytesIO(requests.get(u2.display_avatar.url).content)).resize((256,256))
+
+    final = Image.new("RGB", (600,256),(0,0,0))
+    final.paste(img1,(0,0))
+    final.paste(img2,(344,0))
+
+    draw = ImageDraw.Draw(final)
+    draw.text((260,100), f"{porcentaje}%", fill=(255,255,255))
+
+    buffer = io.BytesIO()
+    final.save(buffer,"PNG")
+    buffer.seek(0)
+
+    file = discord.File(buffer,"ship.png")
+
     embed = discord.Embed(title="💜 SHIP", color=COLOR)
-    embed.description = f"{u1.mention} 💕 {u2.mention}\nCompatibilidad: **{porcentaje}%**"
+    embed.description = f"{msg}\n{u1.mention} 💕 {u2.mention}"
+    embed.set_image(url="attachment://ship.png")
 
-    embed.set_thumbnail(url=u1.display_avatar.url)
-    embed.set_image(url=u2.display_avatar.url)
+    await interaction.response.send_message(embed=embed, file=file)
 
-    await interaction.response.send_message(embed=embed)
-
-# --- EMBED PERSONALIZADO ---
+# --- EMBED ---
 @bot.tree.command(name="embed", description="Crear embed")
 async def embed_cmd(interaction: discord.Interaction, titulo: str, descripcion: str, color: str):
     try:
-        color_int = int(color.replace("#",""), 16)
+        color_int = int(color.replace("#",""),16)
     except:
         return await interaction.response.send_message("❌ Color inválido", ephemeral=True)
 
     embed = discord.Embed(title=titulo, description=descripcion, color=color_int)
     await interaction.response.send_message(embed=embed)
 
-# --- DELETE (ADMIN) ---
-@bot.tree.command(name="delete", description="Eliminar mensajes")
+# --- DELETE ---
+@bot.tree.command(name="delete", description="Borrar mensajes")
 @app_commands.checks.has_permissions(administrator=True)
 async def delete(interaction: discord.Interaction, cantidad: int):
     await interaction.channel.purge(limit=cantidad)
 
     embed = discord.Embed(title="🗑 LIMPIEZA", color=COLOR)
-    embed.description = f"Se eliminaron {cantidad} mensajes"
+    embed.description = f"{cantidad} mensajes eliminados"
+
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# --- INICIO ---
+# --- START ---
 keep_alive()
 
 TOKEN = os.getenv("TOKEN")
