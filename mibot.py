@@ -13,14 +13,14 @@ TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
 DB_FILE = "data.json"
 
-# --- BASES ---
+# --- DATA ---
 data = {}
 tienda_roles = {}
 prestamos = []
 bank_accounts = {}
 
 # -------------------------
-# 💾 SISTEMA DE GUARDADO
+# 💾 SAVE SYSTEM
 # -------------------------
 def load_data():
     global data, tienda_roles, prestamos, bank_accounts
@@ -41,7 +41,9 @@ def save_data():
             "bank_accounts": bank_accounts
         }, f)
 
-# --- BOT ---
+# -------------------------
+# BOT
+# -------------------------
 class DarkyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=discord.Intents.all())
@@ -52,7 +54,7 @@ class DarkyBot(commands.Bot):
 bot = DarkyBot()
 
 # -------------------------
-# 🧠 UTILIDADES
+# UTIL
 # -------------------------
 def generate_bank_code():
     return "DB-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
@@ -68,10 +70,10 @@ def init_user(uid: str):
         }
 
 # -------------------------
-# 👤 CUENTAS
+# JOIN + READY ACCOUNTS
 # -------------------------
 @bot.event
-async def on_member_join(member: discord.Member):
+async def on_member_join(member):
     if member.bot:
         return
 
@@ -102,7 +104,7 @@ async def on_ready():
     bot.loop.create_task(revisar_prestamos())
 
 # -------------------------
-# 💰 DINERO PASIVO
+# MONEY SYSTEM
 # -------------------------
 @bot.event
 async def on_message(message):
@@ -118,7 +120,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # -------------------------
-# 💳 CUENTA
+# CUENTA
 # -------------------------
 @bot.tree.command(name="cuenta")
 async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
@@ -142,7 +144,7 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# 💰 CARTERA
+# CARTERA
 # -------------------------
 @bot.tree.command(name="cartera")
 async def cartera(i: discord.Interaction, usuario: discord.Member = None):
@@ -168,7 +170,7 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# 🎁 REGALAR
+# REGALAR (ADMIN)
 # -------------------------
 @bot.tree.command(name="regalar")
 @app_commands.checks.has_permissions(administrator=True)
@@ -200,58 +202,58 @@ async def regalar(i: discord.Interaction, cantidad: int, usuario: discord.Member
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# 🤝 PRESTAR
+# PRESTAR
 # -------------------------
 class PrestamoView(discord.ui.View):
-    def __init__(self, prestador, receptor, cantidad, dias):
+    def __init__(self, p, r, c, d):
         super().__init__(timeout=60)
-        self.prestador = prestador
-        self.receptor = receptor
-        self.cantidad = cantidad
-        self.dias = dias
+        self.p = p
+        self.r = r
+        self.c = c
+        self.d = d
 
     @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
-    async def aceptar(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def aceptar(self, i, b):
 
-        if interaction.user != self.receptor:
-            return await interaction.response.send_message("No es tu préstamo", ephemeral=True)
+        if i.user != self.r:
+            return await i.response.send_message("No es tu préstamo", ephemeral=True)
 
-        p = str(self.prestador.id)
-        r = str(self.receptor.id)
+        p = str(self.p.id)
+        r = str(self.r.id)
 
         init_user(p)
         init_user(r)
 
-        data[p]["credito"] -= self.cantidad
-        data[r]["credito"] += self.cantidad
+        data[p]["credito"] -= self.c
+        data[r]["credito"] += self.c
 
-        data[r]["debe"] += self.cantidad
-        data[p]["prestado"] += self.cantidad
+        data[r]["debe"] += self.c
+        data[p]["prestado"] += self.c
 
         prestamos.append({
             "prestador": p,
             "receptor": r,
-            "cantidad": self.cantidad,
-            "tiempo": time.time() + (self.dias * 86400)
+            "cantidad": self.c,
+            "tiempo": time.time() + (self.d * 86400)
         })
 
         save_data()
 
-        await interaction.response.send_message(
+        await i.response.send_message(
             embed=discord.Embed(
                 title="PRÉSTAMO ACEPTADO",
-                description=f"{self.receptor.mention} recibió ${self.cantidad}",
+                description=f"{self.r.mention} recibió ${self.c}",
                 color=COLOR
             )
         )
 
     @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
-    async def rechazar(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def rechazar(self, i, b):
 
-        if interaction.user != self.receptor:
-            return await interaction.response.send_message("No es tu préstamo", ephemeral=True)
+        if i.user != self.r:
+            return await i.response.send_message("No es tu préstamo", ephemeral=True)
 
-        await interaction.response.send_message(
+        await i.response.send_message(
             embed=discord.Embed(
                 title="PRÉSTAMO RECHAZADO",
                 description="El préstamo fue rechazado",
@@ -259,15 +261,60 @@ class PrestamoView(discord.ui.View):
             )
         )
 
+@bot.tree.command(name="prestar")
+async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member, dias: int):
+
+    await i.response.send_message(
+        embed=discord.Embed(
+            title="PRÉSTAMO",
+            description=f"{i.user.name} quiere prestar dinero a {usuario.name}\n"
+                        f"Devolver en {dias} días\nMonto: ${cantidad}\n"
+                        f"{usuario.name} acepta o rechaza?",
+            color=COLOR
+        ),
+        view=PrestamoView(i.user, usuario, cantidad, dias)
+    )
+
 # -------------------------
-# ⏳ COBRO AUTOMÁTICO
+# DEVOLVER
+# -------------------------
+@bot.tree.command(name="devolver")
+async def devolver(i: discord.Interaction, cantidad: int, usuario: discord.Member):
+
+    p = str(i.user.id)
+    r = str(usuario.id)
+
+    init_user(p)
+    init_user(r)
+
+    data[p]["debe"] -= cantidad
+    data[p]["credito"] -= cantidad
+    data[r]["credito"] += cantidad
+
+    save_data()
+
+    await i.response.send_message(
+        embed=discord.Embed(
+            description=(
+                f"{i.user.name} ha devuelto el dinero prestado a {usuario.name}\n"
+                "---------------------------------------------------\n"
+                f"{i.user.name} ahora tiene 0 deudas\n"
+                f"Cantidad: {cantidad}\n"
+                "de parte de: darky bank."
+            ),
+            color=COLOR
+        )
+    )
+
+# -------------------------
+# LOOP
 # -------------------------
 async def revisar_prestamos():
     while True:
-        ahora = time.time()
+        now = time.time()
 
         for d in prestamos[:]:
-            if ahora >= d["tiempo"]:
+            if now >= d["tiempo"]:
                 r = d["receptor"]
                 p = d["prestador"]
                 c = d["cantidad"]
