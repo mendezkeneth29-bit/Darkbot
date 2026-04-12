@@ -300,5 +300,53 @@ async def on_ready():
     print("Bot listo")
     bot.loop.create_task(revisar_prestamos())
 
+@bot.tree.command(name="devolver")
+async def devolver(i: discord.Interaction, cantidad: int, usuario: discord.Member):
+
+    pagador = i.user
+    prestamista = usuario
+
+    uid_pagador = str(pagador.id)
+    uid_prestamista = str(prestamista.id)
+
+    init_user(uid_pagador)
+    init_user(uid_prestamista)
+
+    # solo puede devolver lo que debe
+    if data[uid_pagador]["debe"] <= 0:
+        return await i.response.send_message("No tienes deudas pendientes", ephemeral=True)
+
+    if data[uid_pagador]["debe"] < cantidad:
+        return await i.response.send_message("No puedes pagar más de lo que debes", ephemeral=True)
+
+    # validar que sea el prestamista correcto
+    if data[uid_pagador]["debe"] == 0:
+        return await i.response.send_message("No tienes deudas", ephemeral=True)
+
+    # ajuste de dinero
+    data[uid_pagador]["debe"] -= cantidad
+    data[uid_pagador]["credito"] -= cantidad
+    data[uid_prestamista]["credito"] += cantidad
+
+    # si ya pagó todo
+    if data[uid_pagador]["debe"] == 0:
+        data[uid_prestamista]["prestado"] = 0
+
+    embed = discord.Embed(color=COLOR)
+
+    embed.description = (
+        f"{pagador.name} ha devuelto el dinero prestado a {prestamista.name}\n"
+        "-----------------------------------------------------------------------------------------------\n"
+        f"> - {pagador.name} ahora tiene 0 deudas\n"
+        f"> - la cantidad de dinero prestado fue de {cantidad}\n"
+        f"> - {pagador.name} devolvio {cantidad}\n"
+        "---------------------------------------------------------------------\n"
+        "de parte de: darky bank."
+    )
+
+    embed.set_thumbnail(url=pagador.display_avatar.url)
+
+    await i.response.send_message(embed=embed)
+
 # --- RUN ---
 bot.run(TOKEN)
