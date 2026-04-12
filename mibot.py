@@ -39,7 +39,7 @@ class DarkyBot(commands.Bot):
 
 bot = DarkyBot()
 
-# --- TENOR ---
+# --- GIF ---
 def get_gif(query):
     url = f"https://g.tenor.com/v1/search?q={query}&key={TENOR_KEY}&limit=10"
     r = requests.get(url).json()
@@ -62,44 +62,29 @@ async def on_message(message):
 @bot.tree.command(name="cartera")
 async def cartera_cmd(i: discord.Interaction):
     money = cartera.get(str(i.user.id), 0)
-
-    e = discord.Embed(title="SISTEMA FINANCIERO CENTRAL", color=COLOR)
+    e = discord.Embed(title="SISTEMA FINANCIERO", color=COLOR)
     e.set_thumbnail(url=i.user.display_avatar.url)
-    e.description = (
-        f"Usuario: {i.user.mention}\n"
-        f"Saldo: ${money:,}\n\n"
-        f"{SEP}\n"
-        f"Ingreso automático:\n+5 cada 10s\nEstado: ACTIVO"
-    )
+    e.description = f"{i.user.mention}\nSaldo: ${money:,}\n{SEP}\n+5 cada 10s"
     await i.response.send_message(embed=e)
 
-# --- SERVERINFO PRO ---
+# --- SERVERINFO ---
 @bot.tree.command(name="serverinfo")
 async def serverinfo(i: discord.Interaction):
     g = i.guild
-
-    e = discord.Embed(title="ANÁLISIS COMPLETO DEL SERVIDOR", color=COLOR)
-
+    e = discord.Embed(title="ANÁLISIS DEL SERVIDOR", color=COLOR)
     if g.icon:
         e.set_thumbnail(url=g.icon.url)
 
     e.description = (
-        f"Nombre: {g.name}\n"
-        f"ID: {g.id}\n\n"
-        f"{SEP}\n"
-        f"Dueño: {g.owner}\n"
-        f"Creado: {g.created_at.strftime('%d/%m/%Y')}\n\n"
-        f"{SEP}\n"
-        f"Miembros: {g.member_count}\n"
-        f"Roles: {len(g.roles)}\n"
-        f"Canales: {len(g.channels)}\n\n"
-        f"{SEP}\n"
-        f"Boosts: {g.premium_subscription_count}"
+        f"Nombre: {g.name}\nID: {g.id}\n\n"
+        f"{SEP}\nDueño: {g.owner}\nCreado: {g.created_at.strftime('%d/%m/%Y')}\n\n"
+        f"{SEP}\nMiembros: {g.member_count}\nRoles: {len(g.roles)}\nCanales: {len(g.channels)}\n\n"
+        f"{SEP}\nBoosts: {g.premium_subscription_count}"
     )
 
     await i.response.send_message(embed=e)
 
-# --- SHIP GIGANTE ---
+# --- SHIP ---
 @bot.tree.command(name="ship")
 async def ship(i: discord.Interaction, u1: discord.Member, u2: discord.Member):
     p = random.randint(0, 100)
@@ -112,11 +97,7 @@ async def ship(i: discord.Interaction, u1: discord.Member, u2: discord.Member):
     final.paste(img2,(644,0))
 
     draw = ImageDraw.Draw(final)
-
-    try:
-        font = ImageFont.truetype("DejaVuSans-Bold.ttf", 180)
-    except:
-        font = ImageFont.load_default()
+    font = ImageFont.truetype("DejaVuSans-Bold.ttf", 180)
 
     text = f"{p}%"
     bbox = draw.textbbox((0,0),text,font=font)
@@ -133,12 +114,17 @@ async def ship(i: discord.Interaction, u1: discord.Member, u2: discord.Member):
     file = discord.File(buf,"ship.png")
 
     e = discord.Embed(title="COMPATIBILIDAD", color=COLOR)
-    e.description = f"{u1.mention} + {u2.mention}\nResultado: {p}%"
     e.set_image(url="attachment://ship.png")
-
     await i.response.send_message(embed=e,file=file)
 
-# --- INTERACCIONES CON GIF ---
+# --- DELETE ---
+@bot.tree.command(name="delete")
+@app_commands.checks.has_permissions(administrator=True)
+async def delete(i,cantidad:int):
+    await i.channel.purge(limit=cantidad)
+    await i.response.send_message(embed=discord.Embed(title="LIMPIEZA",description=f"{cantidad} mensajes eliminados",color=COLOR),ephemeral=True)
+
+# --- INTERACCIONES ---
 @bot.tree.command(name="beso")
 async def beso(i,u:discord.Member):
     e=discord.Embed(title="BESO",color=COLOR)
@@ -153,30 +139,15 @@ async def abrazo(i,u:discord.Member):
     e.set_image(url=get_gif("anime hug"))
     await i.response.send_message(embed=e)
 
-# --- BOTONES PRO (12) ---
-class TrabajoView(discord.ui.View):
-    @discord.ui.button(label="Trabajar", style=discord.ButtonStyle.green)
-    async def trabajar(self, interaction, button):
-        dinero=random.randint(50,200)
-        uid=str(interaction.user.id)
-        cartera[uid]=cartera.get(uid,0)+dinero
+# --- BOTONES (EJEMPLO BASE) ---
+class BotonView(discord.ui.View):
+    @discord.ui.button(label="Interactuar", style=discord.ButtonStyle.blurple)
+    async def click(self, interaction, button):
+        await interaction.response.send_message("Botón presionado", ephemeral=True)
 
-        e=discord.Embed(title="TRABAJO",color=COLOR)
-        e.description=f"Ganaste ${dinero:,}"
-        await interaction.response.send_message(embed=e,ephemeral=True)
-
-@bot.tree.command(name="trabajo2")
-async def trabajo2(i):
-    await i.response.send_message(embed=discord.Embed(title="TRABAJO INTERACTIVO",color=COLOR),view=TrabajoView())
-
-# puedes duplicar esta lógica para otros botones similares
-
-# --- DELETE ---
-@bot.tree.command(name="delete")
-@app_commands.checks.has_permissions(administrator=True)
-async def delete(i,cantidad:int):
-    await i.channel.purge(limit=cantidad)
-    await i.response.send_message(embed=discord.Embed(title="LIMPIEZA",description=f"{cantidad} mensajes eliminados",color=COLOR),ephemeral=True)
+@bot.tree.command(name="boton")
+async def boton(i):
+    await i.response.send_message(embed=discord.Embed(title="INTERACCIÓN",color=COLOR),view=BotonView())
 
 # --- START ---
 keep_alive()
