@@ -151,6 +151,161 @@ async def abrazo(i,u:discord.Member):
     e.set_image(url=get_gif("anime hug"))
     await i.response.send_message(embed=e)
 
+# --- EDAD CUENTA ---
+@bot.tree.command(name="edadcuenta")
+async def edadcuenta(i, user: Optional[discord.Member]=None):
+    user = user or i.user
+    dias = (discord.utils.utcnow() - user.created_at).days
+
+    e = discord.Embed(title="EDAD DE CUENTA", color=COLOR)
+    e.description = f"{user.mention}\n{dias} días desde creación"
+    await i.response.send_message(embed=e)
+
+# --- JOINED ---
+@bot.tree.command(name="joined")
+async def joined(i, user: Optional[discord.Member]=None):
+    user = user or i.user
+
+    e = discord.Embed(title="ENTRADA AL SERVER", color=COLOR)
+    e.description = f"{user.mention}\n{user.joined_at.strftime('%d/%m/%Y')}"
+    await i.response.send_message(embed=e)
+
+# --- RANDOM COLOR USER ---
+@bot.tree.command(name="coloruser")
+async def coloruser(i, user: Optional[discord.Member]=None):
+    user = user or i.user
+    e = discord.Embed(title="COLOR DEL USUARIO", color=user.color)
+    e.description = f"{user.mention}\nColor aplicado"
+    await i.response.send_message(embed=e)
+
+# --- ROLE INFO ---
+@bot.tree.command(name="roleinfo")
+async def roleinfo(i, role: discord.Role):
+    e = discord.Embed(title="INFO ROL", color=role.color)
+    e.description = (
+        f"Nombre: {role.name}\n"
+        f"ID: {role.id}\n"
+        f"Miembros: {len(role.members)}"
+    )
+    await i.response.send_message(embed=e)
+
+# --- EMOJI INFO ---
+@bot.tree.command(name="emojiinfo")
+async def emojiinfo(i, emoji: str):
+    e = discord.Embed(title="EMOJI INFO", color=COLOR)
+    e.description = f"{emoji}"
+    await i.response.send_message(embed=e)
+
+# --- INVITE ---
+@bot.tree.command(name="invite")
+async def invite(i):
+    link = await i.channel.create_invite()
+    e = discord.Embed(title="INVITACIÓN", color=COLOR)
+    e.description = f"{link}"
+    await i.response.send_message(embed=e)
+
+# --- COUNTDOWN ---
+@bot.tree.command(name="countdown")
+async def countdown(i, segundos:int):
+    await i.response.send_message(embed=discord.Embed(title="CUENTA REGRESIVA",description=f"{segundos}s",color=COLOR))
+    for s in range(segundos,0,-1):
+        await asyncio.sleep(1)
+    await i.followup.send("Tiempo terminado")
+
+# --- RANDOM EMOJI ---
+@bot.tree.command(name="randomemoji")
+async def randomemoji(i):
+    emojis = i.guild.emojis
+    if not emojis:
+        return await i.response.send_message("No hay emojis")
+    e = discord.Embed(title="EMOJI RANDOM", color=COLOR)
+    e.description = str(random.choice(emojis))
+    await i.response.send_message(embed=e)
+
+# --- STATUS USER ---
+@bot.tree.command(name="status")
+async def status(i, user: Optional[discord.Member]=None):
+    user = user or i.user
+    e = discord.Embed(title="ESTADO", color=COLOR)
+    e.description = f"{user.mention}\nEstado: {user.status}"
+    await i.response.send_message(embed=e)
+
+# --- RANDOM NUMBER RANGE ---
+@bot.tree.command(name="random")
+async def random_num(i, min:int, max:int):
+    e = discord.Embed(title="NÚMERO RANDOM", color=COLOR)
+    e.description = str(random.randint(min,max))
+    await i.response.send_message(embed=e)
+
+# --- ASCII ---
+@bot.tree.command(name="ascii")
+async def ascii(i, texto:str):
+    art = " ".join(texto.upper())
+    e = discord.Embed(title="ASCII", color=COLOR)
+    e.description = art
+    await i.response.send_message(embed=e)
+
+# --- REPEAT ---
+@bot.tree.command(name="repeat")
+async def repeat(i, veces:int, texto:str):
+    await i.response.send_message(embed=discord.Embed(title="REPETICIÓN",description=(texto+"\n")*veces,color=COLOR))
+
+# --- TIMER ---
+@bot.tree.command(name="timer")
+async def timer(i, segundos:int):
+    await i.response.send_message("Timer iniciado")
+    await asyncio.sleep(segundos)
+    await i.followup.send("Tiempo terminado")
+
+# --- USER COUNT ONLINE ---
+@bot.tree.command(name="online")
+async def online(i):
+    online = sum(1 for m in i.guild.members if m.status != discord.Status.offline)
+    e = discord.Embed(title="USUARIOS ONLINE", color=COLOR)
+    e.description = str(online)
+    await i.response.send_message(embed=e)
+
+# --- RANDOM ROLE ---
+@bot.tree.command(name="randomrole")
+async def randomrole(i):
+    role = random.choice(i.guild.roles)
+    e = discord.Embed(title="ROL RANDOM", color=role.color)
+    e.description = role.name
+    await i.response.send_message(embed=e)
+
+# --- HEX COLOR ---
+@bot.tree.command(name="hex")
+async def hexcolor(i, color:str):
+    e = discord.Embed(title="COLOR HEX", color=int(color.replace("#",""),16))
+    e.description = color
+    await i.response.send_message(embed=e)
+
+# --- USER BANNER ---
+@bot.tree.command(name="banner")
+async def banner(i, user: discord.User):
+    user = await bot.fetch_user(user.id)
+    if user.banner:
+        e = discord.Embed(title="BANNER", color=COLOR)
+        e.set_image(url=user.banner.url)
+        await i.response.send_message(embed=e)
+    else:
+        await i.response.send_message("No tiene banner")
+
+# --- RANDOM GIF ---
+@bot.tree.command(name="gif")
+async def gif(i, busqueda:str):
+    e = discord.Embed(title="GIF", color=COLOR)
+    e.set_image(url=get_gif(busqueda))
+    await i.response.send_message(embed=e)
+
+# --- SERVER ICON ---
+@bot.tree.command(name="icon")
+async def icon(i):
+    if i.guild.icon:
+        e = discord.Embed(title="ICONO SERVER", color=COLOR)
+        e.set_image(url=i.guild.icon.url)
+        await i.response.send_message(embed=e)
+
 # --- INTERACTIVO BOTÓN ---
 class TrabajoView(discord.ui.View):
     @discord.ui.button(label="Trabajar", style=discord.ButtonStyle.green)
