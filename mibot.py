@@ -25,6 +25,7 @@ TENOR_KEY = "LIVDSRZULELA"
 
 cartera = {}
 cooldowns = {}
+warnings = {}
 COLOR = 0x000000
 SEP = "━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -38,7 +39,7 @@ class DarkyBot(commands.Bot):
 
 bot = DarkyBot()
 
-# --- GIF TENOR ---
+# --- TENOR GIF ---
 def get_gif(query):
     url = f"https://g.tenor.com/v1/search?q={query}&key={TENOR_KEY}&limit=10"
     r = requests.get(url).json()
@@ -64,10 +65,16 @@ async def cartera_cmd(i: discord.Interaction):
 
     e = discord.Embed(title="SISTEMA FINANCIERO", color=COLOR)
     e.set_thumbnail(url=i.user.display_avatar.url)
-    e.description = f"{i.user.mention}\nSaldo: ${money:,}\n{SEP}\n+5 cada 10s"
+    e.description = (
+        f"Usuario: {i.user.mention}\n"
+        f"Saldo: ${money:,}\n\n"
+        f"{SEP}\n"
+        f"Ingreso automático:\n+5 cada 10 segundos\n"
+        f"Estado: ACTIVO"
+    )
     await i.response.send_message(embed=e)
 
-# --- SHIP ULTRA GRANDE ---
+# --- SHIP ---
 @bot.tree.command(name="ship")
 async def ship(i: discord.Interaction, u1: discord.Member, u2: discord.Member):
     p = random.randint(0, 100)
@@ -81,7 +88,6 @@ async def ship(i: discord.Interaction, u1: discord.Member, u2: discord.Member):
 
     draw = ImageDraw.Draw(final)
 
-    # FUENTE GIGANTE REAL
     try:
         font = ImageFont.truetype("DejaVuSans-Bold.ttf", 180)
     except:
@@ -92,8 +98,8 @@ async def ship(i: discord.Interaction, u1: discord.Member, u2: discord.Member):
     w = bbox[2]-bbox[0]
     h = bbox[3]-bbox[1]
 
-    x = (900//2) - (w//2)
-    y = (256//2) - (h//2)
+    x = (900//2)-(w//2)
+    y = (256//2)-(h//2)
 
     draw.text((x+8,y+8),text,fill=(0,0,0),font=font)
     draw.text((x,y),text,fill=(255,255,255),font=font)
@@ -141,7 +147,7 @@ async def golpe(i,u:discord.Member):
     e.set_image(url=get_gif("anime slap"))
     await i.response.send_message(embed=e)
 
-# --- 12 COMANDOS EXTRA ---
+# --- INTERACTIVOS ---
 @bot.tree.command(name="dado")
 async def dado(i): await i.response.send_message(embed=discord.Embed(title="DADO",description=str(random.randint(1,6)),color=COLOR))
 
@@ -152,10 +158,6 @@ async def coin(i): await i.response.send_message(embed=discord.Embed(title="COIN
 async def iq(i,u:Optional[discord.Member]=None):
     u=u or i.user
     await i.response.send_message(embed=discord.Embed(title="IQ",description=f"{u.mention}: {random.randint(50,200)}",color=COLOR))
-
-@bot.tree.command(name="amor")
-async def amor(i,u:discord.Member):
-    await i.response.send_message(embed=discord.Embed(title="AMOR",description=f"{random.randint(0,100)}%",color=COLOR))
 
 @bot.tree.command(name="8ball")
 async def ball(i,pregunta:str):
@@ -169,18 +171,57 @@ async def meme(i):
     e.set_image(url=r["url"])
     await i.response.send_message(embed=e)
 
-@bot.tree.command(name="numero")
-async def numero(i):
-    await i.response.send_message(embed=discord.Embed(title="NÚMERO",description=str(random.randint(0,1000)),color=COLOR))
+# --- UTILIDAD SERVIDOR (15) ---
+@bot.tree.command(name="userinfo")
+async def userinfo(i, user: Optional[discord.Member]=None):
+    user = user or i.user
+    e=discord.Embed(title="USER INFO",color=COLOR)
+    e.set_thumbnail(url=user.display_avatar.url)
+    e.description=f"{user.mention}\nID:{user.id}\nCreado:{user.created_at.strftime('%d/%m/%Y')}"
+    await i.response.send_message(embed=e)
 
-@bot.tree.command(name="ruleta")
-async def ruleta(i):
-    await i.response.send_message(embed=discord.Embed(title="RULETA",description=str(random.randint(1,6)),color=COLOR))
+@bot.tree.command(name="serverinfo")
+async def serverinfo(i):
+    g=i.guild
+    e=discord.Embed(title="SERVER INFO",color=COLOR)
+    e.description=f"{g.name}\nMiembros:{g.member_count}"
+    await i.response.send_message(embed=e)
 
-@bot.tree.command(name="insulto")
-async def insulto(i):
-    lista=["npc","bug humano","lento","error 404"]
-    await i.response.send_message(embed=discord.Embed(title="INSULTO",description=random.choice(lista),color=COLOR))
+@bot.tree.command(name="avatar")
+async def avatar(i,user:Optional[discord.Member]=None):
+    user=user or i.user
+    e=discord.Embed(title="AVATAR",color=COLOR)
+    e.set_image(url=user.display_avatar.url)
+    await i.response.send_message(embed=e)
+
+@bot.tree.command(name="ping")
+async def ping(i):
+    e=discord.Embed(title="PING",description=f"{round(bot.latency*1000)}ms",color=COLOR)
+    await i.response.send_message(embed=e)
+
+@bot.tree.command(name="say")
+async def say(i,mensaje:str):
+    e=discord.Embed(title="MENSAJE",description=mensaje,color=COLOR)
+    await i.response.send_message(embed=e)
+
+@bot.tree.command(name="reglas")
+async def reglas(i):
+    e=discord.Embed(title="REGLAS",color=COLOR)
+    e.description="Respeto\nNo spam\nNo contenido ilegal"
+    await i.response.send_message(embed=e)
+
+@bot.tree.command(name="warn")
+async def warn(i,user:discord.Member,motivo:str):
+    uid=str(user.id)
+    warnings[uid]=warnings.get(uid,0)+1
+    e=discord.Embed(title="WARN",color=COLOR)
+    e.description=f"{user.mention}\nMotivo:{motivo}\nTotal:{warnings[uid]}"
+    await i.response.send_message(embed=e)
+
+@bot.tree.command(name="clearwarns")
+async def clearwarns(i,user:discord.Member):
+    warnings[str(user.id)]=0
+    await i.response.send_message(embed=discord.Embed(title="WARNS LIMPIADOS",color=COLOR))
 
 # --- START ---
 keep_alive()
