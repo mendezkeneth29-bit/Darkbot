@@ -13,6 +13,9 @@ TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
 DB_FILE = "data.json"
 
+# 🔥 CAMBIA ESTO PARA RESETEAR TODO
+SYSTEM_VERSION = "1.0"
+
 # --- DATA ---
 data = {}
 tienda_roles = {}
@@ -20,13 +23,28 @@ prestamos = []
 bank_accounts = {}
 
 # -------------------------
-# 💾 SAVE SYSTEM
+# 💾 SAVE / LOAD
 # -------------------------
 def load_data():
     global data, tienda_roles, prestamos, bank_accounts
+
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r") as f:
             raw = json.load(f)
+
+            saved_version = raw.get("version")
+
+            if saved_version != SYSTEM_VERSION:
+                print("⚠️ CAMBIO DE VERSION → RESETEANDO")
+
+                data.clear()
+                tienda_roles.clear()
+                prestamos.clear()
+                bank_accounts.clear()
+
+                save_data()
+                return
+
             data = raw.get("data", {})
             tienda_roles = raw.get("tienda_roles", {})
             prestamos = raw.get("prestamos", [])
@@ -35,6 +53,7 @@ def load_data():
 def save_data():
     with open(DB_FILE, "w") as f:
         json.dump({
+            "version": SYSTEM_VERSION,
             "data": data,
             "tienda_roles": tienda_roles,
             "prestamos": prestamos,
@@ -54,12 +73,12 @@ class DarkyBot(commands.Bot):
 bot = DarkyBot()
 
 # -------------------------
-# 🧠 UTILIDADES
+# UTIL
 # -------------------------
 def generate_bank_code():
     return "DB-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
-def init_user(uid: str):
+def init_user(uid):
     if uid not in data:
         data[uid] = {
             "credito": 0,
@@ -70,22 +89,21 @@ def init_user(uid: str):
         }
 
 # -------------------------
-# 🔁 SISTEMA SYNC
+# SYNC
 # -------------------------
-def refresh_user(uid: str):
+def refresh_user(uid):
     init_user(uid)
-
     data[uid]["credito"] = max(0, data[uid]["credito"])
     data[uid]["debe"] = max(0, data[uid]["debe"])
     data[uid]["prestado"] = max(0, data[uid]["prestado"])
 
 def refresh_all(guilds):
-    for guild in guilds:
-        for member in guild.members:
-            if member.bot:
+    for g in guilds:
+        for m in g.members:
+            if m.bot:
                 continue
 
-            uid = str(member.id)
+            uid = str(m.id)
 
             if uid not in bank_accounts:
                 bank_accounts[uid] = generate_bank_code()
@@ -93,7 +111,7 @@ def refresh_all(guilds):
             refresh_user(uid)
 
 # -------------------------
-# 👤 CUENTAS
+# EVENTS
 # -------------------------
 @bot.event
 async def on_member_join(member):
@@ -106,7 +124,6 @@ async def on_member_join(member):
     if uid not in bank_accounts:
         bank_accounts[uid] = generate_bank_code()
 
-    refresh_user(uid)
     save_data()
 
 @bot.event
@@ -119,7 +136,7 @@ async def on_ready():
     bot.loop.create_task(revisar_prestamos())
 
 # -------------------------
-# 💰 DINERO PASIVO
+# MONEY
 # -------------------------
 @bot.event
 async def on_message(message):
@@ -137,7 +154,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # -------------------------
-# 💳 CUENTA
+# CUENTA
 # -------------------------
 @bot.tree.command(name="cuenta")
 async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
@@ -162,7 +179,7 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# 💰 CARTERA
+# CARTERA
 # -------------------------
 @bot.tree.command(name="cartera")
 async def cartera(i: discord.Interaction, usuario: discord.Member = None):
@@ -171,7 +188,6 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
     uid = str(usuario.id)
 
     refresh_user(uid)
-
     d = data[uid]
 
     embed = discord.Embed(title=f"Cartera de {usuario.name}", color=COLOR)
@@ -189,15 +205,15 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# 🎁 REGALAR
+# REGALAR
 # -------------------------
 @bot.tree.command(name="regalar")
 @app_commands.checks.has_permissions(administrator=True)
-async def regalar(i: discord.Interaction, cantidad: int, usuario: discord.Member):
+async def regalar(i, cantidad: int, usuario: discord.Member):
 
     uid = str(usuario.id)
-
     init_user(uid)
+
     data[uid]["credito"] += cantidad
 
     refresh_user(uid)
@@ -223,7 +239,7 @@ async def regalar(i: discord.Interaction, cantidad: int, usuario: discord.Member
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# 🤝 PRESTAR
+# PRESTAMOS
 # -------------------------
 class PrestamoView(discord.ui.View):
     def __init__(self, p, r, c, d):
@@ -233,10 +249,10 @@ class PrestamoView(discord.ui.View):
         self.c = c
         self.d = d
 
-    async def disable_all(self, interaction):
-        for item in self.children:
-            item.disabled = True
-        await interaction.message.edit(view=self)
+    async def disable(self, i):
+        for x in self.children:
+            x.disabled = True
+        await i.message.edit(view=self)
 
     @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
     async def aceptar(self, i, b):
@@ -246,9 +262,6 @@ class PrestamoView(discord.ui.View):
 
         p = str(self.p.id)
         r = str(self.r.id)
-
-        init_user(p)
-        init_user(r)
 
         data[p]["credito"] -= self.c
         data[r]["credito"] += self.c
@@ -263,8 +276,6 @@ class PrestamoView(discord.ui.View):
             "tiempo": time.time() + (self.d * 86400)
         })
 
-        refresh_user(p)
-        refresh_user(r)
         save_data()
 
         await i.response.send_message(
@@ -275,7 +286,7 @@ class PrestamoView(discord.ui.View):
             )
         )
 
-        await self.disable_all(i)
+        await self.disable(i)
 
     @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
     async def rechazar(self, i, b):
@@ -291,10 +302,10 @@ class PrestamoView(discord.ui.View):
             )
         )
 
-        await self.disable_all(i)
+        await self.disable(i)
 
 @bot.tree.command(name="prestar")
-async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member, dias: int):
+async def prestar(i, cantidad: int, usuario: discord.Member, dias: int):
 
     embed = discord.Embed(color=COLOR)
 
@@ -313,40 +324,7 @@ async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member
     await i.response.send_message(embed=embed, view=PrestamoView(i.user, usuario, cantidad, dias))
 
 # -------------------------
-# 💸 DEVOLVER
-# -------------------------
-@bot.tree.command(name="devolver")
-async def devolver(i: discord.Interaction, cantidad: int, usuario: discord.Member):
-
-    p = str(i.user.id)
-    r = str(usuario.id)
-
-    init_user(p)
-    init_user(r)
-
-    data[p]["debe"] -= cantidad
-    data[p]["credito"] -= cantidad
-    data[r]["credito"] += cantidad
-
-    refresh_user(p)
-    refresh_user(r)
-    save_data()
-
-    await i.response.send_message(
-        embed=discord.Embed(
-            description=(
-                f"{i.user.name} ha devuelto el dinero prestado a {usuario.name}\n"
-                "---------------------------------------------------\n"
-                f"{i.user.name} ahora tiene 0 deudas\n"
-                f"Cantidad: {cantidad}\n"
-                "de parte de: darky bank."
-            ),
-            color=COLOR
-        )
-    )
-
-# -------------------------
-# ⏳ COBRO AUTOMÁTICO
+# LOOP
 # -------------------------
 async def revisar_prestamos():
     while True:
