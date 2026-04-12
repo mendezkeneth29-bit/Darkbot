@@ -20,7 +20,7 @@ prestamos = []
 bank_accounts = {}
 
 # -------------------------
-# SAVE SYSTEM
+# 💾 SAVE SYSTEM
 # -------------------------
 def load_data():
     global data, tienda_roles, prestamos, bank_accounts
@@ -54,7 +54,7 @@ class DarkyBot(commands.Bot):
 bot = DarkyBot()
 
 # -------------------------
-# BANK
+# UTILIDADES
 # -------------------------
 def generate_bank_code():
     return "DB-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
@@ -70,7 +70,7 @@ def init_user(uid: str):
         }
 
 # -------------------------
-# JOIN / READY ACCOUNTS
+# CUENTAS AUTOMÁTICAS
 # -------------------------
 @bot.event
 async def on_member_join(member):
@@ -104,7 +104,7 @@ async def on_ready():
     bot.loop.create_task(revisar_prestamos())
 
 # -------------------------
-# MONEY PASSIVE
+# DINERO PASIVO
 # -------------------------
 @bot.event
 async def on_message(message):
@@ -120,7 +120,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # -------------------------
-# CUENTA
+# CUENTA (MISMO DINERO QUE CARTERA)
 # -------------------------
 @bot.tree.command(name="cuenta")
 async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
@@ -144,7 +144,7 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# CARTERA (NO TOCADO)
+# CARTERA (MISMO SISTEMA REAL)
 # -------------------------
 @bot.tree.command(name="cartera")
 async def cartera(i: discord.Interaction, usuario: discord.Member = None):
@@ -170,7 +170,7 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# REGALAR (EMBED ORIGINAL MANTENIDO)
+# REGALAR (ADMIN)
 # -------------------------
 @bot.tree.command(name="regalar")
 @app_commands.checks.has_permissions(administrator=True)
@@ -202,7 +202,7 @@ async def regalar(i: discord.Interaction, cantidad: int, usuario: discord.Member
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# PRESTAR (EMBED ORIGINAL RESTAURADO)
+# PRESTAMOS (CON LIMPIEZA DE BOTONES)
 # -------------------------
 class PrestamoView(discord.ui.View):
     def __init__(self, p, r, c, d):
@@ -211,6 +211,11 @@ class PrestamoView(discord.ui.View):
         self.r = r
         self.c = c
         self.d = d
+
+    async def disable_all(self, interaction):
+        for item in self.children:
+            item.disabled = True
+        await interaction.message.edit(view=self)
 
     @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
     async def aceptar(self, i, b):
@@ -247,6 +252,8 @@ class PrestamoView(discord.ui.View):
             )
         )
 
+        await self.disable_all(i)
+
     @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
     async def rechazar(self, i, b):
 
@@ -260,6 +267,8 @@ class PrestamoView(discord.ui.View):
                 color=COLOR
             )
         )
+
+        await self.disable_all(i)
 
 @bot.tree.command(name="prestar")
 async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member, dias: int):
@@ -281,7 +290,7 @@ async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member
     await i.response.send_message(embed=embed, view=PrestamoView(i.user, usuario, cantidad, dias))
 
 # -------------------------
-# DEVOLVER (NO TOCADO EMBED ORIGINAL)
+# DEVOLVER
 # -------------------------
 @bot.tree.command(name="devolver")
 async def devolver(i: discord.Interaction, cantidad: int, usuario: discord.Member):
@@ -312,7 +321,7 @@ async def devolver(i: discord.Interaction, cantidad: int, usuario: discord.Membe
     )
 
 # -------------------------
-# LOOP
+# COBRO AUTOMÁTICO
 # -------------------------
 async def revisar_prestamos():
     while True:
