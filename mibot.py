@@ -9,7 +9,7 @@ import time
 TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
 
-# --- BASE DE DATOS (simple) ---
+# --- BASE DE DATOS ---
 data = {}
 tienda_roles = {}
 prestamos = []
@@ -48,7 +48,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# --- COMANDO CARTERA ---
+# --- CARTERA ---
 @bot.tree.command(name="cartera", description="Ver cartera de un usuario")
 async def cartera(i: discord.Interaction, usuario: discord.Member = None):
 
@@ -113,18 +113,19 @@ class TiendaSelect(discord.ui.Select):
 
         opciones = []
 
-        for rid, data_rol in tienda_roles.items():
+        for rid, item in tienda_roles.items():
             opciones.append(
                 discord.SelectOption(
                     label=f"ID {rid}",
-                    description=f"${data_rol['precio']}",
+                    description=f"${item['precio']}",
                     value=str(rid)
                 )
             )
 
-        # FIX: evitar crash si está vacío
         if not opciones:
-            opciones = [discord.SelectOption(label="Sin items", value="0")]
+            opciones = [
+                discord.SelectOption(label="Sin items", value="0")
+            ]
 
         super().__init__(placeholder="Selecciona un rol", options=opciones)
 
@@ -189,7 +190,7 @@ async def tienda(i: discord.Interaction):
 
     await i.response.send_message(embed=embed, view=TiendaView())
 
-# --- PRESTAMOS ---
+# --- PRESTAMOS VIEW ---
 class PrestamoView(discord.ui.View):
     def __init__(self, prestador, receptor, cantidad, dias):
         super().__init__(timeout=60)
@@ -248,7 +249,7 @@ class PrestamoView(discord.ui.View):
             )
         )
 
-# --- COMANDO PRESTAR ---
+# --- PRESTAR ---
 @bot.tree.command(name="prestar")
 async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member, dias: int):
 
@@ -257,14 +258,14 @@ async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member
 
     embed = discord.Embed(color=COLOR)
 
-    embed.title = f"{prestador.name} quiere prestar dinero a {receptor.name}"
     embed.description = (
+        f"{prestador.name} quiere prestar dinero a {receptor.name}\n"
         "-------------------------------------------------------\n"
         f"> - el dinero se debera pagar en {dias} dias\n"
         f"> - la cantidad de dinero prestado sera de ${cantidad}\n"
         "> - si este dinero no es entregado la fecha planeada se le quitara el dinero pendiente al que debe\n"
         "-------------------------------------------------------\n"
-        f"{receptor.mention} aceptas o rechazas el prestamo?"
+        f"{receptor.name} aceptas o rechazas el prestamo?."
     )
 
     embed.set_thumbnail(url=receptor.display_avatar.url)
