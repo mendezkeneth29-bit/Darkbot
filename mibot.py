@@ -306,6 +306,163 @@ async def icon(i):
         e.set_image(url=i.guild.icon.url)
         await i.response.send_message(embed=e)
 
+# --- DAILY ---
+@bot.tree.command(name="daily")
+async def daily(i: discord.Interaction):
+    uid = str(i.user.id)
+
+    if uid in cooldowns and time.time() - cooldowns[uid] < 86400:
+        return await i.response.send_message("Ya reclamaste tu daily hoy", ephemeral=True)
+
+    dinero = random.randint(100, 300)
+    cartera[uid] = cartera.get(uid, 0) + dinero
+    cooldowns[uid] = time.time()
+
+    e = discord.Embed(title="RECOMPENSA DIARIA", color=COLOR)
+    e.description = f"Ganaste ${dinero:,}\nSaldo: ${cartera[uid]:,}"
+    await i.response.send_message(embed=e)
+
+# --- WORK ---
+@bot.tree.command(name="work")
+async def work(i: discord.Interaction):
+    uid = str(i.user.id)
+    dinero = random.randint(50, 150)
+
+    cartera[uid] = cartera.get(uid, 0) + dinero
+
+    e = discord.Embed(title="TRABAJO", color=COLOR)
+    e.description = f"Ganaste ${dinero:,}\nSaldo: ${cartera[uid]:,}"
+    await i.response.send_message(embed=e)
+
+# --- ROB ---
+@bot.tree.command(name="robar")
+async def robar(i: discord.Interaction, user: discord.Member):
+    uid = str(i.user.id)
+    target = str(user.id)
+
+    if cartera.get(target, 0) < 50:
+        return await i.response.send_message("Muy pobre para robarle", ephemeral=True)
+
+    if random.randint(1, 100) < 50:
+        dinero = random.randint(10, 100)
+        cartera[uid] = cartera.get(uid, 0) + dinero
+        cartera[target] -= dinero
+
+        msg = f"Robaste ${dinero:,} a {user.mention}"
+    else:
+        dinero = random.randint(10, 50)
+        cartera[uid] -= dinero
+        msg = f"Fallaste y perdiste ${dinero:,}"
+
+    e = discord.Embed(title="ROBO", description=msg, color=COLOR)
+    await i.response.send_message(embed=e)
+
+# --- TRANSFER ---
+@bot.tree.command(name="transferir")
+async def transferir(i: discord.Interaction, user: discord.Member, cantidad: int):
+    uid = str(i.user.id)
+    target = str(user.id)
+
+    if cantidad <= 0 or cartera.get(uid, 0) < cantidad:
+        return await i.response.send_message("Cantidad inválida", ephemeral=True)
+
+    cartera[uid] -= cantidad
+    cartera[target] = cartera.get(target, 0) + cantidad
+
+    e = discord.Embed(title="TRANSFERENCIA", color=COLOR)
+    e.description = f"{i.user.mention} → {user.mention}\n${cantidad:,}"
+    await i.response.send_message(embed=e)
+
+# --- GAMBLE ---
+@bot.tree.command(name="apostar")
+async def apostar(i: discord.Interaction, cantidad: int):
+    uid = str(i.user.id)
+
+    if cantidad <= 0 or cartera.get(uid, 0) < cantidad:
+        return await i.response.send_message("Cantidad inválida", ephemeral=True)
+
+    if random.randint(1, 100) < 50:
+        cartera[uid] += cantidad
+        msg = f"Ganaste ${cantidad:,}"
+    else:
+        cartera[uid] -= cantidad
+        msg = f"Perdiste ${cantidad:,}"
+
+    e = discord.Embed(title="APUESTA", description=msg, color=COLOR)
+    await i.response.send_message(embed=e)
+
+# --- BANK (guardar dinero) ---
+banco = {}
+
+@bot.tree.command(name="depositar")
+async def depositar(i: discord.Interaction, cantidad: int):
+    uid = str(i.user.id)
+
+    if cantidad <= 0 or cartera.get(uid, 0) < cantidad:
+        return await i.response.send_message("Cantidad inválida", ephemeral=True)
+
+    cartera[uid] -= cantidad
+    banco[uid] = banco.get(uid, 0) + cantidad
+
+    e = discord.Embed(title="DEPÓSITO", color=COLOR)
+    e.description = f"Guardaste ${cantidad:,}"
+    await i.response.send_message(embed=e)
+
+# --- WITHDRAW ---
+@bot.tree.command(name="retirar")
+async def retirar(i: discord.Interaction, cantidad: int):
+    uid = str(i.user.id)
+
+    if cantidad <= 0 or banco.get(uid, 0) < cantidad:
+        return await i.response.send_message("Cantidad inválida", ephemeral=True)
+
+    banco[uid] -= cantidad
+    cartera[uid] += cantidad
+
+    e = discord.Embed(title="RETIRO", color=COLOR)
+    e.description = f"Retiraste ${cantidad:,}"
+    await i.response.send_message(embed=e)
+
+# --- BANK BALANCE ---
+@bot.tree.command(name="banco")
+async def banco_cmd(i: discord.Interaction):
+    uid = str(i.user.id)
+
+    e = discord.Embed(title="BANCO", color=COLOR)
+    e.description = (
+        f"Cartera: ${cartera.get(uid,0):,}\n"
+        f"Banco: ${banco.get(uid,0):,}"
+    )
+    await i.response.send_message(embed=e)
+
+# --- TOP RICOS ---
+@bot.tree.command(name="topricos")
+async def topricos(i: discord.Interaction):
+    top = sorted(cartera.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    texto = "\n".join([f"<@{u}> - ${m:,}" for u, m in top])
+
+    e = discord.Embed(title="TOP RICOS", color=COLOR)
+    e.description = texto
+    await i.response.send_message(embed=e)
+
+# --- MULTIPLICADOR ---
+@bot.tree.command(name="multiplicar")
+async def multiplicar(i: discord.Interaction, cantidad: int):
+    uid = str(i.user.id)
+
+    if cantidad <= 0 or cartera.get(uid, 0) < cantidad:
+        return await i.response.send_message("Cantidad inválida", ephemeral=True)
+
+    multi = random.randint(1, 3)
+    ganancia = cantidad * multi
+
+    cartera[uid] += ganancia
+
+    e = discord.Embed(title="MULTIPLICADOR", color=COLOR)
+    e.description = f"x{multi}\nGanaste ${ganancia:,}"
+    await i.response.send_message(embed=e)
+
 # --- INTERACTIVO BOTÓN ---
 class TrabajoView(discord.ui.View):
     @discord.ui.button(label="Trabajar", style=discord.ButtonStyle.green)
