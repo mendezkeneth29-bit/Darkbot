@@ -48,7 +48,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# --- CARTERA ---
+# --- COMANDO CARTERA ---
 @bot.tree.command(name="cartera", description="Ver cartera de un usuario")
 async def cartera(i: discord.Interaction, usuario: discord.Member = None):
 
@@ -58,7 +58,11 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
 
     user_data = data[uid]
 
-    embed = discord.Embed(title=f"Cartera de {usuario.name}", color=COLOR)
+    embed = discord.Embed(
+        title=f"Cartera de {usuario.name}",
+        color=COLOR
+    )
+
     embed.description = (
         f"credito: {user_data['credito']}$\n"
         f"dinero transferido: {user_data['dinero_transferido']}$\n"
@@ -69,6 +73,7 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
     )
 
     embed.set_thumbnail(url=usuario.display_avatar.url)
+
     await i.response.send_message(embed=embed)
 
 # --- TIENDA SET ---
@@ -76,10 +81,17 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
 @app_commands.checks.has_permissions(administrator=True)
 async def tienda_set(i: discord.Interaction, rol: discord.Role, precio: int, stock: int):
 
-    tienda_roles[rol.id] = {"precio": precio, "stock": stock}
+    tienda_roles[rol.id] = {
+        "precio": precio,
+        "stock": stock
+    }
 
     embed = discord.Embed(title="ITEM AGREGADO A TIENDA", color=COLOR)
-    embed.description = f"Rol: {rol.mention}\nPrecio: ${precio}\nStock: {stock}"
+    embed.description = (
+        f"Rol: {rol.mention}\n"
+        f"Precio: ${precio}\n"
+        f"Stock: {stock}"
+    )
 
     await i.response.send_message(embed=embed)
 
@@ -90,13 +102,10 @@ async def tienda_reset(i: discord.Interaction):
 
     tienda_roles.clear()
 
-    await i.response.send_message(
-        embed=discord.Embed(
-            title="TIENDA RESETEADA",
-            description="Todos los roles fueron eliminados",
-            color=COLOR
-        )
-    )
+    embed = discord.Embed(title="TIENDA RESETEADA", color=COLOR)
+    embed.description = "Todos los roles fueron eliminados de la tienda"
+
+    await i.response.send_message(embed=embed)
 
 # --- SELECT ---
 class TiendaSelect(discord.ui.Select):
@@ -104,27 +113,27 @@ class TiendaSelect(discord.ui.Select):
 
         opciones = []
 
-        for rid, item in tienda_roles.items():
-            role = None
+        for rid, data_rol in tienda_roles.items():
             opciones.append(
                 discord.SelectOption(
-                    label=f"Rol {rid}",
-                    description=f"${item['precio']}",
+                    label=f"ID {rid}",
+                    description=f"${data_rol['precio']}",
                     value=str(rid)
                 )
             )
 
-        super().__init__(
-            placeholder="Selecciona un rol",
-            options=opciones if opciones else [discord.SelectOption(label="Vacío", value="0")]
-        )
+        # FIX: evitar crash si está vacío
+        if not opciones:
+            opciones = [discord.SelectOption(label="Sin items", value="0")]
+
+        super().__init__(placeholder="Selecciona un rol", options=opciones)
 
     async def callback(self, interaction: discord.Interaction):
 
         rid = int(self.values[0])
 
         if rid not in tienda_roles:
-            return await interaction.response.send_message("Item inválido", ephemeral=True)
+            return await interaction.response.send_message("No tienes datos aún", ephemeral=True)
 
         item = tienda_roles[rid]
         uid = str(interaction.user.id)
@@ -145,14 +154,14 @@ class TiendaSelect(discord.ui.Select):
 
         await interaction.user.add_roles(role)
 
-        await interaction.response.send_message(
-            embed=discord.Embed(
-                title="COMPRA EXITOSA",
-                description=f"Rol: {role.mention}\nStock restante: {item['stock']}",
-                color=COLOR
-            ),
-            ephemeral=True
+        embed = discord.Embed(title="COMPRA EXITOSA", color=COLOR)
+        embed.description = (
+            f"Rol: {role.mention}\n"
+            f"Precio: ${item['precio']}\n"
+            f"Stock restante: {item['stock']}"
         )
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # --- VIEW ---
 class TiendaView(discord.ui.View):
@@ -171,6 +180,7 @@ async def tienda(i: discord.Interaction):
 
     for idx, (rid, item) in enumerate(tienda_roles.items(), start=1):
         role = i.guild.get_role(rid) if i.guild else None
+
         embed.add_field(
             name=f"{idx}. {role.name if role else 'Rol eliminado'}",
             value=f"Precio: ${item['precio']}\nStock: {item['stock']}",
@@ -179,7 +189,7 @@ async def tienda(i: discord.Interaction):
 
     await i.response.send_message(embed=embed, view=TiendaView())
 
-# --- PRESTAMOS VIEW ---
+# --- PRESTAMOS ---
 class PrestamoView(discord.ui.View):
     def __init__(self, prestador, receptor, cantidad, dias):
         super().__init__(timeout=60)
@@ -238,20 +248,31 @@ class PrestamoView(discord.ui.View):
             )
         )
 
-# --- PRESTAR ---
+# --- COMANDO PRESTAR ---
 @bot.tree.command(name="prestar")
 async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member, dias: int):
 
     prestador = i.user
     receptor = usuario
 
-    embed = discord.Embed(
-        title=f"{prestador.name} quiere prestar dinero a {receptor.name}",
-        description=f"Devolver en {dias} días\nMonto: ${cantidad}\nAceptar?",
-        color=COLOR
+    embed = discord.Embed(color=COLOR)
+
+    embed.title = f"{prestador.name} quiere prestar dinero a {receptor.name}"
+    embed.description = (
+        "-------------------------------------------------------\n"
+        f"> - el dinero se debera pagar en {dias} dias\n"
+        f"> - la cantidad de dinero prestado sera de ${cantidad}\n"
+        "> - si este dinero no es entregado la fecha planeada se le quitara el dinero pendiente al que debe\n"
+        "-------------------------------------------------------\n"
+        f"{receptor.mention} aceptas o rechazas el prestamo?"
     )
 
-    await i.response.send_message(embed=embed, view=PrestamoView(prestador, receptor, cantidad, dias))
+    embed.set_thumbnail(url=receptor.display_avatar.url)
+
+    await i.response.send_message(
+        embed=embed,
+        view=PrestamoView(prestador, receptor, cantidad, dias)
+    )
 
 # --- LOOP PRESTAMOS ---
 async def revisar_prestamos():
@@ -275,7 +296,7 @@ async def revisar_prestamos():
 # --- READY ---
 @bot.event
 async def on_ready():
-    print(f"Bot listo como {bot.user}")
+    print("Bot listo")
     bot.loop.create_task(revisar_prestamos())
 
 # --- RUN ---
