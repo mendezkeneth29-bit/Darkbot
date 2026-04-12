@@ -20,7 +20,7 @@ prestamos = []
 bank_accounts = {}
 
 # -------------------------
-# 💾 SAVE SYSTEM
+# SAVE SYSTEM
 # -------------------------
 def load_data():
     global data, tienda_roles, prestamos, bank_accounts
@@ -54,7 +54,7 @@ class DarkyBot(commands.Bot):
 bot = DarkyBot()
 
 # -------------------------
-# UTIL
+# BANK
 # -------------------------
 def generate_bank_code():
     return "DB-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
@@ -70,7 +70,7 @@ def init_user(uid: str):
         }
 
 # -------------------------
-# JOIN + READY ACCOUNTS
+# JOIN / READY ACCOUNTS
 # -------------------------
 @bot.event
 async def on_member_join(member):
@@ -104,7 +104,7 @@ async def on_ready():
     bot.loop.create_task(revisar_prestamos())
 
 # -------------------------
-# MONEY SYSTEM
+# MONEY PASSIVE
 # -------------------------
 @bot.event
 async def on_message(message):
@@ -144,7 +144,7 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# CARTERA
+# CARTERA (NO TOCADO)
 # -------------------------
 @bot.tree.command(name="cartera")
 async def cartera(i: discord.Interaction, usuario: discord.Member = None):
@@ -170,7 +170,7 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# REGALAR (ADMIN)
+# REGALAR (EMBED ORIGINAL MANTENIDO)
 # -------------------------
 @bot.tree.command(name="regalar")
 @app_commands.checks.has_permissions(administrator=True)
@@ -202,7 +202,7 @@ async def regalar(i: discord.Interaction, cantidad: int, usuario: discord.Member
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# PRESTAR
+# PRESTAR (EMBED ORIGINAL RESTAURADO)
 # -------------------------
 class PrestamoView(discord.ui.View):
     def __init__(self, p, r, c, d):
@@ -264,19 +264,24 @@ class PrestamoView(discord.ui.View):
 @bot.tree.command(name="prestar")
 async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member, dias: int):
 
-    await i.response.send_message(
-        embed=discord.Embed(
-            title="PRÉSTAMO",
-            description=f"{i.user.name} quiere prestar dinero a {usuario.name}\n"
-                        f"Devolver en {dias} días\nMonto: ${cantidad}\n"
-                        f"{usuario.name} acepta o rechaza?",
-            color=COLOR
-        ),
-        view=PrestamoView(i.user, usuario, cantidad, dias)
+    embed = discord.Embed(color=COLOR)
+
+    embed.description = (
+        f"{i.user.name} quiere prestar dinero a {usuario.name}\n"
+        "-------------------------------------------------------\n"
+        f"> - el dinero se debera pagar en {dias} dias\n"
+        f"> - la cantidad de dinero prestado sera de ${cantidad}\n"
+        "> - si este dinero no es entregado la fecha planeada se le quitara el dinero pendiente al que debe\n"
+        "-------------------------------------------------------\n"
+        f"{usuario.name} aceptas o rechazas el prestamo?."
     )
 
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    await i.response.send_message(embed=embed, view=PrestamoView(i.user, usuario, cantidad, dias))
+
 # -------------------------
-# DEVOLVER
+# DEVOLVER (NO TOCADO EMBED ORIGINAL)
 # -------------------------
 @bot.tree.command(name="devolver")
 async def devolver(i: discord.Interaction, cantidad: int, usuario: discord.Member):
