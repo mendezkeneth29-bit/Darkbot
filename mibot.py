@@ -110,6 +110,61 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
 
     await i.response.send_message(embed=embed)
 
+@bot.tree.command(name="transaccion")
+async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
+
+    uid_sender = str(i.user.id)
+    init_user(uid_sender)
+
+    # buscar usuario por ID bancario
+    usuario_objetivo = None
+    uid_receiver = None
+
+    for uid, info in data.items():
+        if info["id_banco"] == cuenta_bancaria:
+            uid_receiver = uid
+            usuario_objetivo = i.guild.get_member(int(uid))
+            break
+
+    if not usuario_objetivo:
+        return await i.response.send_message("ID bancario no encontrado", ephemeral=True)
+
+    if uid_sender == uid_receiver:
+        return await i.response.send_message("No puedes transferirte a ti mismo", ephemeral=True)
+
+    # validar dinero
+    if cantidad <= 0:
+        return await i.response.send_message("Cantidad inválida", ephemeral=True)
+
+    if data[uid_sender]["creditos"] < cantidad:
+        return await i.response.send_message("No tienes suficiente dinero", ephemeral=True)
+
+    # transferir
+    data[uid_sender]["creditos"] -= cantidad
+    data[uid_receiver]["creditos"] += cantidad
+
+    save_data()
+
+    # EMBED EXACTO
+    embed = discord.Embed(
+        title=f"Transaccion a {usuario_objetivo.mention} 💸",
+        color=COLOR
+    )
+
+    embed.description = (
+        f"{cantidad} enviados a {usuario_objetivo.mention}\n"
+        f"ID bancario {data[uid_receiver]['id_banco']}\n"
+        "--------------------------------------------------\n"
+        f"> - ahora {usuario_objetivo.mention} tiene {data[uid_receiver]['creditos']} creditos\n"
+        "> - usalos con inteligencia\n"
+        "------------------------------\n"
+        f"enviado por: {i.user.mention}, creditado por: DarkyBank"
+    )
+
+    embed.set_thumbnail(url=usuario_objetivo.display_avatar.url)
+
+    await i.response.send_message(embed=embed)
+
 # -------------------------
 # RUN
 # -------------------------
