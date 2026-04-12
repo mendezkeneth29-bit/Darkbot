@@ -1,20 +1,68 @@
-# --- AFK ---
+import discord
+from discord import app_commands
+from discord.ext import commands
+import os, random, requests, time, io
+from flask import Flask
+from threading import Thread
+from typing import Optional
+from PIL import Image, ImageDraw, ImageFont
+
+# --- KEEP ALIVE ---
+app = Flask('')
+@app.route('/')
+def home():
+    return "DarkyBot Online"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    Thread(target=run).start()
+
+# --- CONFIG ---
+TOKEN = os.getenv("TOKEN")
+TENOR_KEY = "LIVDSRZULELA"
+
+cartera = {}
+cooldowns = {}
+warnings = {}
 afk_users = {}
 
-@bot.tree.command(name="afk")
-async def afk(i, motivo:str="Ausente"):
-    afk_users[str(i.user.id)] = motivo
-    e = discord.Embed(title="MODO AFK ACTIVADO", color=COLOR)
-    e.description = f"{i.user.mention} ahora está AFK\nMotivo: {motivo}"
-    await i.response.send_message(embed=e)
+COLOR = 0x000000
+SEP = "━━━━━━━━━━━━━━━━━━━━━━"
 
+# --- BOT ---
+class DarkyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix="!", intents=discord.Intents.all())
+
+    async def setup_hook(self):
+        await self.tree.sync()
+
+bot = DarkyBot()
+
+# --- TENOR ---
+def get_gif(query):
+    url = f"https://g.tenor.com/v1/search?q={query}&key={TENOR_KEY}&limit=10"
+    r = requests.get(url).json()
+    return random.choice(r["results"])["media"][0]["gif"]["url"]
+
+# --- EVENTO UNIFICADO ---
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    if str(message.author.id) in afk_users:
-        del afk_users[str(message.author.id)]
+    uid = str(message.author.id)
+
+    # ECONOMÍA
+    if time.time() - cooldowns.get(uid, 0) > 10:
+        cartera[uid] = cartera.get(uid, 0) + 5
+        cooldowns[uid] = time.time()
+
+    # AFK
+    if uid in afk_users:
+        del afk_users[uid]
         await message.channel.send(f"{message.author.mention} ya no está AFK")
 
     for user in message.mentions:
@@ -23,148 +71,106 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# --- CLIMA (BÁSICO) ---
-@bot.tree.command(name="clima")
-async def clima(i, ciudad:str):
-    try:
-        r = requests.get(f"https://wttr.in/{ciudad}?format=3").text
-        e = discord.Embed(title="CLIMA", description=r, color=COLOR)
-        await i.response.send_message(embed=e)
-    except:
-        await i.response.send_message("Error")
+# --- COMANDOS ---
 
-# --- GOOGLE ---
-@bot.tree.command(name="google")
-async def google(i, busqueda:str):
-    link = f"https://www.google.com/search?q={busqueda.replace(' ','+')}"
-    e = discord.Embed(title="BÚSQUEDA GOOGLE", color=COLOR)
-    e.description = f"[Resultados aquí]({link})"
+@bot.tree.command(name="cartera")
+async def cartera_cmd(i: discord.Interaction):
+    money = cartera.get(str(i.user.id), 0)
+    e = discord.Embed(title="SISTEMA FINANCIERO", color=COLOR)
+    e.set_thumbnail(url=i.user.display_avatar.url)
+    e.description = f"{i.user.mention}\nSaldo: ${money:,}\n{SEP}\n+5 cada 10s"
     await i.response.send_message(embed=e)
 
-# --- YOUTUBE ---
-@bot.tree.command(name="youtube")
-async def youtube(i, busqueda:str):
-    link = f"https://www.youtube.com/results?search_query={busqueda.replace(' ','+')}"
-    e = discord.Embed(title="YOUTUBE", color=COLOR)
-    e.description = f"[Ver resultados]({link})"
+@bot.tree.command(name="afk")
+async def afk(i, motivo:str="Ausente"):
+    afk_users[str(i.user.id)] = motivo
+    await i.response.send_message(embed=discord.Embed(title="AFK", description=motivo, color=COLOR))
+
+@bot.tree.command(name="serverinfo")
+async def serverinfo(i: discord.Interaction):
+    g = i.guild
+    e = discord.Embed(title="INFO SERVIDOR", color=COLOR)
+    if g.icon:
+        e.set_thumbnail(url=g.icon.url)
+
+    e.description = (
+        f"Nombre: {g.name}\nID: {g.id}\n\n"
+        f"{SEP}\nDueño: {g.owner}\nCreado: {g.created_at.strftime('%d/%m/%Y')}\n\n"
+        f"{SEP}\nMiembros: {g.member_count}\nRoles: {len(g.roles)}\nCanales: {len(g.channels)}"
+    )
     await i.response.send_message(embed=e)
 
-# --- CALCULADORA ---
-@bot.tree.command(name="calc")
-async def calc(i, operacion:str):
-    try:
-        resultado = eval(operacion)
-        e = discord.Embed(title="CALCULADORA", color=COLOR)
-        e.description = f"{operacion} = {resultado}"
-        await i.response.send_message(embed=e)
-    except:
-        await i.response.send_message("Error en cálculo")
+@bot.tree.command(name="ship")
+async def ship(i: discord.Interaction, u1: discord.Member, u2: discord.Member):
+    p = random.randint(0,100)
 
-# --- ENCRIPTAR ---
-@bot.tree.command(name="encrypt")
-async def encrypt(i, texto:str):
-    encriptado = texto[::-1]
-    await i.response.send_message(embed=discord.Embed(title="ENCRIPTADO", description=encriptado, color=COLOR))
+    img1 = Image.open(io.BytesIO(requests.get(u1.display_avatar.url).content)).resize((256,256))
+    img2 = Image.open(io.BytesIO(requests.get(u2.display_avatar.url).content)).resize((256,256))
 
-# --- DESENCRIPTAR ---
-@bot.tree.command(name="decrypt")
-async def decrypt(i, texto:str):
-    desencriptado = texto[::-1]
-    await i.response.send_message(embed=discord.Embed(title="DESENCRIPTADO", description=desencriptado, color=COLOR))
+    final = Image.new("RGBA",(900,256),(0,0,0,0))
+    final.paste(img1,(0,0))
+    final.paste(img2,(644,0))
 
-# --- DADO AVANZADO ---
-@bot.tree.command(name="dados")
-async def dados(i, cantidad:int):
-    resultados = [random.randint(1,6) for _ in range(cantidad)]
-    await i.response.send_message(embed=discord.Embed(title="DADOS", description=str(resultados), color=COLOR))
+    draw = ImageDraw.Draw(final)
+    font = ImageFont.truetype("DejaVuSans-Bold.ttf",180)
 
-# --- PASSWORD ---
-@bot.tree.command(name="password")
-async def password(i):
-    chars="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-    pw="".join(random.choice(chars) for _ in range(12))
-    await i.response.send_message(embed=discord.Embed(title="PASSWORD", description=pw, color=COLOR))
+    text=f"{p}%"
+    bbox=draw.textbbox((0,0),text,font=font)
+    x=(900//2)-(bbox[2]//2)
+    y=(256//2)-(bbox[3]//2)
 
-# --- COLOR RANDOM ---
-@bot.tree.command(name="color")
-async def color(i):
-    col=random.randint(0,0xffffff)
-    e=discord.Embed(title="COLOR RANDOM", color=col)
-    e.description=f"Hex: #{col:06x}"
+    draw.text((x,y),text,fill=(255,255,255),font=font)
+
+    buf=io.BytesIO()
+    final.save(buf,"PNG")
+    buf.seek(0)
+
+    file=discord.File(buf,"ship.png")
+
+    e=discord.Embed(title="COMPATIBILIDAD",color=COLOR)
+    e.set_image(url="attachment://ship.png")
+
+    await i.response.send_message(embed=e,file=file)
+
+@bot.tree.command(name="delete")
+@app_commands.checks.has_permissions(administrator=True)
+async def delete(i,cantidad:int):
+    await i.channel.purge(limit=cantidad)
+    await i.response.send_message(embed=discord.Embed(title="LIMPIEZA",description=f"{cantidad} mensajes eliminados",color=COLOR),ephemeral=True)
+
+# --- GIFS ---
+@bot.tree.command(name="beso")
+async def beso(i,u:discord.Member):
+    e=discord.Embed(title="BESO",color=COLOR)
+    e.set_image(url=get_gif("anime kiss"))
     await i.response.send_message(embed=e)
 
-# --- FRASE ---
-@bot.tree.command(name="frase")
-async def frase(i):
-    frases=["Sigue intentando","No te rindas","Modo pro activado"]
-    await i.response.send_message(embed=discord.Embed(title="FRASE",description=random.choice(frases),color=COLOR))
-
-# --- GATO ---
-@bot.tree.command(name="gato")
-async def gato(i):
-    r=requests.get("https://api.thecatapi.com/v1/images/search").json()[0]["url"]
-    e=discord.Embed(title="GATO",color=COLOR)
-    e.set_image(url=r)
+@bot.tree.command(name="abrazo")
+async def abrazo(i,u:discord.Member):
+    e=discord.Embed(title="ABRAZO",color=COLOR)
+    e.set_image(url=get_gif("anime hug"))
     await i.response.send_message(embed=e)
 
-# --- PERRO ---
-@bot.tree.command(name="perro")
-async def perro(i):
-    r=requests.get("https://dog.ceo/api/breeds/image/random").json()["message"]
-    e=discord.Embed(title="PERRO",color=COLOR)
-    e.set_image(url=r)
-    await i.response.send_message(embed=e)
+# --- INTERACTIVO BOTÓN ---
+class TrabajoView(discord.ui.View):
+    @discord.ui.button(label="Trabajar", style=discord.ButtonStyle.green)
+    async def trabajar(self, interaction, button):
+        dinero=random.randint(50,200)
+        uid=str(interaction.user.id)
+        cartera[uid]=cartera.get(uid,0)+dinero
 
-# --- CHUCK NORRIS ---
-@bot.tree.command(name="chuck")
-async def chuck(i):
-    r=requests.get("https://api.chucknorris.io/jokes/random").json()["value"]
-    await i.response.send_message(embed=discord.Embed(title="CHISTE",description=r,color=COLOR))
+        await interaction.response.send_message(
+            embed=discord.Embed(title="TRABAJO",description=f"${dinero}",color=COLOR),
+            ephemeral=True
+        )
 
-# --- TOP DINERO ---
-@bot.tree.command(name="top")
-async def top(i):
-    top_users=sorted(cartera.items(),key=lambda x:x[1],reverse=True)[:5]
-    texto="\n".join([f"<@{u}> - ${m}" for u,m in top_users])
-    await i.response.send_message(embed=discord.Embed(title="TOP DINERO",description=texto,color=COLOR))
+@bot.tree.command(name="trabajo")
+async def trabajo(i):
+    await i.response.send_message(
+        embed=discord.Embed(title="TRABAJO INTERACTIVO",color=COLOR),
+        view=TrabajoView()
+    )
 
-# --- SUGERENCIA ---
-@bot.tree.command(name="sugerencia")
-async def sugerencia(i,texto:str):
-    e=discord.Embed(title="SUGERENCIA",description=texto,color=COLOR)
-    e.set_footer(text=f"Por {i.user}")
-    await i.response.send_message(embed=e)
-
-# --- ENCUESTA ---
-class PollView(discord.ui.View):
-    def __init__(self):
-        super().__init__()
-        self.si=0
-        self.no=0
-
-    @discord.ui.button(label="Sí", style=discord.ButtonStyle.green)
-    async def si_btn(self, interaction, button):
-        self.si+=1
-        await interaction.response.send_message("Votaste Sí",ephemeral=True)
-
-    @discord.ui.button(label="No", style=discord.ButtonStyle.red)
-    async def no_btn(self, interaction, button):
-        self.no+=1
-        await interaction.response.send_message("Votaste No",ephemeral=True)
-
-@bot.tree.command(name="encuesta")
-async def encuesta(i,pregunta:str):
-    await i.response.send_message(embed=discord.Embed(title="ENCUESTA",description=pregunta,color=COLOR),view=PollView())
-
-# --- RECORDATORIO ---
-@bot.tree.command(name="recordatorio")
-async def recordatorio(i,seg:int,mensaje:str):
-    await i.response.send_message("Recordatorio creado")
-    await discord.utils.sleep_until(discord.utils.utcnow()+discord.timedelta(seconds=seg))
-    await i.user.send(mensaje)
-
-# --- RANDOM USER ---
-@bot.tree.command(name="randomuser")
-async def randomuser(i):
-    user=random.choice(i.guild.members)
-    await i.response.send_message(embed=discord.Embed(title="USUARIO RANDOM",description=user.mention,color=COLOR))
+# --- START ---
+keep_alive()
+bot.run(TOKEN)
