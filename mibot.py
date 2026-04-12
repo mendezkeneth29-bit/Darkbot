@@ -77,19 +77,51 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
 
     await i.response.send_message(embed=embed)
 
-# --- TIENDA DATA ---
-tienda = {}
+# --- BASE TIENDA ---
+tienda_roles = {}
+
+# --- COMANDO PARA AGREGAR ROLES ---
+@bot.tree.command(name="tienda-set")
+@app_commands.checks.has_permissions(administrator=True)
+async def tienda_set(i: discord.Interaction, rol: discord.Role, precio: int, stock: int):
+
+    tienda_roles[rol.id] = {
+        "precio": precio,
+        "stock": stock
+    }
+
+    embed = discord.Embed(title="ROL AGREGADO A TIENDA", color=COLOR)
+    embed.description = (
+        f"Rol: {rol.mention}\n"
+        f"Precio: ${precio}\n"
+        f"Stock: {stock}"
+    )
+
+    await i.response.send_message(embed=embed)
 
 # --- SELECTOR ---
 class TiendaSelect(discord.ui.Select):
-    def __init__(self, opciones):
-        super().__init__(placeholder="Selecciona un producto...", options=opciones)
+    def __init__(self):
+        opciones = []
+
+        for rid, data_rol in tienda_roles.items():
+            opciones.append(
+                discord.SelectOption(
+                    label=f"Rol {rid}",
+                    description=f"${data_rol['precio']}",
+                    value=str(rid)
+                )
+            )
+
+        super().__init__(placeholder="Selecciona un rol", options=opciones)
 
     async def callback(self, interaction: discord.Interaction):
-        item_id = int(self.values[0])
-        item = tienda[item_id]
-
+        rid = int(self.values[0])
+        item = tienda_roles[rid]
         uid = str(interaction.user.id)
+
+        if uid not in data:
+            return await interaction.response.send_message("No tienes datos aún", ephemeral=True)
 
         if data[uid]["credito"] < item["precio"]:
             return await interaction.response.send_message("No tienes dinero suficiente", ephemeral=True)
@@ -97,59 +129,9 @@ class TiendaSelect(discord.ui.Select):
         if item["stock"] <= 0:
             return await interaction.response.send_message("Sin stock", ephemeral=True)
 
-        # COBRAR
-        data[uid]["credito"] -= item["precio"]
-        item["stock"] -= 1
-
-        # DAR ROL SI EXISTE
-        if item["rol"]:
-            role = interaction.guild.get_role(item["rol"])
-            if role:
-                await interaction.user.add_roles(role)
-
-        await interaction.response.send_message(
-            embed=discord.Embed(
-                title="COMPRA EXITOSA",
-                description=f"Compraste: {item['nombre']}",
-                color=COLOR
-            ),
-            ephemeral=True
-        )
-
-# --- VIEW ---
-class TiendaView(discord.ui.View):
-    def __init__(self, opciones):
-        super().__init__(timeout=None)
-        self.add_item(TiendaSelect(opciones))
-
-# --- TIENDA ROLES ---
-tienda_roles = {}
-
-# --- SELECTOR ---
-class TiendaRolesSelect(discord.ui.Select):
-    def __init__(self, opciones):
-        super().__init__(placeholder="Selecciona un rol...", options=opciones)
-
-    async def callback(self, interaction: discord.Interaction):
-        rid = int(self.values[0])
-        item = tienda_roles[rid]
-        uid = str(interaction.user.id)
-
-        # verificar usuario en data
-        if uid not in data:
-            return await interaction.response.send_message("No tienes datos aún", ephemeral=True)
-
-        # verificar dinero
-        if data[uid]["credito"] < item["precio"]:
-            return await interaction.response.send_message("No tienes suficiente dinero", ephemeral=True)
-
-        # verificar stock
-        if item["stock"] <= 0:
-            return await interaction.response.send_message("Este rol ya no tiene stock", ephemeral=True)
-
         role = interaction.guild.get_role(rid)
         if not role:
-            return await interaction.response.send_message("El rol no existe", ephemeral=True)
+            return await interaction.response.send_message("Rol no encontrado", ephemeral=True)
 
         # COBRAR
         data[uid]["credito"] -= item["precio"]
@@ -158,7 +140,7 @@ class TiendaRolesSelect(discord.ui.Select):
         # DAR ROL
         await interaction.user.add_roles(role)
 
-        embed = discord.Embed(title="COMPRA REALIZADA", color=COLOR)
+        embed = discord.Embed(title="COMPRA EXITOSA", color=COLOR)
         embed.description = (
             f"Rol: {role.mention}\n"
             f"Precio: ${item['precio']}\n"
@@ -168,60 +150,30 @@ class TiendaRolesSelect(discord.ui.Select):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # --- VIEW ---
-class TiendaRolesView(discord.ui.View):
-    def __init__(self, opciones):
+class TiendaView(discord.ui.View):
+    def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(TiendaRolesSelect(opciones))
+        self.add_item(TiendaSelect())
 
-# --- COMANDO TIENDA ---
+# --- COMANDO PARA VER TIENDA ---
 @bot.tree.command(name="tienda")
-async def tienda(i: discord.Interaction, roles: str):
+async def tienda(i: discord.Interaction):
 
-    tienda_roles.clear()
-    lista = roles.split(",")
+    if not tienda_roles:
+        return await i.response.send_message("No hay roles en la tienda")
 
-    embed = discord.Embed(
-        title="TIENDA DE ROLES",
-        description="Selecciona un rol para comprar",
-        color=COLOR
-    )
+    embed = discord.Embed(title="TIENDA DE ROLES", color=COLOR)
 
-    opciones = []
+    for idx, (rid, item) in enumerate(tienda_roles.items(), start=1):
+        role = i.guild.get_role(rid)
 
-    for idx, item in enumerate(lista, start=1):
-        try:
-            rol_txt, precio, stock = item.split("|")
+        embed.add_field(
+            name=f"{idx}. {role.name if role else 'Rol eliminado'}",
+            value=f"Precio: ${item['precio']}\nStock: {item['stock']}",
+            inline=False
+        )
 
-            # obtener ID del rol
-            rol_id = int(rol_txt.strip().replace("<@&", "").replace(">", ""))
-
-            role = i.guild.get_role(rol_id)
-            if not role:
-                continue
-
-            tienda_roles[rol_id] = {
-                "precio": int(precio),
-                "stock": int(stock)
-            }
-
-            embed.add_field(
-                name=f"{idx}. {role.name}",
-                value=f"Precio: ${precio}\nStock: {stock}",
-                inline=False
-            )
-
-            opciones.append(
-                discord.SelectOption(
-                    label=role.name,
-                    description=f"${precio}",
-                    value=str(rol_id)
-                )
-            )
-
-        except:
-            continue
-
-    await i.response.send_message(embed=embed, view=TiendaRolesView(opciones))
+    await i.response.send_message(embed=embed, view=TiendaView())
 
 # --- START ---
 bot.run(TOKEN)
