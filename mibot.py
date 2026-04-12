@@ -2,12 +2,28 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
+from flask import Flask
+from threading import Thread
+
+# --- KEEP ALIVE (RENDER) ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot activo"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 
 # --- CONFIG ---
 TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
 
-# --- BASE DE DATOS (simple) ---
+# --- BASE DE DATOS ---
 data = {}
 
 # --- BOT ---
@@ -20,7 +36,7 @@ class DarkyBot(commands.Bot):
 
 bot = DarkyBot()
 
-# --- SISTEMA DE MENSAJES ---
+# --- EVENTO MENSAJES ---
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -37,6 +53,7 @@ async def on_message(message):
             "prestado": 0
         }
 
+    # +5 por mensaje
     data[uid]["credito"] += 5
 
     await bot.process_commands(message)
@@ -78,4 +95,5 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # --- START ---
+keep_alive()
 bot.run(TOKEN)
