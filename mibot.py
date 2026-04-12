@@ -165,6 +165,52 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
 
     await i.response.send_message(embed=embed)
 
+@bot.tree.command(name="bonus")
+@app_commands.checks.has_permissions(administrator=True)
+async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
+
+    # buscar usuario por ID bancario
+    usuario_objetivo = None
+    uid_receiver = None
+
+    for uid, info in data.items():
+        if info["id_banco"] == cuenta_bancaria:
+            uid_receiver = uid
+            usuario_objetivo = i.guild.get_member(int(uid))
+            break
+
+    if not usuario_objetivo:
+        return await i.response.send_message("ID bancario no encontrado", ephemeral=True)
+
+    if cantidad <= 0:
+        return await i.response.send_message("Cantidad inválida", ephemeral=True)
+
+    # dar dinero
+    data[uid_receiver]["creditos"] += cantidad
+
+    save_data()
+
+    # EMBED
+    embed = discord.Embed(
+        title="Bonus ! 🎁",
+        color=COLOR
+    )
+
+    embed.description = (
+        f"{i.user.mention} ha dado un bonus a {usuario_objetivo.mention}\n"
+        f"ID bancario: {data[uid_receiver]['id_banco']}\n"
+        "----------------------------------------------\n"
+        "> - usa el dinero con inteligencia\n"
+        "> - no pidas más credito a los admin\n"
+        f"> - ahora {usuario_objetivo.mention} tiene {data[uid_receiver]['creditos']} creditos\n"
+        "----------------------------------------------\n"
+        "creditado por: DarkyBot"
+    )
+
+    embed.set_thumbnail(url=usuario_objetivo.display_avatar.url)
+
+    await i.response.send_message(embed=embed)
+
 # -------------------------
 # RUN
 # -------------------------
