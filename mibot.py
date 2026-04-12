@@ -340,11 +340,42 @@ async def devolver(i: discord.Interaction, cantidad: int, usuario: discord.Membe
         f"> - {pagador.name} ahora tiene 0 deudas\n"
         f"> - la cantidad de dinero prestado fue de {cantidad}\n"
         f"> - {pagador.name} devolvio {cantidad}\n"
-        "---------------------------------------------------------------------\n"
+        "--------------------------------------------------------------------\n"
         "de parte de: darky bank."
     )
 
     embed.set_thumbnail(url=pagador.display_avatar.url)
+
+    await i.response.send_message(embed=embed)
+
+@bot.tree.command(name="regalar")
+@app_commands.checks.has_permissions(administrator=True)
+async def regalar(i: discord.Interaction, cantidad: int, usuario: discord.Member):
+
+    admin = i.user
+    receptor = usuario
+
+    uid = str(receptor.id)
+    init_user(uid)
+
+    # sumar dinero
+    data[uid]["credito"] += cantidad
+
+    embed = discord.Embed(color=COLOR)
+
+    embed.title = "REGALO DE PARTE DE ADMINISTRACION! 🎁"
+
+    embed.description = (
+        f"{receptor.name} Has recibido {cantidad} de dinero\n"
+        "------------------------------------------------------------------------------\n"
+        f"> - ahora tienes {data[uid]['credito']} creditos en tu cartera\n"
+        "> - sé inteligente usando tu dinero\n"
+        "> - no puedes pedir más dinero !\n"
+        "--------------------------------------\n"
+        f"de parte de: {admin.name}, y creditado por: darky bank."
+    )
+
+    embed.set_thumbnail(url=receptor.display_avatar.url)
 
     await i.response.send_message(embed=embed)
 
