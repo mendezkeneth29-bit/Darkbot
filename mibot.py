@@ -80,7 +80,7 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
 # --- BASE TIENDA ---
 tienda_roles = {}
 
-# --- COMANDO PARA AGREGAR ROLES ---
+# --- AGREGAR A TIENDA ---
 @bot.tree.command(name="tienda-set")
 @app_commands.checks.has_permissions(administrator=True)
 async def tienda_set(i: discord.Interaction, rol: discord.Role, precio: int, stock: int):
@@ -90,12 +90,24 @@ async def tienda_set(i: discord.Interaction, rol: discord.Role, precio: int, sto
         "stock": stock
     }
 
-    embed = discord.Embed(title="ROL AGREGADO A TIENDA", color=COLOR)
+    embed = discord.Embed(title="ITEM AGREGADO A TIENDA", color=COLOR)
     embed.description = (
         f"Rol: {rol.mention}\n"
         f"Precio: ${precio}\n"
         f"Stock: {stock}"
     )
+
+    await i.response.send_message(embed=embed)
+
+# --- RESET TIENDA ---
+@bot.tree.command(name="tienda-reset")
+@app_commands.checks.has_permissions(administrator=True)
+async def tienda_reset(i: discord.Interaction):
+
+    tienda_roles.clear()
+
+    embed = discord.Embed(title="TIENDA RESETEADA", color=COLOR)
+    embed.description = "Todos los roles fueron eliminados de la tienda"
 
     await i.response.send_message(embed=embed)
 
@@ -107,7 +119,7 @@ class TiendaSelect(discord.ui.Select):
         for rid, data_rol in tienda_roles.items():
             opciones.append(
                 discord.SelectOption(
-                    label=f"Rol {rid}",
+                    label=f"ID {rid}",
                     description=f"${data_rol['precio']}",
                     value=str(rid)
                 )
@@ -155,14 +167,14 @@ class TiendaView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(TiendaSelect())
 
-# --- COMANDO PARA VER TIENDA ---
+# --- VER TIENDA ---
 @bot.tree.command(name="tienda")
 async def tienda(i: discord.Interaction):
 
     if not tienda_roles:
-        return await i.response.send_message("No hay roles en la tienda")
+        return await i.response.send_message("La tienda está vacía")
 
-    embed = discord.Embed(title="TIENDA DE ROLES", color=COLOR)
+    embed = discord.Embed(title="TIENDA", color=COLOR)
 
     for idx, (rid, item) in enumerate(tienda_roles.items(), start=1):
         role = i.guild.get_role(rid)
