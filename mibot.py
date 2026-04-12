@@ -2,28 +2,12 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
-from flask import Flask
-from threading import Thread
-
-# --- KEEP ALIVE (RENDER) ---
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "Bot activo"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
 
 # --- CONFIG ---
 TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
 
-# --- BASE DE DATOS ---
+# --- BASE DE DATOS (simple) ---
 data = {}
 
 # --- BOT ---
@@ -36,7 +20,7 @@ class DarkyBot(commands.Bot):
 
 bot = DarkyBot()
 
-# --- EVENTO MENSAJES ---
+# --- SISTEMA DE MENSAJES ---
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -53,7 +37,6 @@ async def on_message(message):
             "prestado": 0
         }
 
-    # +5 por mensaje
     data[uid]["credito"] += 5
 
     await bot.process_commands(message)
@@ -94,6 +77,94 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
 
     await i.response.send_message(embed=embed)
 
+# --- TIENDA DATA ---
+tienda = {}
+
+# --- SELECTOR ---
+class TiendaSelect(discord.ui.Select):
+    def __init__(self, opciones):
+        super().__init__(placeholder="Selecciona un producto...", options=opciones)
+
+    async def callback(self, interaction: discord.Interaction):
+        item_id = int(self.values[0])
+        item = tienda[item_id]
+
+        uid = str(interaction.user.id)
+
+        if data[uid]["credito"] < item["precio"]:
+            return await interaction.response.send_message("No tienes dinero suficiente", ephemeral=True)
+
+        if item["stock"] <= 0:
+            return await interaction.response.send_message("Sin stock", ephemeral=True)
+
+        # COBRAR
+        data[uid]["credito"] -= item["precio"]
+        item["stock"] -= 1
+
+        # DAR ROL SI EXISTE
+        if item["rol"]:
+            role = interaction.guild.get_role(item["rol"])
+            if role:
+                await interaction.user.add_roles(role)
+
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                title="COMPRA EXITOSA",
+                description=f"Compraste: {item['nombre']}",
+                color=COLOR
+            ),
+            ephemeral=True
+        )
+
+# --- VIEW ---
+class TiendaView(discord.ui.View):
+    def __init__(self, opciones):
+        super().__init__(timeout=None)
+        self.add_item(TiendaSelect(opciones))
+
+# --- COMANDO TIENDA ---
+@bot.tree.command(name="tienda")
+async def tienda_cmd(i: discord.Interaction, productos: str):
+
+    tienda.clear()
+    lista = productos.split(",")
+
+    embed = discord.Embed(
+        title="TIENDA",
+        color=COLOR
+    )
+
+    opciones = []
+
+    for idx, prod in enumerate(lista, start=1):
+        try:
+            nombre, precio, stock = prod.split("|")
+
+            tienda[idx] = {
+                "nombre": nombre.strip(),
+                "precio": int(precio),
+                "stock": int(stock),
+                "rol": None  # opcional luego
+            }
+
+            embed.add_field(
+                name=f"{idx}. {nombre}",
+                value=f"Precio: ${precio}\nStock: {stock}",
+                inline=False
+            )
+
+            opciones.append(
+                discord.SelectOption(
+                    label=nombre,
+                    description=f"${precio}",
+                    value=str(idx)
+                )
+            )
+
+        except:
+            continue
+
+    await i.response.send_message(embed=embed, view=TiendaView(opciones))
+
 # --- START ---
-keep_alive()
 bot.run(TOKEN)
