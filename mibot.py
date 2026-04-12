@@ -6,16 +6,40 @@ import asyncio
 import time
 import random
 import string
+import json
 
 # --- CONFIG ---
 TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
+DB_FILE = "data.json"
 
-# --- BASE DE DATOS ---
+# --- BASES ---
 data = {}
 tienda_roles = {}
 prestamos = []
 bank_accounts = {}
+
+# -------------------------
+# 💾 SISTEMA DE GUARDADO
+# -------------------------
+def load_data():
+    global data, tienda_roles, prestamos, bank_accounts
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as f:
+            raw = json.load(f)
+            data = raw.get("data", {})
+            tienda_roles = raw.get("tienda_roles", {})
+            prestamos = raw.get("prestamos", [])
+            bank_accounts = raw.get("bank_accounts", {})
+
+def save_data():
+    with open(DB_FILE, "w") as f:
+        json.dump({
+            "data": data,
+            "tienda_roles": tienda_roles,
+            "prestamos": prestamos,
+            "bank_accounts": bank_accounts
+        }, f)
 
 # --- BOT ---
 class DarkyBot(commands.Bot):
@@ -28,9 +52,8 @@ class DarkyBot(commands.Bot):
 bot = DarkyBot()
 
 # -------------------------
-# 🧠 SISTEMA BANCARIO
+# 🧠 UTILIDADES
 # -------------------------
-
 def generate_bank_code():
     return "DB-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
@@ -44,10 +67,11 @@ def init_user(uid: str):
             "prestado": 0
         }
 
-# --- CUENTAS AL ENTRAR ---
+# -------------------------
+# 👤 CUENTAS
+# -------------------------
 @bot.event
 async def on_member_join(member: discord.Member):
-
     if member.bot:
         return
 
@@ -57,7 +81,8 @@ async def on_member_join(member: discord.Member):
     if uid not in bank_accounts:
         bank_accounts[uid] = generate_bank_code()
 
-# --- CUENTAS AL INICIAR ---
+    save_data()
+
 @bot.event
 async def on_ready():
     print("Bot listo")
@@ -73,9 +98,12 @@ async def on_ready():
             if uid not in bank_accounts:
                 bank_accounts[uid] = generate_bank_code()
 
+    save_data()
     bot.loop.create_task(revisar_prestamos())
 
-# --- DINERO PASIVO ---
+# -------------------------
+# 💰 DINERO PASIVO
+# -------------------------
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -85,6 +113,7 @@ async def on_message(message):
     init_user(uid)
 
     data[uid]["credito"] += 5
+    save_data()
 
     await bot.process_commands(message)
 
@@ -98,13 +127,11 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     uid = str(usuario.id)
     init_user(uid)
 
-    codigo = bank_accounts.get(uid, "SIN CUENTA")
-
     embed = discord.Embed(
         title="CUENTA BANCARIA",
         description=(
             f"Usuario: {usuario.name}\n"
-            f"Código bancario: {codigo}\n"
+            f"Código: {bank_accounts.get(uid, 'SIN CUENTA')}\n"
             f"Créditos: {data[uid]['credito']}$"
         ),
         color=COLOR
@@ -141,7 +168,7 @@ async def cartera(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# 🎁 REGALAR (ADMIN)
+# 🎁 REGALAR
 # -------------------------
 @bot.tree.command(name="regalar")
 @app_commands.checks.has_permissions(administrator=True)
@@ -151,6 +178,7 @@ async def regalar(i: discord.Interaction, cantidad: int, usuario: discord.Member
     init_user(uid)
 
     data[uid]["credito"] += cantidad
+    save_data()
 
     embed = discord.Embed(
         title="REGALO DE PARTE DE ADMINISTRACION! 🎁",
@@ -207,6 +235,8 @@ class PrestamoView(discord.ui.View):
             "tiempo": time.time() + (self.dias * 86400)
         })
 
+        save_data()
+
         await interaction.response.send_message(
             embed=discord.Embed(
                 title="PRÉSTAMO ACEPTADO",
@@ -229,59 +259,8 @@ class PrestamoView(discord.ui.View):
             )
         )
 
-@bot.tree.command(name="prestar")
-async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member, dias: int):
-
-    embed = discord.Embed(color=COLOR)
-
-    embed.description = (
-        f"{i.user.name} quiere prestar dinero a {usuario.name}\n"
-        "-------------------------------------------------------\n"
-        f"> - el dinero se debera pagar en {dias} dias\n"
-        f"> - la cantidad de dinero prestado sera de ${cantidad}\n"
-        "> - si este dinero no es entregado la fecha planeada se le quitara el dinero pendiente al que debe\n"
-        "-------------------------------------------------------\n"
-        f"{usuario.name} aceptas o rechazas el prestamo?."
-    )
-
-    embed.set_thumbnail(url=usuario.display_avatar.url)
-
-    await i.response.send_message(embed=embed, view=PrestamoView(i.user, usuario, cantidad, dias))
-
 # -------------------------
-# 💸 DEVOLVER
-# -------------------------
-@bot.tree.command(name="devolver")
-async def devolver(i: discord.Interaction, cantidad: int, usuario: discord.Member):
-
-    p = str(i.user.id)
-    r = str(usuario.id)
-
-    init_user(p)
-    init_user(r)
-
-    data[p]["debe"] -= cantidad
-    data[p]["credito"] -= cantidad
-    data[r]["credito"] += cantidad
-
-    embed = discord.Embed(color=COLOR)
-
-    embed.description = (
-        f"{i.user.name} ha devuelto el dinero prestado a {usuario.name}\n"
-        "-----------------------------------------------------------------------------------------------\n"
-        f"> - {i.user.name} ahora tiene 0 deudas\n"
-        f"> - la cantidad de dinero prestado fue de {cantidad}\n"
-        f"> - {i.user.name} devolvio {cantidad}\n"
-        "---------------------------------------------------------------------\n"
-        "de parte de: darky bank."
-    )
-
-    embed.set_thumbnail(url=i.user.display_avatar.url)
-
-    await i.response.send_message(embed=embed)
-
-# -------------------------
-# ⏳ SISTEMA DE COBRO
+# ⏳ COBRO AUTOMÁTICO
 # -------------------------
 async def revisar_prestamos():
     while True:
@@ -298,10 +277,12 @@ async def revisar_prestamos():
                     data[p]["credito"] += c
 
                 prestamos.remove(d)
+                save_data()
 
         await asyncio.sleep(60)
 
 # -------------------------
 # RUN
 # -------------------------
+load_data()
 bot.run(TOKEN)
