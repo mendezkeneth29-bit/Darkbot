@@ -187,5 +187,121 @@ async def tienda(i: discord.Interaction):
 
     await i.response.send_message(embed=embed, view=TiendaView())
 
+import asyncio
+import time
+
+prestamos = []
+
+# --- VIEW BOTONES ---
+class PrestamoView(discord.ui.View):
+    def __init__(self, prestador, receptor, cantidad, dias):
+        super().__init__(timeout=60)
+        self.prestador = prestador
+        self.receptor = receptor
+        self.cantidad = cantidad
+        self.dias = dias
+
+    @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
+    async def aceptar(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        if interaction.user != self.receptor:
+            return await interaction.response.send_message("No es tu préstamo", ephemeral=True)
+
+        uid_p = str(self.prestador.id)
+        uid_r = str(self.receptor.id)
+
+        if data[uid_p]["credito"] < self.cantidad:
+            return await interaction.response.send_message("El prestador no tiene dinero", ephemeral=True)
+
+        # transferir dinero
+        data[uid_p]["credito"] -= self.cantidad
+        data[uid_r]["credito"] += self.cantidad
+
+        # registrar deuda
+        deuda = {
+            "prestador": uid_p,
+            "receptor": uid_r,
+            "cantidad": self.cantidad,
+            "tiempo": time.time() + (self.dias * 86400)
+        }
+
+        prestamos.append(deuda)
+
+        # actualizar datos
+        data[uid_r]["debe"] += self.cantidad
+        data[uid_p]["prestado"] += self.cantidad
+
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                title="PRÉSTAMO ACEPTADO",
+                description=f"{self.receptor.mention} recibió ${self.cantidad}",
+                color=COLOR
+            )
+        )
+
+    @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
+    async def rechazar(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        if interaction.user != self.receptor:
+            return await interaction.response.send_message("No es tu préstamo", ephemeral=True)
+
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                title="PRÉSTAMO RECHAZADO",
+                description="El préstamo fue rechazado",
+                color=COLOR
+            )
+        )
+
+# --- COMANDO PRESTAR ---
+@bot.tree.command(name="prestar")
+async def prestar(i: discord.Interaction, cantidad: int, usuario: discord.Member, dias: int):
+
+    prestador = i.user
+    receptor = usuario
+
+    embed = discord.Embed(color=COLOR)
+
+    embed.title = f"{prestador.name} quiere prestar dinero a {receptor.name}"
+    embed.description = (
+        "-------------------------------------------------------\n"
+        f"> - el dinero se debera pagar en {dias} dias\n"
+        f"> - la cantidad de dinero prestado sera de ${cantidad}\n"
+        "> - si este dinero no es entregado la fecha planeada se le quitara el dinero pendiente al que debe\n"
+        "-------------------------------------------------------\n"
+        f"{receptor.mention} aceptas o rechazas el prestamo?"
+    )
+
+    embed.set_thumbnail(url=receptor.display_avatar.url)
+
+    await i.response.send_message(
+        embed=embed,
+        view=PrestamoView(prestador, receptor, cantidad, dias)
+    )
+
+# --- SISTEMA AUTOMÁTICO DE COBRO ---
+async def revisar_prestamos():
+    while True:
+        ahora = time.time()
+
+        for deuda in prestamos[:]:
+            if ahora >= deuda["tiempo"]:
+                uid_r = deuda["receptor"]
+                uid_p = deuda["prestador"]
+                cantidad = deuda["cantidad"]
+
+                if data[uid_r]["credito"] >= cantidad:
+                    data[uid_r]["credito"] -= cantidad
+                    data[uid_p]["credito"] += cantidad
+
+                prestamos.remove(deuda)
+
+        await asyncio.sleep(60)
+
+# --- INICIAR LOOP ---
+@bot.event
+async def on_ready():
+    bot.loop.create_task(revisar_prestamos())
+
 # --- START ---
 bot.run(TOKEN)
