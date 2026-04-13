@@ -363,54 +363,6 @@ async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: 
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
 
-from flask import Flask
-from threading import Thread
-
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "Bot activo"
-
-def run():
-    app.run(host='0.0.0.0', port=10000)
-
-Thread(target=run).start()
-
-@bot.tree.command(name="log")
-async def log(i: discord.Interaction, usuario: discord.Member):
-
-    uid = str(usuario.id)
-    init_user(uid)
-
-    # 🔹 detectar tipo de usuario
-    if usuario.guild_permissions.administrator:
-        tipo = "admin"
-    elif usuario.bot:
-        tipo = "estetico"
-    else:
-        tipo = "miembro"
-
-    # 🔹 compras (si no existe aún, poner 0)
-    compras = data[uid].get("compras", 0)
-
-    embed = discord.Embed(
-        title=f"lista interactivas de {usuario.mention}📋",
-        color=COLOR
-    )
-
-    embed.description = (
-        f"ID bancario: {data[uid]['id_banco']}, Usuario: {usuario.mention}\n\n"
-        f"--------- ID de cuenta: {usuario.id} --------\n\n"
-        f"compras totales: {compras}, prestamos totales: {data[uid]['veces_presto']}\n\n"
-        f"-------integracion: {tipo}-------\n\n"
-        "__Creditado por: DakyInfo.__"
-    )
-
-    embed.set_thumbnail(url=usuario.display_avatar.url)
-
-    await i.response.send_message(embed=embed)
-
 # -------------------------
 # RUN
 # -------------------------
