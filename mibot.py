@@ -40,7 +40,9 @@ def init_user(uid):
     if uid not in data:
         data[uid] = {
             "creditos": 0,
-            "id_banco": generar_codigo()
+            "id_banco": generar_codigo(),
+            "veces_presto": 0,
+            "veces_debe": 0
         }
 
 # -------------------------
@@ -110,9 +112,9 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
         f"creditos: {data[uid]['creditos']}\n"
         f"ID bancario: {data[uid]['id_banco']}\n"
         "------------------------------\n"
-        "debe: 0\n"
-        "presto: 0\n"
-        "prestamos totales: 0\n"
+        f"debe: {data[uid].get('veces_debe', 0)}\n"
+        f"presto: {data[uid].get('veces_presto', 0)}\n"
+        f"prestamos totales: {data[uid].get('veces_debe', 0) + data[uid].get('veces_presto', 0)}\n"
         "------------------------------\n"
         "informacion garantizada por: DarkyBank"
     )
@@ -234,6 +236,10 @@ class PrestamoView(discord.ui.View):
 
         data[uid_p]["creditos"] -= self.cantidad
         data[uid_r]["creditos"] += self.cantidad
+
+        # 🔥 CONTADORES
+        data[uid_p]["veces_presto"] = data[uid_p].get("veces_presto", 0) + 1
+        data[uid_r]["veces_debe"] = data[uid_r].get("veces_debe", 0) + 1
 
         prestamos.append({
             "prestamista": uid_p,
