@@ -6,6 +6,8 @@ import random
 import string
 import json
 import time
+from flask import Flask
+from threading import Thread
 
 TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
@@ -40,7 +42,8 @@ def init_user(uid):
             "creditos": 0,
             "id_banco": generar_codigo(),
             "veces_presto": 0,
-            "veces_debe": 0
+            "veces_debe": 0,
+            "compras": 0
         }
 
 # -------------------------
@@ -235,7 +238,8 @@ class TiendaSelect(discord.ui.Select):
         data[uid]["creditos"] -= item["precio"]
         item["stock"] -= 1
 
-data[uid]["compras"] = data[uid].get("compras", 0) + 1
+        # contar compras
+        data[uid]["compras"] = data[uid].get("compras", 0) + 1
 
         await i.user.add_roles(role)
         save_data()
@@ -362,6 +366,20 @@ async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: 
             )
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
+
+# -------------------------
+# FLASK (para Render)
+# -------------------------
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot activo"
+
+def run():
+    app.run(host='0.0.0.0', port=10000)
+
+Thread(target=run).start()
 
 # -------------------------
 # RUN
