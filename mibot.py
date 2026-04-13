@@ -5,7 +5,6 @@ import os
 import random
 import string
 import json
-import asyncio
 import time
 
 TOKEN = os.getenv("TOKEN")
@@ -113,18 +112,90 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# TIENDA CONFIG
+# TRANSACCION
+# -------------------------
+@bot.tree.command(name="transaccion")
+async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
+
+    uid_sender = str(i.user.id)
+    init_user(uid_sender)
+
+    for uid, info in data.items():
+        if info["id_banco"] == cuenta_bancaria:
+
+            usuario = i.guild.get_member(int(uid))
+
+            if data[uid_sender]["creditos"] < cantidad:
+                return await i.response.send_message("No tienes suficiente dinero", ephemeral=True)
+
+            data[uid_sender]["creditos"] -= cantidad
+            data[uid]["creditos"] += cantidad
+            save_data()
+
+            embed = discord.Embed(
+                title=f"Transaccion a {usuario.mention} 💸",
+                color=COLOR
+            )
+
+            embed.description = (
+                f"{cantidad} enviados a {usuario.mention}\n"
+                f"ID bancario {info['id_banco']}\n"
+                "--------------------------------------------------\n"
+                f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} creditos\n"
+                "> - usalos con inteligencia\n"
+                "------------------------------\n"
+                f"enviado por: {i.user.mention}, creditado por: DarkyBank"
+            )
+
+            embed.set_thumbnail(url=usuario.display_avatar.url)
+
+            return await i.response.send_message(embed=embed)
+
+    await i.response.send_message("ID bancario no encontrado", ephemeral=True)
+
+# -------------------------
+# BONUS
+# -------------------------
+@bot.tree.command(name="bonus")
+@app_commands.checks.has_permissions(administrator=True)
+async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
+
+    for uid, info in data.items():
+        if info["id_banco"] == cuenta_bancaria:
+
+            usuario = i.guild.get_member(int(uid))
+            data[uid]["creditos"] += cantidad
+            save_data()
+
+            embed = discord.Embed(title="Bonus ! 🎁", color=COLOR)
+
+            embed.description = (
+                f"{i.user.mention} ha dado un bonus a {usuario.mention}\n"
+                f"ID bancario: {info['id_banco']}\n"
+                "----------------------------------------------\n"
+                "> - usa el dinero con inteligencia\n"
+                "> - no pidas más credito a los admin\n"
+                f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} creditos\n"
+                "----------------------------------------------\n"
+                "creditado por: DarkyBot"
+            )
+
+            embed.set_thumbnail(url=usuario.display_avatar.url)
+
+            return await i.response.send_message(embed=embed)
+
+    await i.response.send_message("ID no encontrado", ephemeral=True)
+
+# -------------------------
+# TIENDA
 # -------------------------
 @bot.tree.command(name="tienda-config")
 @app_commands.checks.has_permissions(administrator=True)
 async def tienda_config(i: discord.Interaction, rol: discord.Role, precio: int, stock: int):
 
     tienda[rol.id] = {"precio": precio, "stock": stock}
-    await i.response.send_message("Rol agregado a la tienda", ephemeral=True)
+    await i.response.send_message("Agregado", ephemeral=True)
 
-# -------------------------
-# SELECTOR SEGURO
-# -------------------------
 class TiendaSelect(discord.ui.Select):
     def __init__(self):
 
@@ -140,7 +211,7 @@ class TiendaSelect(discord.ui.Select):
                 for rid, item in tienda.items()
             ]
 
-        super().__init__(placeholder="Selecciona un rol", options=opciones)
+        super().__init__(placeholder="Selecciona", options=opciones)
 
     async def callback(self, i: discord.Interaction):
 
@@ -169,17 +240,11 @@ class TiendaSelect(discord.ui.Select):
 
         await i.response.send_message(f"Compraste {role.mention}", ephemeral=True)
 
-# -------------------------
-# VIEW
-# -------------------------
 class TiendaView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(TiendaSelect())
 
-# -------------------------
-# VER TIENDA
-# -------------------------
 @bot.tree.command(name="tienda-set")
 async def tienda_set(i: discord.Interaction):
 
@@ -199,9 +264,6 @@ async def tienda_set(i: discord.Interaction):
 
     await i.response.send_message(embed=embed, view=TiendaView())
 
-# -------------------------
-# RESET TIENDA
-# -------------------------
 @bot.tree.command(name="tienda-reset")
 @app_commands.checks.has_permissions(administrator=True)
 async def tienda_reset(i: discord.Interaction):
@@ -223,7 +285,7 @@ class PrestamoView(discord.ui.View):
         await i.message.edit(view=self)
 
     @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
-    async def aceptar(self, i, b):
+    async def aceptar(self, i: discord.Interaction, b: discord.ui.Button):
 
         if i.user != self.r:
             return await i.response.send_message("No es tu préstamo", ephemeral=True)
@@ -253,7 +315,7 @@ class PrestamoView(discord.ui.View):
         await self.disable(i)
 
     @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
-    async def rechazar(self, i, b):
+    async def rechazar(self, i: discord.Interaction, b: discord.ui.Button):
 
         if i.user != self.r:
             return await i.response.send_message("No es tu préstamo", ephemeral=True)
