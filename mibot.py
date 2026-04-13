@@ -235,7 +235,7 @@ class TiendaSelect(discord.ui.Select):
         data[uid]["creditos"] -= item["precio"]
         item["stock"] -= 1
 
-        data[uid]["compras"] = data[uid].get("compras", 0) + 1
+data[uid]["compras"] = data[uid].get("compras", 0) + 1
 
         await i.user.add_roles(role)
         save_data()
