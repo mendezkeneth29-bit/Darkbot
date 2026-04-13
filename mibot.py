@@ -5,6 +5,8 @@ import os
 import random
 import string
 import json
+import asyncio
+import time
 
 # --- CONFIG ---
 TOKEN = os.getenv("TOKEN")
@@ -12,9 +14,11 @@ COLOR = 0x000000
 DB_FILE = "data.json"
 
 data = {}
+prestamos = []
+advertencias = {}
 
 # -------------------------
-# 💾 GUARDADO
+# 💾 SAVE
 # -------------------------
 def load_data():
     global data
@@ -27,7 +31,7 @@ def save_data():
         json.dump(data, f)
 
 # -------------------------
-# 🧠 UTILIDADES
+# UTIL
 # -------------------------
 def generar_codigo():
     return "DB-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
@@ -52,7 +56,7 @@ class DarkyBot(commands.Bot):
 bot = DarkyBot()
 
 # -------------------------
-# 💬 DINERO POR MENSAJE
+# DINERO POR MENSAJE
 # -------------------------
 @bot.event
 async def on_message(message):
@@ -68,19 +72,26 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # -------------------------
-# 👤 CREAR CUENTAS AL ENTRAR
+# JOIN
 # -------------------------
 @bot.event
 async def on_member_join(member):
     if member.bot:
         return
 
-    uid = str(member.id)
-    init_user(uid)
+    init_user(str(member.id))
     save_data()
 
 # -------------------------
-# 🏦 COMANDO CUENTA
+# READY
+# -------------------------
+@bot.event
+async def on_ready():
+    print("Bot listo")
+    bot.loop.create_task(revisar_prestamos())
+
+# -------------------------
+# CUENTA
 # -------------------------
 @bot.tree.command(name="cuenta")
 async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
@@ -110,13 +121,15 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
 
     await i.response.send_message(embed=embed)
 
+# -------------------------
+# TRANSACCION
+# -------------------------
 @bot.tree.command(name="transaccion")
 async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
 
     uid_sender = str(i.user.id)
     init_user(uid_sender)
 
-    # buscar usuario por ID bancario
     usuario_objetivo = None
     uid_receiver = None
 
@@ -129,23 +142,13 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
     if not usuario_objetivo:
         return await i.response.send_message("ID bancario no encontrado", ephemeral=True)
 
-    if uid_sender == uid_receiver:
-        return await i.response.send_message("No puedes transferirte a ti mismo", ephemeral=True)
-
-    # validar dinero
-    if cantidad <= 0:
-        return await i.response.send_message("Cantidad inválida", ephemeral=True)
-
     if data[uid_sender]["creditos"] < cantidad:
         return await i.response.send_message("No tienes suficiente dinero", ephemeral=True)
 
-    # transferir
     data[uid_sender]["creditos"] -= cantidad
     data[uid_receiver]["creditos"] += cantidad
-
     save_data()
 
-    # EMBED EXACTO
     embed = discord.Embed(
         title=f"Transaccion a {usuario_objetivo.mention} 💸",
         color=COLOR
@@ -165,11 +168,13 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
 
     await i.response.send_message(embed=embed)
 
+# -------------------------
+# BONUS
+# -------------------------
 @bot.tree.command(name="bonus")
 @app_commands.checks.has_permissions(administrator=True)
 async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
 
-    # buscar usuario por ID bancario
     usuario_objetivo = None
     uid_receiver = None
 
@@ -182,19 +187,10 @@ async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
     if not usuario_objetivo:
         return await i.response.send_message("ID bancario no encontrado", ephemeral=True)
 
-    if cantidad <= 0:
-        return await i.response.send_message("Cantidad inválida", ephemeral=True)
-
-    # dar dinero
     data[uid_receiver]["creditos"] += cantidad
-
     save_data()
 
-    # EMBED
-    embed = discord.Embed(
-        title="Bonus ! 🎁",
-        color=COLOR
-    )
+    embed = discord.Embed(title="Bonus ! 🎁", color=COLOR)
 
     embed.description = (
         f"{i.user.mention} ha dado un bonus a {usuario_objetivo.mention}\n"
@@ -210,6 +206,123 @@ async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
     embed.set_thumbnail(url=usuario_objetivo.display_avatar.url)
 
     await i.response.send_message(embed=embed)
+
+# -------------------------
+# PRESTAMOS
+# -------------------------
+class PrestamoView(discord.ui.View):
+    def __init__(self, prestamista, receptor, cantidad, dias):
+        super().__init__(timeout=60)
+        self.prestamista = prestamista
+        self.receptor = receptor
+        self.cantidad = cantidad
+        self.dias = dias
+
+    async def disable(self, interaction):
+        for item in self.children:
+            item.disabled = True
+        await interaction.message.edit(view=self)
+
+    @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
+    async def aceptar(self, i, b):
+
+        if i.user != self.receptor:
+            return await i.response.send_message("No es tu préstamo", ephemeral=True)
+
+        uid_p = str(self.prestamista.id)
+        uid_r = str(self.receptor.id)
+
+        data[uid_p]["creditos"] -= self.cantidad
+        data[uid_r]["creditos"] += self.cantidad
+
+        prestamos.append({
+            "prestamista": uid_p,
+            "receptor": uid_r,
+            "cantidad": self.cantidad,
+            "tiempo": time.time() + (self.dias * 86400)
+        })
+
+        save_data()
+
+        await i.response.send_message("Préstamo aceptado", ephemeral=True)
+        await self.disable(i)
+
+    @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
+    async def rechazar(self, i, b):
+
+        if i.user != self.receptor:
+            return await i.response.send_message("No es tu préstamo", ephemeral=True)
+
+        await i.response.send_message("Préstamo rechazado", ephemeral=True)
+        await self.disable(i)
+
+@bot.tree.command(name="prestamos")
+async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: int, dias: int):
+
+    prestamista = i.user
+    uid_p = str(prestamista.id)
+
+    init_user(uid_p)
+
+    receptor = None
+    uid_r = None
+
+    for uid, info in data.items():
+        if info["id_banco"] == cuenta_bancaria:
+            uid_r = uid
+            receptor = i.guild.get_member(int(uid))
+            break
+
+    if not receptor:
+        return await i.response.send_message("ID bancario no encontrado", ephemeral=True)
+
+    if data[uid_p]["creditos"] < cantidad:
+        return await i.response.send_message("No tienes suficiente dinero para prestar", ephemeral=True)
+
+    embed = discord.Embed(
+        title=f"{prestamista.mention} proporciono un prestamo a {receptor.mention} 💰",
+        color=COLOR
+    )
+
+    embed.description = (
+        f"cantidad de creditos: {cantidad}\n"
+        f"ID bancario: {data[uid_r]['id_banco']}\n"
+        f"dia de devolucion: {dias}\n"
+        "------------------------------------------\n"
+        "> - el dinero debes ser entregado el dia seleccionado\n"
+        "> - si no devuelve el dinero, se le restaran la cantidad del dinero automaticamente\n"
+        "> - al aceptar debe seguir las politicas bancarias\n"
+        "------------------------------------------\n"
+        "creditado por: DarkyBank"
+    )
+
+    embed.set_thumbnail(url=receptor.display_avatar.url)
+
+    await i.response.send_message(embed=embed, view=PrestamoView(prestamista, receptor, cantidad, dias))
+
+# -------------------------
+# COBRO AUTOMATICO
+# -------------------------
+async def revisar_prestamos():
+    while True:
+        ahora = time.time()
+
+        for p in prestamos[:]:
+            if ahora >= p["tiempo"]:
+                uid_r = p["receptor"]
+                uid_p = p["prestamista"]
+                cantidad = p["cantidad"]
+
+                if data[uid_r]["creditos"] >= cantidad:
+                    data[uid_r]["creditos"] -= cantidad
+                    data[uid_p]["creditos"] += cantidad
+                else:
+                    advertencias[uid_r] = advertencias.get(uid_r, 0) + 1
+
+                prestamos.remove(p)
+                save_data()
+
+        await asyncio.sleep(60)
 
 # -------------------------
 # RUN
