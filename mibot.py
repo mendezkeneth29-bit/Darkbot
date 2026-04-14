@@ -97,20 +97,24 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     uid = str(usuario.id)
     init_user(uid)
 
-    embed = discord.Embed(title="Cuenta bancaria 🏦", color=COLOR)
+    embed = discord.Embed(
+        title=f"Cuenta bancaria de {usuario.mention} 🏦",
+        color=COLOR
+    )
+
     embed.description = (
-        f"{usuario.mention}\n\n"
-        f"------------------------------------\n\n"
-        f"> - Créditos: {data[uid]['creditos']}\n"
-        f"> - ID: {data[uid]['id_banco']}\n"
-        f"> - Debe: {data[uid]['veces_debe']}\n"
-        f"> - Prestó: {data[uid]['veces_presto']}"
-        f"------------------------------------\n\n"
+        f"creditos: {data[uid]['creditos']}\n"
+        f"ID bancario: {data[uid]['id_banco']}\n"
+        "------------------------------\n"
+        f"debe: {data[uid]['veces_debe']}\n"
+        f"presto: {data[uid]['veces_presto']}\n"
+        f"prestamos totales: {data[uid]['veces_presto']}\n"
+        "------------------------------\n"
+        "informacion garantizada por: DarkyBank"
     )
 
     embed.set_thumbnail(url=usuario.display_avatar.url)
     await i.response.send_message(embed=embed)
-
 # -------------------------
 # TRANSACCION
 # -------------------------
@@ -123,6 +127,8 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
     for uid, info in data.items():
         if info["id_banco"] == cuenta_bancaria:
 
+            usuario = i.guild.get_member(int(uid))
+
             if data[uid_sender]["creditos"] < cantidad:
                 return await i.response.send_message("No tienes dinero", ephemeral=True)
 
@@ -130,11 +136,26 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
             data[uid]["creditos"] += cantidad
             save_data()
 
-            await i.response.send_message(f"💸 Transferiste {cantidad} créditos")
-            return
+            embed = discord.Embed(
+                title=f"Transaccion a {usuario.mention} 💸",
+                color=COLOR
+            )
+
+            embed.description = (
+                f"{cantidad} enviados a {usuario.mention}\n"
+                f"ID bancario {info['id_banco']}\n"
+                "------------------------------\n"
+                f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} creditos\n"
+                "> - usalos con inteligencia\n"
+                "------------------------------\n"
+                f"enviado por: {i.user.mention}, creditado por: DarkyBank"
+            )
+
+            embed.set_thumbnail(url=usuario.display_avatar.url)
+
+            return await i.response.send_message(embed=embed)
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
-
 # -------------------------
 # BONUS
 # -------------------------
@@ -145,14 +166,25 @@ async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
     for uid, info in data.items():
         if info["id_banco"] == cuenta_bancaria:
 
+            usuario = i.guild.get_member(int(uid))
             data[uid]["creditos"] += cantidad
             save_data()
 
-            await i.response.send_message(f"🎁 Bonus dado correctamente")
-            return
+            embed = discord.Embed(title="Bonus ! 🎁", color=COLOR)
+            embed.description = (
+                f"{i.user.mention} ha dado un bonus a {usuario.mention}\n"
+                f"ID bancario: {info['id_banco']}\n"
+                "------------------------------\n"
+                f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} creditos\n"
+                "------------------------------\n"
+                "creditado por: DarkyBot"
+            )
+
+            embed.set_thumbnail(url=usuario.display_avatar.url)
+
+            return await i.response.send_message(embed=embed)
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
-
 # -------------------------
 # TIENDA ROLES
 # -------------------------
@@ -259,39 +291,43 @@ async def controls(i: discord.Interaction):
 # -------------------------
 # PRESTAMOS
 # -------------------------
-class PrestamoView(discord.ui.View):
-    def __init__(self, prestamista, receptor, cantidad):
-        super().__init__(timeout=60)
-        self.p = prestamista
-        self.r = receptor
-        self.c = cantidad
-
-    @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
-    async def aceptar(self, i: discord.Interaction, b):
-        if i.user != self.r:
-            return
-
-        data[str(self.p.id)]["creditos"] -= self.c
-        data[str(self.r.id)]["creditos"] += self.c
-        save_data()
-
-        await i.response.send_message("Aceptado")
-
 @bot.tree.command(name="prestamos")
-async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
+async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: int, dias: int):
+
+    prestamista = i.user
+    uid_p = str(prestamista.id)
+    init_user(uid_p)
 
     for uid, info in data.items():
         if info["id_banco"] == cuenta_bancaria:
+
             receptor = i.guild.get_member(int(uid))
 
-            embed = discord.Embed(title="Préstamo 💰", color=COLOR)
+            embed = discord.Embed(
+                title=f"{prestamista.mention} proporciono un prestamo a {receptor.mention} 💰",
+                color=COLOR
+            )
+
+            embed.description = (
+                f"cantidad de creditos: {cantidad}\n"
+                f"ID bancario: {info['id_banco']}\n"
+                f"dia de devolucion: {dias}\n"
+                "------------------------------------------\n"
+                "> - el dinero debes ser entregado el dia seleccionado\n"
+                "> - si no devuelve el dinero, se le restaran automaticamente\n"
+                "> - al aceptar debe seguir las politicas bancarias\n"
+                "------------------------------------------\n"
+                "creditado por: DarkyBank"
+            )
+
             embed.set_thumbnail(url=receptor.display_avatar.url)
 
-            await i.response.send_message(
+            return await i.response.send_message(
                 embed=embed,
-                view=PrestamoView(i.user, receptor, cantidad)
+                view=PrestamoView(prestamista, receptor, cantidad, dias)
             )
-            return
+
+    await i.response.send_message("ID no encontrado", ephemeral=True)
 
 # -------------------------
 # WEB (RENDER FIX)
