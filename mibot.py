@@ -367,20 +367,6 @@ async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: 
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
 
-# -------------------------
-# FLASK (para Render)
-# -------------------------
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "Bot activo"
-
-def run():
-    app.run(host='0.0.0.0', port=10000)
-
-Thread(target=run).start()
-
 @bot.tree.command(name="class")
 async def class_cmd(i: discord.Interaction, usuario: discord.Member):
 
@@ -389,34 +375,33 @@ async def class_cmd(i: discord.Interaction, usuario: discord.Member):
 
     dinero = data[uid]["creditos"]
 
-    # 🔹 CLASIFICACION
+    # 🔹 CLASES + IMÁGENES ESTILO DIBUJO
     if dinero < 100:
         clase = "pobre"
-        imagen = "https://i.imgur.com/8Km9tLL.png"
+        imagen = "https://cdn-icons-png.flaticon.com/512/1995/1995574.png"
     elif dinero < 500:
         clase = "media"
-        imagen = "https://i.imgur.com/2DhmtJ4.png"
+        imagen = "https://cdn-icons-png.flaticon.com/512/4140/4140048.png"
     elif dinero < 1000:
         clase = "media alta"
-        imagen = "https://i.imgur.com/Z6X7KQp.png"
+        imagen = "https://cdn-icons-png.flaticon.com/512/4140/4140037.png"
     elif dinero < 5000:
         clase = "millonario/a"
-        imagen = "https://i.imgur.com/3ZQ3Z7Q.png"
+        imagen = "https://cdn-icons-png.flaticon.com/512/4140/4140051.png"
     else:
         clase = "gobernante"
-        imagen = "https://i.imgur.com/VpFz3bG.png"
+        imagen = "https://cdn-icons-png.flaticon.com/512/4140/4140061.png"
 
     embed = discord.Embed(
         title="Clasificación social",
+        description=f"clase: {clase}",
         color=COLOR
     )
 
-    embed.description = f"clase: {clase}"
-
-    # 👤 imagen de la clase
+    # 👇 IMAGEN GRANDE (como quieres)
     embed.set_image(url=imagen)
 
-    # 👤 avatar del usuario
+    # 👤 AVATAR A LA PAR
     embed.set_thumbnail(url=usuario.display_avatar.url)
 
     await i.response.send_message(embed=embed)
