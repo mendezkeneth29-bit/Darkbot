@@ -235,7 +235,6 @@ class CasaView(discord.ui.View):
 # OBJETOS (TIENDA REAL)
 # -------------------------
 objetos = {
-    objetos = {
     "casa🏠": {"precio": 5000, "stock": 999},
     "telefono📱": {"precio": 800, "stock": 999},
     "laptop💻": {"precio": 2000, "stock": 999},
