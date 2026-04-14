@@ -6,37 +6,41 @@ import random
 import string
 import json
 import time
-import threading
-from flask import Flask
 
 TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
 DB_FILE = "data.json"
 
 data = {}
-tienda = {}
-inventario = {}
-objetos = {"casa🏠": {"precio": 5000, "stock": 999}}
-casas = {}
 prestamos = []
+casas = {}
+
+# -------------------------
+# OBJETOS
+# -------------------------
+objetos = {
+    "casa🏠": {"precio": 5000, "stock": 999},
+    "telefono📱": {"precio": 800, "stock": 999},
+    "laptop💻": {"precio": 2000, "stock": 999},
+    "carro🚗": {"precio": 7000, "stock": 999},
+    "dildo🥴": {"precio": 1500, "stock": 100},
+    "avion✈️": {"precio": 20000, "stock": 50},
+    "ipad📱": {"precio": 2500, "stock": 200},
+    "jet_privado💸": {"precio": 100000, "stock": 10}
+}
 
 # -------------------------
 # DATA
 # -------------------------
 def load_data():
-    global data, inventario
+    global data
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r") as f:
-            contenido = json.load(f)
-            data = contenido.get("data", {})
-            inventario = contenido.get("inventario", {})
+            data.update(json.load(f))
 
 def save_data():
     with open(DB_FILE, "w") as f:
-        json.dump({
-            "data": data,
-            "inventario": inventario
-        }, f)
+        json.dump(data, f)
 
 # -------------------------
 # UTIL
@@ -50,10 +54,9 @@ def init_user(uid):
             "creditos": 0,
             "id_banco": generar_codigo(),
             "veces_presto": 0,
-            "veces_debe": 0
+            "veces_debe": 0,
+            "inventario": {}
         }
-    if uid not in inventario:
-        inventario[uid] = []
 
 # -------------------------
 # BOT
@@ -114,7 +117,9 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     )
 
     embed.set_thumbnail(url=usuario.display_avatar.url)
+
     await i.response.send_message(embed=embed)
+
 # -------------------------
 # TRANSACCION
 # -------------------------
@@ -156,118 +161,9 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
             return await i.response.send_message(embed=embed)
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
-# -------------------------
-# BONUS
-# -------------------------
-@bot.tree.command(name="bonus")
-@app_commands.checks.has_permissions(administrator=True)
-async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
-
-    for uid, info in data.items():
-        if info["id_banco"] == cuenta_bancaria:
-
-            usuario = i.guild.get_member(int(uid))
-            data[uid]["creditos"] += cantidad
-            save_data()
-
-            embed = discord.Embed(title="Bonus ! 🎁", color=COLOR)
-            embed.description = (
-                f"{i.user.mention} ha dado un bonus a {usuario.mention}\n"
-                f"ID bancario: {info['id_banco']}\n"
-                "------------------------------\n"
-                f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} creditos\n"
-                "------------------------------\n"
-                "creditado por: DarkyBot"
-            )
-
-            embed.set_thumbnail(url=usuario.display_avatar.url)
-
-            return await i.response.send_message(embed=embed)
-
-    await i.response.send_message("ID no encontrado", ephemeral=True)
-# -------------------------
-# TIENDA ROLES
-# -------------------------
-@bot.tree.command(name="tienda-config")
-async def tienda_config(i: discord.Interaction, rol: discord.Role, precio: int):
-    tienda[rol.id] = precio
-    await i.response.send_message("Rol agregado")
-
-@bot.tree.command(name="tienda")
-async def tienda_cmd(i: discord.Interaction):
-
-    embed = discord.Embed(title="Tienda 🛒", color=COLOR)
-
-    for rid, precio in tienda.items():
-        rol = i.guild.get_role(rid)
-        embed.add_field(name=rol.name, value=f"${precio}", inline=False)
-
-    await i.response.send_message(embed=embed)
 
 # -------------------------
-# CASAS
-# -------------------------
-class CasaView(discord.ui.View):
-    def __init__(self, owner_id):
-        super().__init__(timeout=None)
-        self.owner_id = owner_id
-
-    def es_dueno(self, i):
-        return i.user.id == self.owner_id
-
-    @discord.ui.button(label="🔒 Bloquear", style=discord.ButtonStyle.red)
-    async def bloquear(self, i: discord.Interaction, b: discord.ui.Button):
-        if not self.es_dueno(i):
-            return await i.response.send_message("No es tu casa", ephemeral=True)
-
-        await i.channel.set_permissions(i.guild.default_role, view_channel=False)
-        await i.response.send_message("Casa bloqueada", ephemeral=True)
-
-    @discord.ui.button(label="🔓 Desbloquear", style=discord.ButtonStyle.green)
-    async def desbloquear(self, i: discord.Interaction, b: discord.ui.Button):
-        if not self.es_dueno(i):
-            return await i.response.send_message("No es tu casa", ephemeral=True)
-
-        await i.channel.set_permissions(i.guild.default_role, view_channel=True)
-        await i.response.send_message("Casa desbloqueada", ephemeral=True)
-
-# -------------------------
-# OBJETOS (TIENDA REAL)
-# -------------------------
-objetos = {
-    "casa🏠": {"precio": 5000, "stock": 999},
-    "telefono📱": {"precio": 800, "stock": 999},
-    "laptop💻": {"precio": 2000, "stock": 999},
-    "carro🚗": {"precio": 7000, "stock": 999},
-    "reloj⌚": {"precio": 400, "stock": 999},
-    "tv📺": {"precio": 1200, "stock": 999},
-    "moto🏍️": {"precio": 3500, "stock": 999},
-    "joya💎": {"precio": 10000, "stock": 999},
-    "audifonos🎧": {"precio": 300, "stock": 999},
-    "tablet📱": {"precio": 1500, "stock": 999},
-
-    # NUEVOS
-    "dildo🥴": {"precio": 1500, "stock": 100},
-    "avion✈️": {"precio": 20000, "stock": 50},
-    "ipad📱": {"precio": 2500, "stock": 200},
-    "jet_privado💸": {"precio": 100000, "stock": 10}
-}
-
-# -------------------------
-# INVENTARIO INIT
-# -------------------------
-def init_user(uid):
-    if uid not in data:
-        data[uid] = {
-            "creditos": 0,
-            "id_banco": generar_codigo(),
-            "veces_presto": 0,
-            "veces_debe": 0,
-            "inventario": {}
-        }
-
-# -------------------------
-# VER TIENDA
+# TIENDA OBJETOS
 # -------------------------
 @bot.tree.command(name="tienda-objetos")
 async def tienda_objetos(i: discord.Interaction):
@@ -278,7 +174,7 @@ async def tienda_objetos(i: discord.Interaction):
         texto += f"{nombre} - 💰 {info['precio']} | stock: {info['stock']}\n"
 
     embed = discord.Embed(
-        title="Tienda de objetos 🛒",
+        title="Tienda 🏪",
         description=texto,
         color=COLOR
     )
@@ -286,7 +182,7 @@ async def tienda_objetos(i: discord.Interaction):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# COMPRAR OBJETO
+# COMPRAR
 # -------------------------
 @bot.tree.command(name="comprar")
 async def comprar(i: discord.Interaction, objeto: str):
@@ -305,15 +201,29 @@ async def comprar(i: discord.Interaction, objeto: str):
     if item["stock"] <= 0:
         return await i.response.send_message("Sin stock", ephemeral=True)
 
-    # quitar dinero
     data[uid]["creditos"] -= item["precio"]
-
-    # bajar stock
     item["stock"] -= 1
 
-    # agregar al inventario
     inv = data[uid]["inventario"]
     inv[objeto] = inv.get(objeto, 0) + 1
+
+    # CASA
+    if objeto == "casa🏠":
+        categoria = discord.utils.get(i.guild.categories, name="CASAS")
+        if not categoria:
+            categoria = await i.guild.create_category("CASAS")
+
+        numero = len(casas) + 1
+
+        canal = await i.guild.create_text_channel(
+            f"casa-{numero}",
+            category=categoria
+        )
+
+        casas[uid] = canal.id
+
+        embed_casa = discord.Embed(title="Controls", color=COLOR)
+        await canal.send(embed=embed_casa, view=CasaView(i.user.id))
 
     save_data()
 
@@ -323,10 +233,9 @@ async def comprar(i: discord.Interaction, objeto: str):
 # INVENTARIO
 # -------------------------
 @bot.tree.command(name="inventario")
-async def inventario(i: discord.Interaction, usuario: discord.Member = None):
+async def inventario(i: discord.Interaction):
 
-    usuario = usuario or i.user
-    uid = str(usuario.id)
+    uid = str(i.user.id)
     init_user(uid)
 
     inv = data[uid]["inventario"]
@@ -335,39 +244,92 @@ async def inventario(i: discord.Interaction, usuario: discord.Member = None):
         return await i.response.send_message("Inventario vacío", ephemeral=True)
 
     texto = ""
-
     for obj, cant in inv.items():
         texto += f"{obj} x{cant}\n"
 
-    embed = discord.Embed(
-        title=f"Inventario de {usuario.name} 🎒",
-        description=texto,
-        color=COLOR
-    )
-
-    embed.set_thumbnail(url=usuario.display_avatar.url)
+    embed = discord.Embed(title="Inventario 🎒", description=texto, color=COLOR)
+    embed.set_thumbnail(url=i.user.display_avatar.url)
 
     await i.response.send_message(embed=embed)
+
 # -------------------------
-# CONTROLS
+# CASA BOTONES
 # -------------------------
-@bot.tree.command(name="controls")
-async def controls(i: discord.Interaction):
-    embed = discord.Embed(title="Controles de hogar🏡", color=COLOR)
-    embed.description = (
-                f"Bienvenido/a a tu nuevo hogar}\n"
-                f"ID bancario: {info['id_banco']}\n"
-                "------------------------------\n"
-                f"Aqui puedes hacer cualquier cosa sin ser advertido\n"
-                f"toda queda bajo tu responsabilidad\n"
-                "------------------------------\n"
-                "creditado por: DarkyHouses"
-            )
-    await i.response.send_message(embed=embed, view=CasaView(i.user.id))
+class CasaView(discord.ui.View):
+    def __init__(self, owner_id):
+        super().__init__(timeout=None)
+        self.owner_id = owner_id
+
+    def es_dueno(self, i):
+        return i.user.id == self.owner_id
+
+    @discord.ui.button(label="🔒 Bloquear", style=discord.ButtonStyle.red)
+    async def bloquear(self, i: discord.Interaction, b):
+
+        if not self.es_dueno(i):
+            return await i.response.send_message("No es tu casa", ephemeral=True)
+
+        await i.channel.set_permissions(i.guild.default_role, view_channel=False)
+        await i.response.send_message("Casa bloqueada", ephemeral=True)
+
+    @discord.ui.button(label="🔓 Desbloquear", style=discord.ButtonStyle.green)
+    async def desbloquear(self, i: discord.Interaction, b):
+
+        if not self.es_dueno(i):
+            return await i.response.send_message("No es tu casa", ephemeral=True)
+
+        await i.channel.set_permissions(i.guild.default_role, view_channel=True)
+        await i.response.send_message("Casa desbloqueada", ephemeral=True)
+
+    @discord.ui.button(label="⚙️ Comandos", style=discord.ButtonStyle.blurple)
+    async def comandos(self, i: discord.Interaction, b):
+
+        if not self.es_dueno(i):
+            return await i.response.send_message("No es tu casa", ephemeral=True)
+
+        await i.response.send_message(
+            "❤️ /kiss\n🤗 /hug\n😈 comandos +18 incluidos",
+            ephemeral=True
+        )
 
 # -------------------------
 # PRESTAMOS
 # -------------------------
+class PrestamoView(discord.ui.View):
+    def __init__(self, p, r, c, d):
+        super().__init__(timeout=60)
+        self.p, self.r, self.c, self.d = p, r, c, d
+
+    @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
+    async def aceptar(self, i: discord.Interaction, b):
+
+        if i.user != self.r:
+            return await i.response.send_message("No es tu préstamo", ephemeral=True)
+
+        uid_p = str(self.p.id)
+        uid_r = str(self.r.id)
+
+        if data[uid_p]["creditos"] < self.c:
+            return await i.response.send_message("El prestamista no tiene dinero", ephemeral=True)
+
+        data[uid_p]["creditos"] -= self.c
+        data[uid_r]["creditos"] += self.c
+
+        data[uid_p]["veces_presto"] += 1
+        data[uid_r]["veces_debe"] += 1
+
+        save_data()
+
+        await i.response.send_message("Préstamo aceptado", ephemeral=True)
+
+    @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
+    async def rechazar(self, i: discord.Interaction, b):
+
+        if i.user != self.r:
+            return await i.response.send_message("No es tu préstamo", ephemeral=True)
+
+        await i.response.send_message("Préstamo rechazado", ephemeral=True)
+
 @bot.tree.command(name="prestamos")
 async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: int, dias: int):
 
@@ -407,18 +369,103 @@ async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: 
     await i.response.send_message("ID no encontrado", ephemeral=True)
 
 # -------------------------
-# WEB (RENDER FIX)
+# BONUS
 # -------------------------
-app = Flask(__name__)
+@bot.tree.command(name="bonus")
+@app_commands.checks.has_permissions(administrator=True)
+async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
 
-@app.route("/")
-def home():
-    return "Bot activo"
+    for uid, info in data.items():
+        if info["id_banco"] == cuenta_bancaria:
 
-def run_web():
-    app.run(host="0.0.0.0", port=10000)
+            usuario = i.guild.get_member(int(uid))
+            data[uid]["creditos"] += cantidad
+            save_data()
 
-threading.Thread(target=run_web).start()
+            embed = discord.Embed(title="Bonus ! 🎁", color=COLOR)
+            embed.description = (
+                f"{i.user.mention} ha dado un bonus a {usuario.mention}\n"
+                f"ID bancario: {info['id_banco']}\n"
+                "----------------------------------------------\n"
+                f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} creditos\n"
+                "----------------------------------------------\n"
+                "creditado por: DarkyBot"
+            )
+
+            embed.set_thumbnail(url=usuario.display_avatar.url)
+
+            return await i.response.send_message(embed=embed)
+
+    await i.response.send_message("ID no encontrado", ephemeral=True)
+
+# -------------------------
+# TIENDA DE ROLES
+# -------------------------
+@bot.tree.command(name="tienda-config")
+@app_commands.checks.has_permissions(administrator=True)
+async def tienda_config(i: discord.Interaction, rol: discord.Role, precio: int):
+
+    tienda[rol.id] = precio
+    await i.response.send_message("Rol agregado a la tienda", ephemeral=True)
+
+
+@bot.tree.command(name="tienda")
+async def tienda_cmd(i: discord.Interaction):
+
+    if not tienda:
+        return await i.response.send_message("No hay roles en tienda", ephemeral=True)
+
+    embed = discord.Embed(title="Tienda 🏪", color=COLOR)
+
+    for rid, precio in tienda.items():
+        role = i.guild.get_role(rid)
+        embed.add_field(
+            name=role.name if role else "Rol eliminado",
+            value=f"Precio: {precio}",
+            inline=False
+        )
+
+    await i.response.send_message(embed=embed)
+
+# -------------------------
+# COMPRAR ROL
+# -------------------------
+@bot.tree.command(name="comprar-rol")
+async def comprar_rol(i: discord.Interaction, rol: discord.Role):
+
+    uid = str(i.user.id)
+    init_user(uid)
+
+    if rol.id not in tienda:
+        return await i.response.send_message("Ese rol no está en la tienda", ephemeral=True)
+
+    precio = tienda[rol.id]
+
+    if data[uid]["creditos"] < precio:
+        return await i.response.send_message("No tienes dinero", ephemeral=True)
+
+    data[uid]["creditos"] -= precio
+    await i.user.add_roles(rol)
+    save_data()
+
+    await i.response.send_message(f"Compraste el rol {rol.mention} 🎭")
+
+# -------------------------
+# CONTROLES CASA
+# -------------------------
+@bot.tree.command(name="controls")
+async def controls(i: discord.Interaction):
+
+    embed = discord.Embed(title="Controls", color=COLOR)
+    embed.description = (
+        "🔒 Bloquear casa\n"
+        "🔓 Desbloquear casa\n"
+        "⚙️ Comandos interactivos\n"
+    )
+
+    embed.set_thumbnail(url=i.user.display_avatar.url)
+
+    await i.response.send_message(embed=embed, view=CasaView(i.user.id))
 
 # -------------------------
 # RUN
