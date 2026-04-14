@@ -57,6 +57,7 @@ def init_user(uid):
             "id_banco": generar_codigo(),
             "veces_presto": 0,
             "veces_debe": 0
+"inventario": {}
         }
 
 # -------------------------
@@ -205,163 +206,131 @@ async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
     await i.response.send_message("ID no encontrado", ephemeral=True)
 
 # -------------------------
-# TIENDA
+# OBJETOS
 # -------------------------
-tienda = {}
-
-comida = {
-    "galleta🍪": {"precio": 10, "stock": 50},
-    "papa🍟": {"precio": 15, "stock": 50},
-    "chocolate🍫": {"precio": 20, "stock": 50},
-    "manzana🍎": {"precio": 8, "stock": 50},
-    "sopa🥄": {"precio": 12, "stock": 50},
-    "pastel🎂": {"precio": 25, "stock": 50},
-    "pizza🍕": {"precio": 30, "stock": 50},
-    "dona🍩": {"precio": 14, "stock": 50},
-    "cupcake🧁": {"precio": 18, "stock": 50},
-    "hamburguesa🍔": {"precio": 28, "stock": 50}
+objetos = {
+    "espada⚔️": {"precio": 100, "stock": 10},
+    "escudo🛡️": {"precio": 80, "stock": 10},
+    "pocion🧪": {"precio": 30, "stock": 50},
+    "libro📚": {"precio": 25, "stock": 30},
+    "telefono📱": {"precio": 200, "stock": 5},
+    "laptop💻": {"precio": 500, "stock": 3},
+    "carro🚗": {"precio": 2000, "stock": 2},
+    "casa🏠": {"precio": 5000, "stock": 1},
+    "anillo💍": {"precio": 150, "stock": 10},
+    "reloj⌚": {"precio": 120, "stock": 10},
+    "gafas🕶️": {"precio": 60, "stock": 15},
+    "mochila🎒": {"precio": 70, "stock": 15},
+    "camara📷": {"precio": 180, "stock": 8},
+    "microfono🎤": {"precio": 140, "stock": 8},
+    "consola🎮": {"precio": 400, "stock": 5},
+    "audifonos🎧": {"precio": 90, "stock": 10},
+    "zapatillas👟": {"precio": 110, "stock": 12},
+    "chaqueta🧥": {"precio": 130, "stock": 10},
+    "sombrero🎩": {"precio": 75, "stock": 10},
+    "maletin💼": {"precio": 160, "stock": 6}
 }
-
-# -------------------------
-# CONFIGURAR ROLES
-# -------------------------
-@bot.tree.command(name="tienda-config")
-@app_commands.checks.has_permissions(administrator=True)
-async def tienda_config(i: discord.Interaction, rol: discord.Role, precio: int, stock: int):
-
-    tienda[rol.id] = {"precio": precio, "stock": stock}
-    await i.response.send_message("Rol agregado a la tienda", ephemeral=True)
 
 # -------------------------
 # SELECTOR
 # -------------------------
-class TiendaSelect(discord.ui.Select):
+class ObjetosSelect(discord.ui.Select):
     def __init__(self):
 
-        opciones = []
-
-        # ROLES
-        for rid, item in tienda.items():
-            opciones.append(
-                discord.SelectOption(
-                    label=f"Rol {rid}",
-                    description=f"${item['precio']} | stock {item['stock']}",
-                    value=f"rol_{rid}"
-                )
+        opciones = [
+            discord.SelectOption(
+                label=nombre,
+                description=f"${item['precio']} | stock {item['stock']}",
+                value=nombre
             )
+            for nombre, item in objetos.items()
+        ]
 
-        # COMIDA
-        for nombre, item in comida.items():
-            opciones.append(
-                discord.SelectOption(
-                    label=nombre,
-                    description=f"${item['precio']} | stock {item['stock']}",
-                    value=f"comida_{nombre}"
-                )
-            )
-
-        if not opciones:
-            opciones = [discord.SelectOption(label="Vacío", value="none")]
-
-        super().__init__(placeholder="Compra algo", options=opciones)
+        super().__init__(placeholder="Selecciona un objeto", options=opciones)
 
     async def callback(self, i: discord.Interaction):
 
         uid = str(i.user.id)
         init_user(uid)
 
-        value = self.values[0]
+        nombre = self.values[0]
+        item = objetos[nombre]
 
-        if value == "none":
-            return await i.response.send_message("No hay nada en la tienda", ephemeral=True)
+        if data[uid]["creditos"] < item["precio"]:
+            return await i.response.send_message("No tienes dinero", ephemeral=True)
 
-        # -------------------------
-        # COMPRAR ROL
-        # -------------------------
-        if value.startswith("rol_"):
-            rid = int(value.replace("rol_", ""))
-            item = tienda[rid]
+        if item["stock"] <= 0:
+            return await i.response.send_message("Sin stock", ephemeral=True)
 
-            if data[uid]["creditos"] < item["precio"]:
-                return await i.response.send_message("No tienes dinero", ephemeral=True)
+        # COBRAR
+        data[uid]["creditos"] -= item["precio"]
+        item["stock"] -= 1
 
-            if item["stock"] <= 0:
-                return await i.response.send_message("Sin stock", ephemeral=True)
+        # INVENTARIO
+        inv = data[uid]["inventario"]
+        inv[nombre] = inv.get(nombre, 0) + 1
 
-            role = i.guild.get_role(rid)
+        save_data()
 
-            data[uid]["creditos"] -= item["precio"]
-            item["stock"] -= 1
-
-            await i.user.add_roles(role)
-            save_data()
-
-            return await i.response.send_message(f"Compraste {role.mention}", ephemeral=True)
-
-        # -------------------------
-        # COMPRAR COMIDA
-        # -------------------------
-        if value.startswith("comida_"):
-            nombre = value.replace("comida_", "")
-            item = comida[nombre]
-
-            if data[uid]["creditos"] < item["precio"]:
-                return await i.response.send_message("No tienes dinero", ephemeral=True)
-
-            if item["stock"] <= 0:
-                return await i.response.send_message("Sin stock", ephemeral=True)
-
-            data[uid]["creditos"] -= item["precio"]
-            item["stock"] -= 1
-            save_data()
-
-            return await i.response.send_message(f"Compraste {nombre}", ephemeral=True)
+        await i.response.send_message(f"Compraste {nombre}", ephemeral=True)
 
 # -------------------------
 # VIEW
 # -------------------------
-class TiendaView(discord.ui.View):
+class ObjetosView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(TiendaSelect())
+        self.add_item(ObjetosSelect())
 
 # -------------------------
-# VER TIENDA
+# COMANDO TIENDA OBJETOS
 # -------------------------
-@bot.tree.command(name="tienda-set")
-async def tienda_set(i: discord.Interaction):
+@bot.tree.command(name="tienda-objetos")
+async def tienda_objetos(i: discord.Interaction):
 
-    embed = discord.Embed(title="Tienda 🏪", color=COLOR)
+    embed = discord.Embed(
+        title="Tienda de Objetos 🛒",
+        color=COLOR
+    )
 
-    # ROLES
-    for idx, (rid, item) in enumerate(tienda.items(), 1):
-        role = i.guild.get_role(rid)
-        embed.add_field(
-            name=f"{idx}. {role.name if role else 'Rol eliminado'}",
-            value=f"Precio: {item['precio']} | Stock: {item['stock']}",
-            inline=False
-        )
-
-    # COMIDA
-    start = len(tienda) + 1
-    for idx, (nombre, item) in enumerate(comida.items(), start=start):
+    for idx, (nombre, item) in enumerate(objetos.items(), 1):
         embed.add_field(
             name=f"{idx}. {nombre}",
             value=f"Precio: {item['precio']} | Stock: {item['stock']}",
             inline=False
         )
 
-    await i.response.send_message(embed=embed, view=TiendaView())
+    await i.response.send_message(embed=embed, view=ObjetosView())
 
 # -------------------------
-# RESET
+# INVENTARIO
 # -------------------------
-@bot.tree.command(name="tienda-reset")
-@app_commands.checks.has_permissions(administrator=True)
-async def tienda_reset(i: discord.Interaction):
+@bot.tree.command(name="inventario")
+async def inventario(i: discord.Interaction, usuario: discord.Member = None):
 
-    tienda.clear()
-    await i.response.send_message("Tienda reseteada", ephemeral=True)
+    usuario = usuario or i.user
+    uid = str(usuario.id)
+    init_user(uid)
+
+    inv = data[uid].get("inventario", {})
+
+    embed = discord.Embed(
+        title=f"Inventario de {usuario.mention} 🎒",
+        color=COLOR
+    )
+
+    if not inv:
+        embed.description = "No tienes objetos"
+    else:
+        texto = ""
+        for obj, cantidad in inv.items():
+            texto += f"{obj} x{cantidad}\n"
+
+        embed.description = texto
+
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    await i.response.send_message(embed=embed)
 
 # -------------------------
 # SISTEMA AUTO COBRO
