@@ -296,3 +296,16 @@ async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: 
 # -------------------------
 load_data()
 bot.run(TOKEN)
+import threading
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot activo"
+
+def run_web():
+    app.run(host="0.0.0.0", port=10000)
+
+threading.Thread(target=run_web).start()
