@@ -6,6 +6,8 @@ import random
 import string
 import json
 import time
+import threading
+from flask import Flask
 
 TOKEN = os.getenv("TOKEN")
 COLOR = 0x000000
@@ -13,22 +15,28 @@ DB_FILE = "data.json"
 
 data = {}
 tienda = {}
+inventario = {}
 objetos = {"casa🏠": {"precio": 5000, "stock": 999}}
 casas = {}
 prestamos = []
 
 # -------------------------
-# 💾 DATA
+# DATA
 # -------------------------
 def load_data():
-    global data
+    global data, inventario
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r") as f:
-            data.update(json.load(f))
+            contenido = json.load(f)
+            data = contenido.get("data", {})
+            inventario = contenido.get("inventario", {})
 
 def save_data():
     with open(DB_FILE, "w") as f:
-        json.dump(data, f)
+        json.dump({
+            "data": data,
+            "inventario": inventario
+        }, f)
 
 # -------------------------
 # UTIL
@@ -44,6 +52,8 @@ def init_user(uid):
             "veces_presto": 0,
             "veces_debe": 0
         }
+    if uid not in inventario:
+        inventario[uid] = []
 
 # -------------------------
 # BOT
@@ -77,13 +87,6 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-@bot.event
-async def on_member_join(member):
-    if member.bot:
-        return
-    init_user(str(member.id))
-    save_data()
-
 # -------------------------
 # CUENTA
 # -------------------------
@@ -94,20 +97,13 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     uid = str(usuario.id)
     init_user(uid)
 
-    embed = discord.Embed(
-        title=f"Cuenta bancaria de {usuario.mention} 🏦",
-        color=COLOR
-    )
-
+    embed = discord.Embed(title="Cuenta bancaria 🏦", color=COLOR)
     embed.description = (
-        f"creditos: {data[uid]['creditos']}\n"
-        f"ID bancario: {data[uid]['id_banco']}\n"
-        "------------------------------\n"
-        f"debe: {data[uid]['veces_debe']}\n"
-        f"presto: {data[uid]['veces_presto']}\n"
-        f"prestamos totales: {data[uid]['veces_presto']}\n"
-        "------------------------------\n"
-        "informacion garantizada por: DarkyBank"
+        f"{usuario.mention}\n\n"
+        f"💰 Créditos: {data[uid]['creditos']}\n"
+        f"🆔 ID: {data[uid]['id_banco']}\n"
+        f"📉 Debe: {data[uid]['veces_debe']}\n"
+        f"📈 Prestó: {data[uid]['veces_presto']}"
     )
 
     embed.set_thumbnail(url=usuario.display_avatar.url)
@@ -125,8 +121,6 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
     for uid, info in data.items():
         if info["id_banco"] == cuenta_bancaria:
 
-            usuario = i.guild.get_member(int(uid))
-
             if data[uid_sender]["creditos"] < cantidad:
                 return await i.response.send_message("No tienes dinero", ephemeral=True)
 
@@ -134,14 +128,8 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
             data[uid]["creditos"] += cantidad
             save_data()
 
-            embed = discord.Embed(
-                title=f"Transaccion a {usuario.mention} 💸",
-                color=COLOR
-            )
-
-            embed.set_thumbnail(url=usuario.display_avatar.url)
-
-            return await i.response.send_message(embed=embed)
+            await i.response.send_message(f"💸 Transferiste {cantidad} créditos")
+            return
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
 
@@ -155,16 +143,48 @@ async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
     for uid, info in data.items():
         if info["id_banco"] == cuenta_bancaria:
 
-            usuario = i.guild.get_member(int(uid))
             data[uid]["creditos"] += cantidad
             save_data()
 
-            embed = discord.Embed(title="Bonus ! 🎁", color=COLOR)
-            embed.set_thumbnail(url=usuario.display_avatar.url)
-
-            return await i.response.send_message(embed=embed)
+            await i.response.send_message(f"🎁 Bonus dado correctamente")
+            return
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
+
+# -------------------------
+# TIENDA ROLES
+# -------------------------
+@bot.tree.command(name="tienda-config")
+async def tienda_config(i: discord.Interaction, rol: discord.Role, precio: int):
+    tienda[rol.id] = precio
+    await i.response.send_message("Rol agregado")
+
+@bot.tree.command(name="tienda")
+async def tienda_cmd(i: discord.Interaction):
+
+    embed = discord.Embed(title="Tienda 🛒", color=COLOR)
+
+    for rid, precio in tienda.items():
+        rol = i.guild.get_role(rid)
+        embed.add_field(name=rol.name, value=f"${precio}", inline=False)
+
+    await i.response.send_message(embed=embed)
+
+# -------------------------
+# INVENTARIO
+# -------------------------
+@bot.tree.command(name="inventario")
+async def inventario_cmd(i: discord.Interaction):
+
+    uid = str(i.user.id)
+    init_user(uid)
+
+    items = inventario[uid]
+
+    embed = discord.Embed(title="Inventario 🎒", color=COLOR)
+    embed.description = "\n".join(items) if items else "Vacío"
+
+    await i.response.send_message(embed=embed)
 
 # -------------------------
 # CASAS
@@ -179,7 +199,6 @@ class CasaView(discord.ui.View):
 
     @discord.ui.button(label="🔒 Bloquear", style=discord.ButtonStyle.red)
     async def bloquear(self, i: discord.Interaction, b: discord.ui.Button):
-
         if not self.es_dueno(i):
             return await i.response.send_message("No es tu casa", ephemeral=True)
 
@@ -188,7 +207,6 @@ class CasaView(discord.ui.View):
 
     @discord.ui.button(label="🔓 Desbloquear", style=discord.ButtonStyle.green)
     async def desbloquear(self, i: discord.Interaction, b: discord.ui.Button):
-
         if not self.es_dueno(i):
             return await i.response.send_message("No es tu casa", ephemeral=True)
 
@@ -196,7 +214,7 @@ class CasaView(discord.ui.View):
         await i.response.send_message("Casa desbloqueada", ephemeral=True)
 
 # -------------------------
-# TIENDA OBJETOS (CASA)
+# COMPRAR CASA
 # -------------------------
 @bot.tree.command(name="tienda-objetos")
 async def tienda_objetos(i: discord.Interaction):
@@ -210,17 +228,14 @@ async def tienda_objetos(i: discord.Interaction):
         return await i.response.send_message("No tienes dinero", ephemeral=True)
 
     data[uid]["creditos"] -= precio
+    inventario[uid].append("casa🏠")
 
     categoria = discord.utils.get(i.guild.categories, name="CASAS")
     if not categoria:
         categoria = await i.guild.create_category("CASAS")
 
     numero = len(casas) + 1
-
-    canal = await i.guild.create_text_channel(
-        f"casa-{numero}",
-        category=categoria
-    )
+    canal = await i.guild.create_text_channel(f"casa-{numero}", category=categoria)
 
     casas[uid] = canal.id
     save_data()
@@ -229,76 +244,56 @@ async def tienda_objetos(i: discord.Interaction):
     embed.set_thumbnail(url=i.user.display_avatar.url)
 
     await canal.send(embed=embed, view=CasaView(i.user.id))
+    await i.response.send_message(f"🏠 Casa #{numero} comprada")
 
-    await i.response.send_message(f"Tienes casa #{numero} 🏠", ephemeral=True)
+# -------------------------
+# CONTROLS
+# -------------------------
+@bot.tree.command(name="controls")
+async def controls(i: discord.Interaction):
+    embed = discord.Embed(title="Controls", color=COLOR)
+    await i.response.send_message(embed=embed, view=CasaView(i.user.id))
 
 # -------------------------
 # PRESTAMOS
 # -------------------------
 class PrestamoView(discord.ui.View):
-    def __init__(self, prestamista, receptor, cantidad, dias):
+    def __init__(self, prestamista, receptor, cantidad):
         super().__init__(timeout=60)
         self.p = prestamista
         self.r = receptor
         self.c = cantidad
-        self.d = dias
 
     @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
-    async def aceptar(self, i: discord.Interaction, button: discord.ui.Button):
-
+    async def aceptar(self, i: discord.Interaction, b):
         if i.user != self.r:
-            return await i.response.send_message("No es tu préstamo", ephemeral=True)
+            return
 
-        uid_p = str(self.p.id)
-        uid_r = str(self.r.id)
-
-        data[uid_p]["creditos"] -= self.c
-        data[uid_r]["creditos"] += self.c
-
+        data[str(self.p.id)]["creditos"] -= self.c
+        data[str(self.r.id)]["creditos"] += self.c
         save_data()
 
-        await i.response.send_message("Préstamo aceptado", ephemeral=True)
-
-    @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
-    async def rechazar(self, i: discord.Interaction, button: discord.ui.Button):
-
-        if i.user != self.r:
-            return await i.response.send_message("No es tu préstamo", ephemeral=True)
-
-        await i.response.send_message("Préstamo rechazado", ephemeral=True)
+        await i.response.send_message("Aceptado")
 
 @bot.tree.command(name="prestamos")
-async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: int, dias: int):
-
-    prestamista = i.user
+async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
 
     for uid, info in data.items():
         if info["id_banco"] == cuenta_bancaria:
-
             receptor = i.guild.get_member(int(uid))
 
-            embed = discord.Embed(
-                title=f"{prestamista.mention} proporciono un prestamo a {receptor.mention} 💰",
-                color=COLOR
-            )
-
+            embed = discord.Embed(title="Préstamo 💰", color=COLOR)
             embed.set_thumbnail(url=receptor.display_avatar.url)
 
-            return await i.response.send_message(
+            await i.response.send_message(
                 embed=embed,
-                view=PrestamoView(prestamista, receptor, cantidad, dias)
+                view=PrestamoView(i.user, receptor, cantidad)
             )
-
-    await i.response.send_message("ID no encontrado", ephemeral=True)
+            return
 
 # -------------------------
-# RUN
+# WEB (RENDER FIX)
 # -------------------------
-load_data()
-bot.run(TOKEN)
-import threading
-from flask import Flask
-
 app = Flask(__name__)
 
 @app.route("/")
@@ -309,3 +304,9 @@ def run_web():
     app.run(host="0.0.0.0", port=10000)
 
 threading.Thread(target=run_web).start()
+
+# -------------------------
+# RUN
+# -------------------------
+load_data()
+bot.run(TOKEN)
