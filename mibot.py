@@ -205,22 +205,6 @@ async def tienda_cmd(i: discord.Interaction):
     await i.response.send_message(embed=embed)
 
 # -------------------------
-# INVENTARIO
-# -------------------------
-@bot.tree.command(name="inventario")
-async def inventario_cmd(i: discord.Interaction):
-
-    uid = str(i.user.id)
-    init_user(uid)
-
-    items = inventario[uid]
-
-    embed = discord.Embed(title="Inventario 🎒", color=COLOR)
-    embed.description = "\n".join(items) if items else "Vacío"
-
-    await i.response.send_message(embed=embed)
-
-# -------------------------
 # CASAS
 # -------------------------
 class CasaView(discord.ui.View):
@@ -248,44 +232,135 @@ class CasaView(discord.ui.View):
         await i.response.send_message("Casa desbloqueada", ephemeral=True)
 
 # -------------------------
-# COMPRAR CASA
+# OBJETOS (TIENDA REAL)
+# -------------------------
+objetos = {
+    "casa🏠": {"precio": 5000, "stock": 999},
+    "telefono📱": {"precio": 800, "stock": 999},
+    "laptop💻": {"precio": 2000, "stock": 999},
+    "carro🚗": {"precio": 7000, "stock": 999},
+    "reloj⌚": {"precio": 400, "stock": 999},
+    "tv📺": {"precio": 1200, "stock": 999},
+    "moto🏍️": {"precio": 3500, "stock": 999},
+    "joya💎": {"precio": 10000, "stock": 999},
+    "audifonos🎧": {"precio": 300, "stock": 999},
+    "tablet📲": {"precio": 1500, "stock": 999}
+    "Dildo🥴": {"precio": 600, "stock": 999}
+    "audifonos🎧": {"precio": 167, "stock": 999}
+    "avion✈️": {"precio": 10000, "stock": 999}
+    "Jet privado💸": {"precio":500000, "stock": 999}
+}
+
+# -------------------------
+# INVENTARIO INIT
+# -------------------------
+def init_user(uid):
+    if uid not in data:
+        data[uid] = {
+            "creditos": 0,
+            "id_banco": generar_codigo(),
+            "veces_presto": 0,
+            "veces_debe": 0,
+            "inventario": {}
+        }
+
+# -------------------------
+# VER TIENDA
 # -------------------------
 @bot.tree.command(name="tienda-objetos")
 async def tienda_objetos(i: discord.Interaction):
 
+    texto = ""
+
+    for nombre, info in objetos.items():
+        texto += f"{nombre} - 💰 {info['precio']} | stock: {info['stock']}\n"
+
+    embed = discord.Embed(
+        title="Tienda de objetos 🛒",
+        description=texto,
+        color=COLOR
+    )
+
+    await i.response.send_message(embed=embed)
+
+# -------------------------
+# COMPRAR OBJETO
+# -------------------------
+@bot.tree.command(name="comprar")
+async def comprar(i: discord.Interaction, objeto: str):
+
     uid = str(i.user.id)
     init_user(uid)
 
-    precio = objetos["casa🏠"]["precio"]
+    if objeto not in objetos:
+        return await i.response.send_message("Objeto no existe", ephemeral=True)
 
-    if data[uid]["creditos"] < precio:
+    item = objetos[objeto]
+
+    if data[uid]["creditos"] < item["precio"]:
         return await i.response.send_message("No tienes dinero", ephemeral=True)
 
-    data[uid]["creditos"] -= precio
-    inventario[uid].append("casa🏠")
+    if item["stock"] <= 0:
+        return await i.response.send_message("Sin stock", ephemeral=True)
 
-    categoria = discord.utils.get(i.guild.categories, name="CASAS")
-    if not categoria:
-        categoria = await i.guild.create_category("CASAS")
+    # quitar dinero
+    data[uid]["creditos"] -= item["precio"]
 
-    numero = len(casas) + 1
-    canal = await i.guild.create_text_channel(f"casa-{numero}", category=categoria)
+    # bajar stock
+    item["stock"] -= 1
 
-    casas[uid] = canal.id
+    # agregar al inventario
+    inv = data[uid]["inventario"]
+    inv[objeto] = inv.get(objeto, 0) + 1
+
     save_data()
 
-    embed = discord.Embed(title="Controls", color=COLOR)
-    embed.set_thumbnail(url=i.user.display_avatar.url)
+    await i.response.send_message(f"Compraste {objeto} 🛒")
 
-    await canal.send(embed=embed, view=CasaView(i.user.id))
-    await i.response.send_message(f"🏠 Casa #{numero} comprada")
+# -------------------------
+# INVENTARIO
+# -------------------------
+@bot.tree.command(name="inventario")
+async def inventario(i: discord.Interaction, usuario: discord.Member = None):
 
+    usuario = usuario or i.user
+    uid = str(usuario.id)
+    init_user(uid)
+
+    inv = data[uid]["inventario"]
+
+    if not inv:
+        return await i.response.send_message("Inventario vacío", ephemeral=True)
+
+    texto = ""
+
+    for obj, cant in inv.items():
+        texto += f"{obj} x{cant}\n"
+
+    embed = discord.Embed(
+        title=f"Inventario de {usuario.name} 🎒",
+        description=texto,
+        color=COLOR
+    )
+
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    await i.response.send_message(embed=embed)
 # -------------------------
 # CONTROLS
 # -------------------------
 @bot.tree.command(name="controls")
 async def controls(i: discord.Interaction):
-    embed = discord.Embed(title="Controls", color=COLOR)
+    embed = discord.Embed(title="Controles de hogar🏡", color=COLOR)
+    embed.description = (
+                f"Bienvenido/a a tu nuevo hogar}\n"
+                f"ID bancario: {info['id_banco']}\n"
+                "------------------------------\n"
+                f"Aqui puedes hacer cualquier cosa sin ser advertido\n"
+                f"toda queda bajo tu responsabilidad\n"
+                "------------------------------\n"
+                "creditado por: DarkyHouses"
+            )
     await i.response.send_message(embed=embed, view=CasaView(i.user.id))
 
 # -------------------------
