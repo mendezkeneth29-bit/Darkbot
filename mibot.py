@@ -381,6 +381,46 @@ def run():
 
 Thread(target=run).start()
 
+@bot.tree.command(name="class")
+async def class_cmd(i: discord.Interaction, usuario: discord.Member):
+
+    uid = str(usuario.id)
+    init_user(uid)
+
+    dinero = data[uid]["creditos"]
+
+    # 🔹 CLASIFICACION
+    if dinero < 100:
+        clase = "pobre"
+        imagen = "https://i.imgur.com/8Km9tLL.png"
+    elif dinero < 500:
+        clase = "media"
+        imagen = "https://i.imgur.com/2DhmtJ4.png"
+    elif dinero < 1000:
+        clase = "media alta"
+        imagen = "https://i.imgur.com/Z6X7KQp.png"
+    elif dinero < 5000:
+        clase = "millonario/a"
+        imagen = "https://i.imgur.com/3ZQ3Z7Q.png"
+    else:
+        clase = "gobernante"
+        imagen = "https://i.imgur.com/VpFz3bG.png"
+
+    embed = discord.Embed(
+        title="Clasificación social",
+        color=COLOR
+    )
+
+    embed.description = f"clase: {clase}"
+
+    # 👤 imagen de la clase
+    embed.set_image(url=imagen)
+
+    # 👤 avatar del usuario
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    await i.response.send_message(embed=embed)
+
 # -------------------------
 # RUN
 # -------------------------
