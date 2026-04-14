@@ -100,10 +100,12 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
     embed = discord.Embed(title="Cuenta bancaria 🏦", color=COLOR)
     embed.description = (
         f"{usuario.mention}\n\n"
-        f"💰 Créditos: {data[uid]['creditos']}\n"
-        f"🆔 ID: {data[uid]['id_banco']}\n"
-        f"📉 Debe: {data[uid]['veces_debe']}\n"
-        f"📈 Prestó: {data[uid]['veces_presto']}"
+        f"------------------------------------\n\n"
+        f"> - Créditos: {data[uid]['creditos']}\n"
+        f"> - ID: {data[uid]['id_banco']}\n"
+        f"> - Debe: {data[uid]['veces_debe']}\n"
+        f"> - Prestó: {data[uid]['veces_presto']}"
+        f"------------------------------------\n\n"
     )
 
     embed.set_thumbnail(url=usuario.display_avatar.url)
