@@ -206,6 +206,11 @@ async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
     await i.response.send_message("ID no encontrado", ephemeral=True)
 
 # -------------------------
+# CONTADOR CASAS
+# -------------------------
+contador_casas = 0
+
+# -------------------------
 # OBJETOS
 # -------------------------
 objetos = {
@@ -216,7 +221,7 @@ objetos = {
     "telefono📱": {"precio": 200, "stock": 5},
     "laptop💻": {"precio": 500, "stock": 3},
     "carro🚗": {"precio": 2000, "stock": 2},
-    "casa🏠": {"precio": 5000, "stock": 1},
+    "casa🏠": {"precio": 5000, "stock": 10},
     "anillo💍": {"precio": 150, "stock": 10},
     "reloj⌚": {"precio": 120, "stock": 10},
     "gafas🕶️": {"precio": 60, "stock": 15},
@@ -270,9 +275,44 @@ class ObjetosSelect(discord.ui.Select):
         inv = data[uid]["inventario"]
         inv[nombre] = inv.get(nombre, 0) + 1
 
+        mensaje_extra = ""
+
+        # -------------------------
+        # SISTEMA DE CASA
+        # -------------------------
+        if nombre == "casa🏠":
+
+            global contador_casas
+            contador_casas += 1
+
+            categoria_nombre = "-⚊⚊⚊⚊⚊⚊⚊⚊ ( ♱ ) ⚊⚊⚊⚊⚊⚊⚊⚊⚊-"
+
+            categoria = discord.utils.get(i.guild.categories, name=categoria_nombre)
+
+            if not categoria:
+                categoria = await i.guild.create_category(categoria_nombre)
+
+            overwrites = {
+                i.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                i.user: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+            }
+
+            canal = await i.guild.create_text_channel(
+                name=f"casa-{contador_casas}",
+                category=categoria,
+                overwrites=overwrites
+            )
+
+            await canal.send(f"Bienvenido a tu casa {i.user.mention} 🏠")
+
+            mensaje_extra = f"\nSe te ha asignado la casa #{contador_casas} ({canal.mention})"
+
         save_data()
 
-        await i.response.send_message(f"Compraste {nombre}", ephemeral=True)
+        await i.response.send_message(
+            f"Compraste {nombre}{mensaje_extra}",
+            ephemeral=True
+        )
 
 # -------------------------
 # VIEW
