@@ -53,12 +53,12 @@ def generar_codigo():
 def init_user(uid):
     if uid not in data:
         data[uid] = {
-            "creditos": 0,
-            "id_banco": generar_codigo(),
-            "veces_presto": 0,
-            "veces_debe": 0
-"inventario": {}
-        }
+    "creditos": 0,
+    "id_banco": generar_codigo(),
+    "veces_presto": 0,
+    "veces_debe": 0,
+    "inventario": {}
+}
 
 # -------------------------
 # BOT
