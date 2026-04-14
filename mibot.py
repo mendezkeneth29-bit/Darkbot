@@ -213,65 +213,16 @@ contador_casas = 0
 # -------------------------
 # OBJETOS
 # -------------------------
-objetos = {
-    "espada⚔️": {"precio": 100, "stock": 10},
-    "escudo🛡️": {"precio": 80, "stock": 10},
-    "pocion🧪": {"precio": 30, "stock": 50},
-    "libro📚": {"precio": 25, "stock": 30},
+@@ -216,7 +221,7 @@
     "telefono📱": {"precio": 200, "stock": 5},
     "laptop💻": {"precio": 500, "stock": 3},
     "carro🚗": {"precio": 2000, "stock": 2},
+    "casa🏠": {"precio": 5000, "stock": 1},
     "casa🏠": {"precio": 5000, "stock": 10},
     "anillo💍": {"precio": 150, "stock": 10},
     "reloj⌚": {"precio": 120, "stock": 10},
     "gafas🕶️": {"precio": 60, "stock": 15},
-    "mochila🎒": {"precio": 70, "stock": 15},
-    "camara📷": {"precio": 180, "stock": 8},
-    "microfono🎤": {"precio": 140, "stock": 8},
-    "consola🎮": {"precio": 400, "stock": 5},
-    "audifonos🎧": {"precio": 90, "stock": 10},
-    "zapatillas👟": {"precio": 110, "stock": 12},
-    "chaqueta🧥": {"precio": 130, "stock": 10},
-    "sombrero🎩": {"precio": 75, "stock": 10},
-    "maletin💼": {"precio": 160, "stock": 6}
-}
-
-# -------------------------
-# SELECTOR
-# -------------------------
-class ObjetosSelect(discord.ui.Select):
-    def __init__(self):
-
-        opciones = [
-            discord.SelectOption(
-                label=nombre,
-                description=f"${item['precio']} | stock {item['stock']}",
-                value=nombre
-            )
-            for nombre, item in objetos.items()
-        ]
-
-        super().__init__(placeholder="Selecciona un objeto", options=opciones)
-
-    async def callback(self, i: discord.Interaction):
-
-        uid = str(i.user.id)
-        init_user(uid)
-
-        nombre = self.values[0]
-        item = objetos[nombre]
-
-        if data[uid]["creditos"] < item["precio"]:
-            return await i.response.send_message("No tienes dinero", ephemeral=True)
-
-        if item["stock"] <= 0:
-            return await i.response.send_message("Sin stock", ephemeral=True)
-
-        # COBRAR
-        data[uid]["creditos"] -= item["precio"]
-        item["stock"] -= 1
-
-        # INVENTARIO
+@@ -270,206 +275,241 @@
         inv = data[uid]["inventario"]
         inv[nombre] = inv.get(nombre, 0) + 1
 
@@ -309,6 +260,7 @@ class ObjetosSelect(discord.ui.Select):
 
         save_data()
 
+        await i.response.send_message(f"Compraste {nombre}", ephemeral=True)
         await i.response.send_message(
             f"Compraste {nombre}{mensaje_extra}",
             ephemeral=True
@@ -392,120 +344,6 @@ async def revisar_prestamos():
                 prestamos.remove(deuda)
 
         await asyncio.sleep(60)
-
-# -------------------------
-# PRESTAMOS
-# -------------------------
-class PrestamoView(discord.ui.View):
-    def __init__(self, prestamista, receptor, cantidad, dias):
-        super().__init__(timeout=60)
-        self.p = prestamista
-        self.r = receptor
-        self.c = cantidad
-        self.d = dias
-
-    async def disable(self, interaction):
-        for item in self.children:
-            item.disabled = True
-        await interaction.message.edit(view=self)
-
-    # ✅ ACEPTAR
-    @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
-    async def aceptar(self, i: discord.Interaction, button: discord.ui.Button):
-
-        if i.user != self.r:
-            return await i.response.send_message("No es tu préstamo", ephemeral=True)
-
-        uid_p = str(self.p.id)
-        uid_r = str(self.r.id)
-
-        if data[uid_p]["creditos"] < self.c:
-            return await i.response.send_message("El prestamista no tiene dinero", ephemeral=True)
-
-        # transferir dinero
-        data[uid_p]["creditos"] -= self.c
-        data[uid_r]["creditos"] += self.c
-
-        # contadores
-        data[uid_p]["veces_presto"] += 1
-        data[uid_r]["veces_debe"] += 1
-
-        # guardar préstamo
-        prestamos.append({
-            "prestamista": uid_p,
-            "receptor": uid_r,
-            "cantidad": self.c,
-            "tiempo": time.time() + (self.d * 86400)
-        })
-
-        save_data()
-
-        await i.response.send_message("Préstamo aceptado", ephemeral=True)
-        await self.disable(i)
-
-    # ❌ RECHAZAR
-    @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
-    async def rechazar(self, i: discord.Interaction, button: discord.ui.Button):
-
-        if i.user != self.r:
-            return await i.response.send_message("No es tu préstamo", ephemeral=True)
-
-        await i.response.send_message("Préstamo rechazado", ephemeral=True)
-        await self.disable(i)
-
-
-@bot.tree.command(name="prestamos")
-async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: int, dias: int):
-
-    prestamista = i.user
-    uid_p = str(prestamista.id)
-    init_user(uid_p)
-
-    receptor = None
-    uid_r = None
-
-    # buscar usuario por ID bancario
-    for uid, info in data.items():
-        if info["id_banco"] == cuenta_bancaria:
-            receptor = i.guild.get_member(int(uid))
-            uid_r = uid
-            break
-
-    if not receptor:
-        return await i.response.send_message("ID no encontrado", ephemeral=True)
-
-    if uid_p == uid_r:
-        return await i.response.send_message("No puedes prestarte a ti mismo", ephemeral=True)
-
-    if cantidad <= 0:
-        return await i.response.send_message("Cantidad inválida", ephemeral=True)
-
-    if data[uid_p]["creditos"] < cantidad:
-        return await i.response.send_message("No tienes suficiente dinero para prestar", ephemeral=True)
-
-    embed = discord.Embed(
-        title=f"{prestamista.mention} proporciono un prestamo a {receptor.mention} 💰",
-        color=COLOR
-    )
-
-    embed.description = (
-        f"cantidad de creditos: {cantidad}\n"
-        f"ID bancario: {data[uid_r]['id_banco']}\n"
-        f"dia de devolucion: {dias}\n"
-        "------------------------------------------\n"
-        "> - el dinero debes ser entregado el dia seleccionado\n"
-        "> - si no devuelve el dinero, se le restaran la cantidad del dinero automaticamente\n"
-        "> - al aceptar debe seguir las politicas bancarias\n"
-        "------------------------------------------\n"
-        "creditado por: DarkyBank"
-    )
-
-    embed.set_thumbnail(url=receptor.display_avatar.url)
-
-    await i.response.send_message(
-        embed=embed,
-        view=PrestamoView(prestamista, receptor, cantidad, dias)
-    )
 
 # -------------------------
 # CONTADOR CASAS
@@ -692,6 +530,120 @@ async def controls(i: discord.Interaction):
     await i.response.send_message(
         embed=embed,
         view=CasaControls(str(i.user.id))
+    )
+
+# -------------------------
+# PRESTAMOS
+# -------------------------
+class PrestamoView(discord.ui.View):
+    def __init__(self, prestamista, receptor, cantidad, dias):
+        super().__init__(timeout=60)
+        self.p = prestamista
+        self.r = receptor
+        self.c = cantidad
+        self.d = dias
+
+    async def disable(self, interaction):
+        for item in self.children:
+            item.disabled = True
+        await interaction.message.edit(view=self)
+
+    # ✅ ACEPTAR
+    @discord.ui.button(label="Aceptar", style=discord.ButtonStyle.green)
+    async def aceptar(self, i: discord.Interaction, button: discord.ui.Button):
+
+        if i.user != self.r:
+            return await i.response.send_message("No es tu préstamo", ephemeral=True)
+
+        uid_p = str(self.p.id)
+        uid_r = str(self.r.id)
+
+        if data[uid_p]["creditos"] < self.c:
+            return await i.response.send_message("El prestamista no tiene dinero", ephemeral=True)
+
+        # transferir dinero
+        data[uid_p]["creditos"] -= self.c
+        data[uid_r]["creditos"] += self.c
+
+        # contadores
+        data[uid_p]["veces_presto"] += 1
+        data[uid_r]["veces_debe"] += 1
+
+        # guardar préstamo
+        prestamos.append({
+            "prestamista": uid_p,
+            "receptor": uid_r,
+            "cantidad": self.c,
+            "tiempo": time.time() + (self.d * 86400)
+        })
+
+        save_data()
+
+        await i.response.send_message("Préstamo aceptado", ephemeral=True)
+        await self.disable(i)
+
+    # ❌ RECHAZAR
+    @discord.ui.button(label="Rechazar", style=discord.ButtonStyle.red)
+    async def rechazar(self, i: discord.Interaction, button: discord.ui.Button):
+
+        if i.user != self.r:
+            return await i.response.send_message("No es tu préstamo", ephemeral=True)
+
+        await i.response.send_message("Préstamo rechazado", ephemeral=True)
+        await self.disable(i)
+
+
+@bot.tree.command(name="prestamos")
+async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: int, dias: int):
+
+    prestamista = i.user
+    uid_p = str(prestamista.id)
+    init_user(uid_p)
+
+    receptor = None
+    uid_r = None
+
+    # buscar usuario por ID bancario
+    for uid, info in data.items():
+        if info["id_banco"] == cuenta_bancaria:
+            receptor = i.guild.get_member(int(uid))
+            uid_r = uid
+            break
+
+    if not receptor:
+        return await i.response.send_message("ID no encontrado", ephemeral=True)
+
+    if uid_p == uid_r:
+        return await i.response.send_message("No puedes prestarte a ti mismo", ephemeral=True)
+
+    if cantidad <= 0:
+        return await i.response.send_message("Cantidad inválida", ephemeral=True)
+
+    if data[uid_p]["creditos"] < cantidad:
+        return await i.response.send_message("No tienes suficiente dinero para prestar", ephemeral=True)
+
+    embed = discord.Embed(
+        title=f"{prestamista.mention} proporciono un prestamo a {receptor.mention} 💰",
+        color=COLOR
+    )
+
+    embed.description = (
+        f"cantidad de creditos: {cantidad}\n"
+        f"ID bancario: {data[uid_r]['id_banco']}\n"
+        f"dia de devolucion: {dias}\n"
+        "------------------------------------------\n"
+        "> - el dinero debes ser entregado el dia seleccionado\n"
+        "> - si no devuelve el dinero, se le restaran la cantidad del dinero automaticamente\n"
+        "> - al aceptar debe seguir las politicas bancarias\n"
+        "------------------------------------------\n"
+        "creditado por: DarkyBank"
+    )
+
+    embed.set_thumbnail(url=receptor.display_avatar.url)
+
+    await i.response.send_message(
+        embed=embed,
+        view=PrestamoView(prestamista, receptor, cantidad, dias)
     )
 
 # -------------------------
