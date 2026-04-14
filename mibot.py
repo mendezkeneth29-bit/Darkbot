@@ -508,6 +508,193 @@ async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: 
     )
 
 # -------------------------
+# CONTADOR CASAS
+# -------------------------
+contador_casas = 0
+
+# -------------------------
+# VIEW CONTROLES CASA
+# -------------------------
+class CasaControls(discord.ui.View):
+    def __init__(self, owner_id):
+        super().__init__(timeout=None)
+        self.owner_id = owner_id
+
+    def es_dueno(self, i):
+        return str(i.user.id) == self.owner_id
+
+    @discord.ui.button(label="🔒 Bloquear Casa", style=discord.ButtonStyle.red)
+    async def bloquear(self, i: discord.Interaction, b: discord.ui.Button):
+
+        if not self.es_dueno(i):
+            return await i.response.send_message("No es tu casa", ephemeral=True)
+
+        overwrites = i.channel.overwrites
+        overwrites[i.guild.default_role] = discord.PermissionOverwrite(view_channel=False)
+
+        await i.channel.edit(overwrites=overwrites)
+        await i.response.send_message("Casa bloqueada 🔒", ephemeral=True)
+
+    @discord.ui.button(label="🔓 Desbloquear Casa", style=discord.ButtonStyle.green)
+    async def desbloquear(self, i: discord.Interaction, b: discord.ui.Button):
+
+        if not self.es_dueno(i):
+            return await i.response.send_message("No es tu casa", ephemeral=True)
+
+        overwrites = i.channel.overwrites
+        overwrites[i.guild.default_role] = discord.PermissionOverwrite(view_channel=True)
+
+        await i.channel.edit(overwrites=overwrites)
+        await i.response.send_message("Casa desbloqueada 🔓", ephemeral=True)
+
+    @discord.ui.button(label="⚙️ Comandos Interactivos", style=discord.ButtonStyle.blurple)
+    async def comandos(self, i: discord.Interaction, b: discord.ui.Button):
+
+        if not self.es_dueno(i):
+            return await i.response.send_message("No es tu casa", ephemeral=True)
+
+        texto = (
+            "Lista de interacciones:\n\n"
+            "❤️ /kiss\n"
+            "🤗 /hug\n"
+            "😳 /slap\n"
+            "🔥 /bite\n"
+            "💤 /sleep\n\n"
+            "🔞 +18:\n"
+            "/nsfw-kiss\n"
+            "/nsfw-hug\n"
+            "/nsfw-touch\n"
+        )
+
+        await i.response.send_message(texto, ephemeral=True)
+
+# -------------------------
+# OBJETOS (CON CASA)
+# -------------------------
+objetos = {
+    "casa🏠": {"precio": 5000, "stock": 10}
+}
+
+# -------------------------
+# SELECTOR
+# -------------------------
+class ObjetosSelect(discord.ui.Select):
+    def __init__(self):
+
+        opciones = [
+            discord.SelectOption(
+                label=nombre,
+                description=f"${item['precio']} | stock {item['stock']}",
+                value=nombre
+            )
+            for nombre, item in objetos.items()
+        ]
+
+        super().__init__(placeholder="Selecciona un objeto", options=opciones)
+
+    async def callback(self, i: discord.Interaction):
+
+        uid = str(i.user.id)
+        init_user(uid)
+
+        nombre = self.values[0]
+        item = objetos[nombre]
+
+        if data[uid]["creditos"] < item["precio"]:
+            return await i.response.send_message("No tienes dinero", ephemeral=True)
+
+        if item["stock"] <= 0:
+            return await i.response.send_message("Sin stock", ephemeral=True)
+
+        # COBRAR
+        data[uid]["creditos"] -= item["precio"]
+        item["stock"] -= 1
+
+        global contador_casas
+        contador_casas += 1
+
+        categoria_nombre = "-⚊⚊⚊⚊⚊⚊⚊⚊ ( ♱ ) ⚊⚊⚊⚊⚊⚊⚊⚊⚊-"
+        categoria = discord.utils.get(i.guild.categories, name=categoria_nombre)
+
+        if not categoria:
+            categoria = await i.guild.create_category(categoria_nombre)
+
+        overwrites = {
+            i.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            i.user: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        }
+
+        canal = await i.guild.create_text_channel(
+            name=f"casa-{contador_casas}",
+            category=categoria,
+            overwrites=overwrites
+        )
+
+        embed = discord.Embed(
+            title="Controls",
+            description="Panel de control de tu casa",
+            color=COLOR
+        )
+
+        await canal.send(
+            content=f"{i.user.mention}",
+            embed=embed,
+            view=CasaControls(str(i.user.id))
+        )
+
+        save_data()
+
+        await i.response.send_message(
+            f"Compraste casa 🏠\nSe te asignó la casa #{contador_casas} ({canal.mention})",
+            ephemeral=True
+        )
+
+# -------------------------
+# VIEW
+# -------------------------
+class ObjetosView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(ObjetosSelect())
+
+# -------------------------
+# COMANDO TIENDA
+# -------------------------
+@bot.tree.command(name="tienda-objetos")
+async def tienda_objetos(i: discord.Interaction):
+
+    embed = discord.Embed(title="Tienda 🏪", color=COLOR)
+
+    for idx, (nombre, item) in enumerate(objetos.items(), 1):
+        embed.add_field(
+            name=f"{idx}. {nombre}",
+            value=f"Precio: {item['precio']} | Stock: {item['stock']}",
+            inline=False
+        )
+
+    await i.response.send_message(embed=embed, view=ObjetosView())
+
+# -------------------------
+# COMANDO CONTROLS
+# -------------------------
+@bot.tree.command(name="controls")
+async def controls(i: discord.Interaction):
+
+    if not i.channel.name.startswith("casa-"):
+        return await i.response.send_message("Este comando solo funciona en casas", ephemeral=True)
+
+    embed = discord.Embed(
+        title="Controls",
+        description="Panel de control de tu casa",
+        color=COLOR
+    )
+
+    await i.response.send_message(
+        embed=embed,
+        view=CasaControls(str(i.user.id))
+    )
+
+# -------------------------
 # RUN
 # -------------------------
 keep_alive()
