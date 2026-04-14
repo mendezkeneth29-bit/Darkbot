@@ -1,3 +1,18 @@
+import threading
+from flask import Flask
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot activo"
+
+def run():
+    app.run(host='0.0.0.0', port=10000)
+
+def keep_alive():
+    t = threading.Thread(target=run)
+    t.start()
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -412,5 +427,6 @@ async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: 
 # -------------------------
 # RUN
 # -------------------------
+keep_alive()
 load_data()
 bot.run(TOKEN)
