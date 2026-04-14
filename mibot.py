@@ -235,8 +235,9 @@ class CasaView(discord.ui.View):
 # OBJETOS (TIENDA REAL)
 # -------------------------
 objetos = {
+    objetos = {
     "casa🏠": {"precio": 5000, "stock": 999},
-    "Ipad📱": {"precio": 800, "stock": 999},
+    "telefono📱": {"precio": 800, "stock": 999},
     "laptop💻": {"precio": 2000, "stock": 999},
     "carro🚗": {"precio": 7000, "stock": 999},
     "reloj⌚": {"precio": 400, "stock": 999},
@@ -244,11 +245,13 @@ objetos = {
     "moto🏍️": {"precio": 3500, "stock": 999},
     "joya💎": {"precio": 10000, "stock": 999},
     "audifonos🎧": {"precio": 300, "stock": 999},
-    "tablet📲": {"precio": 1500, "stock": 999}
-    "Dildo🥴": {"precio": 600, "stock": 999}
-    "audifonos🎧": {"precio": 167, "stock": 999}
-    "avion✈️": {"precio": 10000, "stock": 999}
-    "Jet privado💸": {"precio":500000, "stock": 999}
+    "tablet📱": {"precio": 1500, "stock": 999},
+
+    # NUEVOS
+    "dildo🥴": {"precio": 1500, "stock": 100},
+    "avion✈️": {"precio": 20000, "stock": 50},
+    "ipad📱": {"precio": 2500, "stock": 200},
+    "jet_privado💸": {"precio": 100000, "stock": 10}
 }
 
 # -------------------------
