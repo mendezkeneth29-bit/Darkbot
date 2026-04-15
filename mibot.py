@@ -163,7 +163,105 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
     await i.response.send_message("ID no encontrado", ephemeral=True)
 
 # -------------------------
-# TIENDA OBJETOS
+# OBJETOS
+# -------------------------
+objetos = {
+    "casa🏠": {"precio": 5000, "stock": 999},
+    "telefono📱": {"precio": 800, "stock": 999},
+    "laptop💻": {"precio": 2000, "stock": 999},
+    "carro🚗": {"precio": 7000, "stock": 999},
+    "reloj⌚": {"precio": 400, "stock": 999},
+    "tv📺": {"precio": 1200, "stock": 999},
+    "moto🏍️": {"precio": 3500, "stock": 999},
+    "joya💎": {"precio": 10000, "stock": 999},
+    "audifonos🎧": {"precio": 300, "stock": 999},
+    "tablet📱": {"precio": 1500, "stock": 999},
+
+    # nuevos
+    "dildo🥴": {"precio": 1500, "stock": 100},
+    "avion✈️": {"precio": 20000, "stock": 50},
+    "ipad📱": {"precio": 2500, "stock": 200},
+    "jet_privado💸": {"precio": 100000, "stock": 10}
+}
+
+# -------------------------
+# SELECTOR
+# -------------------------
+class ObjetoSelect(discord.ui.Select):
+    def __init__(self):
+
+        opciones = [
+            discord.SelectOption(
+                label=nombre,
+                description=f"💰 {info['precio']} | stock {info['stock']}",
+                value=nombre
+            )
+            for nombre, info in objetos.items()
+        ]
+
+        super().__init__(
+            placeholder="Selecciona un objeto 🛒",
+            options=opciones
+        )
+
+    async def callback(self, i: discord.Interaction):
+
+        uid = str(i.user.id)
+        init_user(uid)
+
+        objeto = self.values[0]
+        item = objetos[objeto]
+
+        if data[uid]["creditos"] < item["precio"]:
+            return await i.response.send_message("No tienes dinero", ephemeral=True)
+
+        if item["stock"] <= 0:
+            return await i.response.send_message("Sin stock", ephemeral=True)
+
+        # COBRAR
+        data[uid]["creditos"] -= item["precio"]
+
+        # STOCK
+        item["stock"] -= 1
+
+        # INVENTARIO
+        inv = data[uid]["inventario"]
+        inv[objeto] = inv.get(objeto, 0) + 1
+
+        # CASA AUTOMÁTICA
+        if objeto == "casa🏠":
+            categoria = discord.utils.get(i.guild.categories, name="CASAS")
+            if not categoria:
+                categoria = await i.guild.create_category("CASAS")
+
+            numero = len(casas) + 1
+
+            canal = await i.guild.create_text_channel(
+                f"casa-{numero}",
+                category=categoria
+            )
+
+            casas[uid] = canal.id
+
+            embed = discord.Embed(title="Controls", color=COLOR)
+            embed.set_thumbnail(url=i.user.display_avatar.url)
+
+            await canal.send(embed=embed, view=CasaView(i.user.id))
+
+        save_data()
+
+        await i.response.send_message(f"Compraste {objeto} 🛒", ephemeral=True)
+
+# -------------------------
+# VIEW
+# -------------------------
+class ObjetoView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(ObjetoSelect())
+
+# -------------------------
+# COMANDO TIENDA
 # -------------------------
 @bot.tree.command(name="tienda-objetos")
 async def tienda_objetos(i: discord.Interaction):
@@ -171,7 +269,7 @@ async def tienda_objetos(i: discord.Interaction):
     texto = ""
 
     for nombre, info in objetos.items():
-        texto += f"{nombre} - 💰 {info['precio']} | stock: {info['stock']}\n"
+        texto += f"{nombre} -  {info['precio']} | stock: {info['stock']}\n"
 
     embed = discord.Embed(
         title="Tienda 🏪",
@@ -179,63 +277,19 @@ async def tienda_objetos(i: discord.Interaction):
         color=COLOR
     )
 
-    await i.response.send_message(embed=embed)
-
-# -------------------------
-# COMPRAR
-# -------------------------
-@bot.tree.command(name="comprar")
-async def comprar(i: discord.Interaction, objeto: str):
-
-    uid = str(i.user.id)
-    init_user(uid)
-
-    if objeto not in objetos:
-        return await i.response.send_message("Objeto no existe", ephemeral=True)
-
-    item = objetos[objeto]
-
-    if data[uid]["creditos"] < item["precio"]:
-        return await i.response.send_message("No tienes dinero", ephemeral=True)
-
-    if item["stock"] <= 0:
-        return await i.response.send_message("Sin stock", ephemeral=True)
-
-    data[uid]["creditos"] -= item["precio"]
-    item["stock"] -= 1
-
-    inv = data[uid]["inventario"]
-    inv[objeto] = inv.get(objeto, 0) + 1
-
-    # CASA
-    if objeto == "casa🏠":
-        categoria = discord.utils.get(i.guild.categories, name="CASAS")
-        if not categoria:
-            categoria = await i.guild.create_category("CASAS")
-
-        numero = len(casas) + 1
-
-        canal = await i.guild.create_text_channel(
-            f"casa-{numero}",
-            category=categoria
-        )
-
-        casas[uid] = canal.id
-
-        embed_casa = discord.Embed(title="Controls", color=COLOR)
-        await canal.send(embed=embed_casa, view=CasaView(i.user.id))
-
-    save_data()
-
-    await i.response.send_message(f"Compraste {objeto} 🛒")
+    await i.response.send_message(
+        embed=embed,
+        view=ObjetoView()
+    )
 
 # -------------------------
 # INVENTARIO
 # -------------------------
 @bot.tree.command(name="inventario")
-async def inventario(i: discord.Interaction):
+async def inventario_cmd(i: discord.Interaction, usuario: discord.Member = None):
 
-    uid = str(i.user.id)
+    usuario = usuario or i.user
+    uid = str(usuario.id)
     init_user(uid)
 
     inv = data[uid]["inventario"]
@@ -244,11 +298,17 @@ async def inventario(i: discord.Interaction):
         return await i.response.send_message("Inventario vacío", ephemeral=True)
 
     texto = ""
+
     for obj, cant in inv.items():
         texto += f"{obj} x{cant}\n"
 
-    embed = discord.Embed(title="Inventario 🎒", description=texto, color=COLOR)
-    embed.set_thumbnail(url=i.user.display_avatar.url)
+    embed = discord.Embed(
+        title=f"Inventario de {usuario.name} 🎒",
+        description=texto,
+        color=COLOR
+    )
+
+    embed.set_thumbnail(url=usuario.display_avatar.url)
 
     await i.response.send_message(embed=embed)
 
