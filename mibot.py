@@ -276,8 +276,8 @@ async def tienda_objetos(i: discord.Interaction):
         embed.add_field(
             name=f"{idx}. {nombre}",
             value=(
-                f"💰 Precio: {info['precio']}\n"
-                f"📦 Stock: {info['stock']}"
+                f" Precio: {info['precio']}\n"
+                f" Stock: {info['stock']}"
             ),
             inline=False
         )
