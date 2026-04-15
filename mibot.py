@@ -266,16 +266,21 @@ class ObjetoView(discord.ui.View):
 @bot.tree.command(name="tienda-objetos")
 async def tienda_objetos(i: discord.Interaction):
 
-    texto = ""
-
-    for nombre, info in objetos.items():
-        texto += f"{nombre} -  {info['precio']} | stock: {info['stock']}\n"
-
     embed = discord.Embed(
         title="Tienda 🏪",
-        description=texto,
         color=COLOR
     )
+
+    for idx, (nombre, info) in enumerate(objetos.items(), 1):
+
+        embed.add_field(
+            name=f"{idx}. {nombre}",
+            value=(
+                f"💰 Precio: {info['precio']}\n"
+                f"📦 Stock: {info['stock']}"
+            ),
+            inline=False
+        )
 
     await i.response.send_message(
         embed=embed,
@@ -457,58 +462,6 @@ async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
             return await i.response.send_message(embed=embed)
 
     await i.response.send_message("ID no encontrado", ephemeral=True)
-
-# -------------------------
-# TIENDA DE ROLES
-# -------------------------
-@bot.tree.command(name="tienda-config")
-@app_commands.checks.has_permissions(administrator=True)
-async def tienda_config(i: discord.Interaction, rol: discord.Role, precio: int):
-
-    tienda[rol.id] = precio
-    await i.response.send_message("Rol agregado a la tienda", ephemeral=True)
-
-
-@bot.tree.command(name="tienda")
-async def tienda_cmd(i: discord.Interaction):
-
-    if not tienda:
-        return await i.response.send_message("No hay roles en tienda", ephemeral=True)
-
-    embed = discord.Embed(title="Tienda 🏪", color=COLOR)
-
-    for rid, precio in tienda.items():
-        role = i.guild.get_role(rid)
-        embed.add_field(
-            name=role.name if role else "Rol eliminado",
-            value=f"Precio: {precio}",
-            inline=False
-        )
-
-    await i.response.send_message(embed=embed)
-
-# -------------------------
-# COMPRAR ROL
-# -------------------------
-@bot.tree.command(name="comprar-rol")
-async def comprar_rol(i: discord.Interaction, rol: discord.Role):
-
-    uid = str(i.user.id)
-    init_user(uid)
-
-    if rol.id not in tienda:
-        return await i.response.send_message("Ese rol no está en la tienda", ephemeral=True)
-
-    precio = tienda[rol.id]
-
-    if data[uid]["creditos"] < precio:
-        return await i.response.send_message("No tienes dinero", ephemeral=True)
-
-    data[uid]["creditos"] -= precio
-    await i.user.add_roles(rol)
-    save_data()
-
-    await i.response.send_message(f"Compraste el rol {rol.mention} 🎭")
 
 # -------------------------
 # CONTROLES CASA
