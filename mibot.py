@@ -232,17 +232,16 @@ class ObjetoSelect(discord.ui.Select):
         if objeto == "casa🏠":
             categoria_nombre = "⚊⚊⚊⚊        000 .    VECINDARIO   ♱"
 
-categoria = discord.utils.get(i.guild.categories, name=categoria_nombre)
-
+categoria = discord.utils.get(i.guild.categories, name="⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
 if not categoria:
-    categoria = await i.guild.create_category(categoria_nombre)
+    categoria = await i.guild.create_category("⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
 
-            numero = len(casas) + 1
+numero = len(casas) + 1
 
-            canal = await i.guild.create_text_channel(
-                f"casa-{numero}",
-                category=categoria
-            )
+canal = await i.guild.create_text_channel(
+    f"casa-{numero}",
+    category=categoria
+)
 
             casas[uid] = canal.id
 
