@@ -229,30 +229,51 @@ class ObjetoSelect(discord.ui.Select):
         inv[objeto] = inv.get(objeto, 0) + 1
 
         # CASA AUTOMÁTICA
-        if objeto == "casa🏠":
-            categoria_nombre = "⚊⚊⚊⚊        000 .    VECINDARIO   ♱"
+        @bot.tree.command(name="comprar-casa")
+async def comprar_casa(i: discord.Interaction):
 
-categoria = discord.utils.get(i.guild.categories, name="⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
-if not categoria:
-    categoria = await i.guild.create_category("⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
+    uid = str(i.user.id)
+    init_user(uid)
 
-numero = len(casas) + 1
+    precio = objetos["casa🏠"]["precio"]
 
-canal = await i.guild.create_text_channel(
-    f"casa-{numero}",
-    category=categoria
-)
+    if data[uid]["creditos"] < precio:
+        return await i.response.send_message("No tienes dinero", ephemeral=True)
 
-            casas[uid] = canal.id
+    # quitar dinero
+    data[uid]["creditos"] -= precio
 
-            embed = discord.Embed(title="Controls", color=COLOR)
-            embed.set_thumbnail(url=i.user.display_avatar.url)
+    # crear categoria (tu nombre raro incluido)
+    categoria = discord.utils.get(i.guild.categories, name="⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
+    if not categoria:
+        categoria = await i.guild.create_category("⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
 
-            await canal.send(embed=embed, view=CasaView(i.user.id))
+    # numero de casa
+    numero = len(casas) + 1
 
-        save_data()
+    # crear canal
+    canal = await i.guild.create_text_channel(
+        f"casa-{numero}",
+        category=categoria
+    )
 
-        await i.response.send_message(f"Compraste {objeto} 🛒", ephemeral=True)
+    # guardar casa
+    casas[uid] = canal.id
+    save_data()
+
+    # embed
+    embed = discord.Embed(
+        title="🏠 Casa comprada",
+        description=f"Tienes la casa #{numero}",
+        color=COLOR
+    )
+
+    embed.set_thumbnail(url=i.user.display_avatar.url)
+
+    # enviar controles
+    await canal.send(embed=embed, view=CasaView(i.user.id))
+
+    await i.response.send_message(f"Tienes casa #{numero} 🏠", ephemeral=True)
 
 # -------------------------
 # VIEW
