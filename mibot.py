@@ -230,9 +230,9 @@ class ObjetoSelect(discord.ui.Select):
 
         # CASA AUTOMÁTICA
         if objeto == "casa🏠":
-            categoria = discord.utils.get(i.guild.categories, name="CASAS")
+            categoria = discord.utils.get(i.guild.categories, name="⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
             if not categoria:
-                categoria = await i.guild.create_category("CASAS")
+                categoria = await i.guild.create_category("⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
 
             numero = len(casas) + 1
 
@@ -277,7 +277,8 @@ async def tienda_objetos(i: discord.Interaction):
             name=f"{idx}. {nombre}",
             value=(
                 f" Precio: {info['precio']}\n"
-                f" Stock: {info['stock']}"
+                f"
+ Stock: {info['stock']}"
             ),
             inline=False
         )
