@@ -4,3 +4,4 @@ requests
 pillow
 yt-dlp
 PyNaCl
+wavelink
