@@ -2,3 +2,5 @@ discord.py
 flask
 requests
 pillow
+yt-dlp
+PyNaCl
