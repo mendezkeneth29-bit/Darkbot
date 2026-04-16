@@ -483,6 +483,47 @@ async def controls(i: discord.Interaction):
     await i.response.send_message(embed=embed, view=CasaView(i.user.id))
 
 # -------------------------
+# FIESTA_EVENTO
+# -------------------------
+@bot.tree.command(name="fiesta-invite")
+async def fiesta_invite(i: discord.Interaction, hora: str):
+
+    usuario = i.user
+    uid = str(usuario.id)
+    init_user(uid)
+
+    # verificar si tiene casa
+    if uid not in casas:
+        return await i.response.send_message("No tienes casa", ephemeral=True)
+
+    canal_id = casas[uid]
+    canal = i.guild.get_channel(canal_id)
+
+    if not canal:
+        return await i.response.send_message("Tu casa no existe", ephemeral=True)
+
+    embed = discord.Embed(
+        title=f"{usuario.mention} invita a todos en la casa {canal.mention} a las {hora} 🪩",
+        color=COLOR
+    )
+
+    embed.description = (
+        f"la fiesta empezara a las: {hora}\n"
+        f"en la casa: {canal.mention}\n"
+        "--------------------------------\n"
+        "> - todos deberan estar presente a la hora seleccionada\n"
+        "> - ningun miembro que no sea el dueño/a de la fiesta no podra hacer cosas que molesten al organizador.\n"
+        "--------------------------------\n"
+        f"organizado por: {usuario.mention}, creditado por; DarkyEvents"
+    )
+
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    await canal.send(embed=embed)
+
+    await i.response.send_message("Invitación enviada 🪩", ephemeral=True)
+
+# -------------------------
 # RUN
 # -------------------------
 load_data()
