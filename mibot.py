@@ -278,8 +278,7 @@ async def tienda_objetos(i: discord.Interaction):
             value=(
                 f" Precio: {info['precio']}\n"
                 f" Stock: {info['stock']}"
-                f" Precio: {info['precio']}\n"
-                f" Stock: {info['stock']}"
+                
             ),
             inline=False
         )
