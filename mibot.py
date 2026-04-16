@@ -230,9 +230,12 @@ class ObjetoSelect(discord.ui.Select):
 
         # CASA AUTOMÁTICA
         if objeto == "casa🏠":
-            categoria = discord.utils.get(i.guild.categories, name="⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
-            if not categoria:
-                categoria = await i.guild.create_category("⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
+            categoria_nombre = "⚊⚊⚊⚊        000 .    VECINDARIO   ♱"
+
+categoria = discord.utils.get(i.guild.categories, name=categoria_nombre)
+
+if not categoria:
+    categoria = await i.guild.create_category(categoria_nombre)
 
             numero = len(casas) + 1
 
