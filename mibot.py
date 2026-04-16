@@ -522,6 +522,51 @@ async def fiesta_invite(i: discord.Interaction, hora: str):
     await canal.send(embed=embed)
 
     await i.response.send_message("Invitación enviada 🪩", ephemeral=True)
+    
+# ------------------------
+# MUSICA_COMANDO
+# ------------------------
+@bot.tree.command(name="music")
+async def music(i: discord.Interaction, nombre: str):
+
+    if not i.user.voice:
+        return await i.response.send_message("No estás en un canal de voz", ephemeral=True)
+
+    canal = i.user.voice.channel
+
+    # conectar
+    if not i.guild.voice_client:
+        vc = await canal.connect(cls=wavelink.Player)
+    else:
+        vc = i.guild.voice_client
+
+    # buscar canción
+    tracks = await wavelink.Playable.search(nombre)
+
+    if not tracks:
+        return await i.response.send_message("No encontré esa canción", ephemeral=True)
+
+    track = tracks[0]
+
+    # reproducir
+    await vc.play(track)
+
+    # embed
+    embed = discord.Embed(
+        title=track.title,
+        color=COLOR
+    )
+
+    embed.description = (
+        f"artista: {track.author}\n"
+        f"creada el: desconocido\n"
+        f"Likes: desconocido\n"
+        f"seguidores: desconocido"
+    )
+
+    embed.set_thumbnail(url=track.artwork)
+
+    await i.response.send_message(embed=embed)
 
 # -------------------------
 # RUN
