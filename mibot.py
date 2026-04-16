@@ -329,24 +329,31 @@ class CasaView(discord.ui.View):
     def es_dueno(self, i):
         return i.user.id == self.owner_id
 
-    @discord.ui.button(label="🔒 Bloquear", style=discord.ButtonStyle.red)
-    async def bloquear(self, i: discord.Interaction, b):
+   @discord.ui.button(label="🔒 Bloquear", style=discord.ButtonStyle.red)
+async def bloquear(self, i: discord.Interaction, b: discord.ui.Button):
 
-        if not self.es_dueno(i):
-            return await i.response.send_message("No es tu casa", ephemeral=True)
+    if not self.es_dueno(i):
+        return await i.response.send_message("No es tu casa", ephemeral=True)
 
-        await i.channel.set_permissions(i.guild.default_role, view_channel=False)
-        await i.response.send_message("Casa bloqueada", ephemeral=True)
+    # ❌ bloquea a todos
+    await i.channel.set_permissions(i.guild.default_role, view_channel=False)
 
+    # ✅ PERO permite al dueño
+    await i.channel.set_permissions(i.user, view_channel=True)
+
+    await i.response.send_message("Casa bloqueada", ephemeral=True)
+    
     @discord.ui.button(label="🔓 Desbloquear", style=discord.ButtonStyle.green)
-    async def desbloquear(self, i: discord.Interaction, b):
+async def desbloquear(self, i: discord.Interaction, b: discord.ui.Button):
 
-        if not self.es_dueno(i):
-            return await i.response.send_message("No es tu casa", ephemeral=True)
+    if not self.es_dueno(i):
+        return await i.response.send_message("No es tu casa", ephemeral=True)
 
-        await i.channel.set_permissions(i.guild.default_role, view_channel=True)
-        await i.response.send_message("Casa desbloqueada", ephemeral=True)
+    # vuelve público
+    await i.channel.set_permissions(i.guild.default_role, view_channel=True)
 
+    await i.response.send_message("Casa desbloqueada", ephemeral=True)
+    
     @discord.ui.button(label="⚙️ Comandos", style=discord.ButtonStyle.blurple)
     async def comandos(self, i: discord.Interaction, b):
 
