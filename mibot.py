@@ -529,10 +529,10 @@ async def fiesta_invite(i: discord.Interaction, hora: str):
 @bot.tree.command(name="music")
 async def music(i: discord.Interaction, nombre: str):
 
-await i.response.defer()    
+    await i.response.defer()
 
     if not i.user.voice:
-        return await i.response.send_message("No estás en un canal de voz", ephemeral=True)
+        return await i.followup.send("No estás en un canal de voz", ephemeral=True)
 
     canal = i.user.voice.channel
 
