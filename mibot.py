@@ -516,28 +516,6 @@ async def fiesta_invite(i: discord.Interaction, hora: str):
     await i.response.send_message("Invitación enviada 🪩", ephemeral=True)
     
 # -------------------------
-# REGLAS_COMAND
-# -------------------------
-@bot.tree.command(name="Reglas")
-async def reglas(i: discord.Interaction):
-
-    embed = discord.Embed( 
-        title="Reglas",
-        color=COLOR
-    )
-
-    embed.description = (
-        f"> - 𝙍𝙚𝙨𝙥𝙚𝙩𝙤 𝙖𝙣𝙩𝙚 𝙩𝙤𝙙𝙤 ╸𝘴𝘦 𝘢𝘮𝘢𝘣𝘭𝘦 𝘤𝘰𝘯 𝘭𝘰𝘴 𝘥𝘦𝘮𝘢𝘴, 𝘳𝘦𝘴𝘱𝘦𝘵𝘢 𝘨𝘶𝘴𝘵𝘰𝘴 𝘺 𝘢𝘷𝘪𝘴𝘢 𝘢 𝘶𝘯 𝘰𝘸𝘯𝘦𝘳 𝘦𝘭 𝘤𝘰𝘮𝘱𝘰𝘳𝘵𝘢𝘮𝘪𝘦𝘯𝘵𝘰 𝘥𝘦 𝘢𝘭𝘨𝘶𝘪𝘦𝘯\n"
-        f"> - 𝙘𝙤𝙣𝙩𝙚𝙣𝙞𝙙𝙤 𝙥𝙖𝙧𝙖 𝙖𝙙𝙪𝙡𝙩𝙤𝙨 ╸𝘯𝘰 𝘦𝘯𝘷𝘪𝘢𝘳 𝘤𝘰𝘯𝘵𝘦𝘯𝘪𝘥𝘰 𝘴𝘦𝘹𝘶𝘢𝘭 𝘦𝘯 𝘭𝘰𝘴 𝘤𝘢𝘯𝘢𝘭𝘦𝘴 𝘲𝘶𝘦 𝘯𝘰 𝘤𝘰𝘳𝘳𝘦𝘴𝘱𝘰𝘯𝘥𝘦𝘯\n"
-        f"> - 𝙨𝙥𝙖𝙢 ╸𝘮𝘢𝘯𝘥𝘢𝘳 𝘮𝘶𝘤𝘩𝘰𝘴 𝘮𝘦𝘯𝘴𝘢𝘫𝘦𝘴 𝘢 𝘭𝘢 𝘷𝘦𝘻 𝘤𝘶𝘦𝘯𝘵𝘢 𝘤𝘰𝘮𝘰 𝘴𝘱𝘢𝘮\n"
-        f"> - 𝙢𝙚𝙣𝙨𝙖𝙟𝙚𝙨 𝙣𝙤 𝙘𝙤𝙧𝙧𝙚𝙨𝙥𝙤𝙣𝙙𝙚𝙣𝙩𝙚𝙨 ╸𝘦𝘯𝘷𝘪𝘢𝘳 𝘮𝘦𝘯𝘴𝘢𝘫𝘦𝘴 𝘲𝘶𝘦 𝘯𝘰 𝘤𝘰𝘳𝘳𝘦𝘴𝘱𝘰𝘯𝘥𝘦𝘯 𝘢𝘭 𝘤𝘢𝘯𝘢𝘭\n"
-    )
-
-    embed.set_thumbnail(url=i.user.display_avatar.url)
-
-    await i.response.send_message(embed=embed)
-
-# -------------------------
 # RUN
 # -------------------------
 load_data()
