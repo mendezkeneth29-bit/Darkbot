@@ -19,14 +19,14 @@ casas = {}
 # OBJETOS
 # -------------------------
 objetos = {
-    "casa🏠": {"precio": 5000, "stock": 999},
-    "telefono📱": {"precio": 800, "stock": 999},
-    "laptop💻": {"precio": 2000, "stock": 999},
-    "carro🚗": {"precio": 7000, "stock": 999},
-    "dildo🥴": {"precio": 1500, "stock": 100},
+    "Habitacion🛌": {"precio": 5000, "stock": 999},
+    "celular📞": {"precio": 800, "stock": 999},
+    "computadora🖥️": {"precio": 2000, "stock": 999},
+    "automovil🚙": {"precio": 7000, "stock": 999},
+    "varita🪄": {"precio": 1500, "stock": 100},
     "avion✈️": {"precio": 20000, "stock": 50},
-    "ipad📱": {"precio": 2500, "stock": 200},
-    "jet_privado💸": {"precio": 100000, "stock": 10}
+    "ojos👁️": {"precio": 2500, "stock": 200},
+    "café☕": {"precio": 5, "stock": 999}
 }
 
 # -------------------------
@@ -113,7 +113,7 @@ async def cuenta(i: discord.Interaction, usuario: discord.Member = None):
         f"presto: {data[uid]['veces_presto']}\n"
         f"prestamos totales: {data[uid]['veces_presto']}\n"
         "------------------------------\n"
-        "informacion garantizada por: DarkyBank"
+        "informacion garantizada por: AcademyBank"
     )
 
     embed.set_thumbnail(url=usuario.display_avatar.url)
@@ -150,10 +150,10 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
                 f"{cantidad} enviados a {usuario.mention}\n"
                 f"ID bancario {info['id_banco']}\n"
                 "------------------------------\n"
-                f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} creditos\n"
+                f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} Sadicos\n"
                 "> - usalos con inteligencia\n"
                 "------------------------------\n"
-                f"enviado por: {i.user.mention}, creditado por: DarkyBank"
+                f"enviado por: {i.user.mention}, creditado por: AcademyBank"
             )
 
             embed.set_thumbnail(url=usuario.display_avatar.url)
@@ -166,22 +166,14 @@ async def transaccion(i: discord.Interaction, cuenta_bancaria: str, cantidad: in
 # OBJETOS
 # -------------------------
 objetos = {
-    "casa🏠": {"precio": 5000, "stock": 999},
-    "telefono📱": {"precio": 800, "stock": 999},
-    "laptop💻": {"precio": 2000, "stock": 999},
-    "carro🚗": {"precio": 7000, "stock": 999},
-    "reloj⌚": {"precio": 400, "stock": 999},
-    "tv📺": {"precio": 1200, "stock": 999},
-    "moto🏍️": {"precio": 3500, "stock": 999},
-    "joya💎": {"precio": 10000, "stock": 999},
-    "audifonos🎧": {"precio": 300, "stock": 999},
-    "tablet📱": {"precio": 1500, "stock": 999},
-
-    # nuevos
-    "dildo🥴": {"precio": 1500, "stock": 100},
+    "Habitacion🛌": {"precio": 5000, "stock": 999},
+    "celular📞": {"precio": 800, "stock": 999},
+    "computadora🖥️": {"precio": 2000, "stock": 999},
+    "automovil🚙": {"precio": 7000, "stock": 999},
+    "varita🪄": {"precio": 1500, "stock": 100},
     "avion✈️": {"precio": 20000, "stock": 50},
-    "ipad📱": {"precio": 2500, "stock": 200},
-    "jet_privado💸": {"precio": 100000, "stock": 10}
+    "ojos👁️": {"precio": 2500, "stock": 200},
+    "café☕": {"precio": 5, "stock": 999}
 }
 
 # -------------------------
@@ -229,15 +221,15 @@ class ObjetoSelect(discord.ui.Select):
         inv[objeto] = inv.get(objeto, 0) + 1
 
         # CASA AUTOMÁTICA
-        if objeto == "casa🏠":
-            categoria = discord.utils.get(i.guild.categories, name="⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
+        if objeto == "habitacion🛌":
+            categoria = discord.utils.get(i.guild.categories, name="⚊⚊⚊⚊        000 .    HABITACIONES")
             if not categoria:
-                categoria = await i.guild.create_category("⚊⚊⚊⚊        000 .    VECINDARIO   ♱")
+                categoria = await i.guild.create_category("⚊⚊⚊⚊        000 .    HABITACIONES")
 
             numero = len(casas) + 1
 
             canal = await i.guild.create_text_channel(
-                f"casa-{numero}",
+                f"Habitacion-{numero}",
                 category=categoria
             )
 
@@ -267,7 +259,7 @@ class ObjetoView(discord.ui.View):
 async def tienda_objetos(i: discord.Interaction):
 
     embed = discord.Embed(
-        title="Tienda 🏪",
+        title="Tienda 🏚️",
         color=COLOR
     )
 
@@ -309,7 +301,7 @@ async def inventario_cmd(i: discord.Interaction, usuario: discord.Member = None)
         texto += f"{obj} x{cant}\n"
 
     embed = discord.Embed(
-        title=f"Inventario de {usuario.name} 🎒",
+        title=f"mochila de {usuario.name} 🎒",
         description=texto,
         color=COLOR
     )
@@ -423,7 +415,7 @@ async def prestamos_cmd(i: discord.Interaction, cuenta_bancaria: str, cantidad: 
                 "> - si no devuelve el dinero, se le restaran automaticamente\n"
                 "> - al aceptar debe seguir las politicas bancarias\n"
                 "------------------------------------------\n"
-                "creditado por: DarkyBank"
+                "creditado por: AcademyBank"
             )
 
             embed.set_thumbnail(url=receptor.display_avatar.url)
@@ -449,14 +441,14 @@ async def bonus(i: discord.Interaction, cuenta_bancaria: str, cantidad: int):
             data[uid]["creditos"] += cantidad
             save_data()
 
-            embed = discord.Embed(title="Bonus ! 🎁", color=COLOR)
+            embed = discord.Embed(title="Sadicos ! 👁️", color=COLOR)
             embed.description = (
-                f"{i.user.mention} ha dado un bonus a {usuario.mention}\n"
+                f"{i.user.mention} ha dado un Sadicos a {usuario.mention}\n"
                 f"ID bancario: {info['id_banco']}\n"
                 "----------------------------------------------\n"
                 f"> - ahora {usuario.mention} tiene {data[uid]['creditos']} creditos\n"
                 "----------------------------------------------\n"
-                "creditado por: DarkyBot"
+                "creditado por: AcademyBot"
             )
 
             embed.set_thumbnail(url=usuario.display_avatar.url)
@@ -509,12 +501,12 @@ async def fiesta_invite(i: discord.Interaction, hora: str):
 
     embed.description = (
         f"la fiesta empezara a las: {hora}\n"
-        f"en la casa: {canal.mention}\n"
+        f"en la habitacion: {canal.mention}\n"
         "--------------------------------\n"
         "> - todos deberan estar presente a la hora seleccionada\n"
         "> - ningun miembro que no sea el dueño/a de la fiesta no podra hacer cosas que molesten al organizador.\n"
         "--------------------------------\n"
-        f"organizado por: {usuario.mention}, creditado por; DarkyEvents"
+        f"organizado por: {usuario.mention}, creditado por; AcademyEvents"
     )
 
     embed.set_thumbnail(url=usuario.display_avatar.url)
@@ -523,53 +515,6 @@ async def fiesta_invite(i: discord.Interaction, hora: str):
 
     await i.response.send_message("Invitación enviada 🪩", ephemeral=True)
     
-# ------------------------
-# MUSICA_COMANDO
-# ------------------------
-@bot.tree.command(name="music")
-async def music(i: discord.Interaction, nombre: str):
-
-    await i.response.defer()
-
-    if not i.user.voice:
-        return await i.followup.send("No estás en un canal de voz", ephemeral=True)
-
-    canal = i.user.voice.channel
-
-    # conectar
-    if not i.guild.voice_client:
-        vc = await canal.connect(cls=wavelink.Player)
-    else:
-        vc = i.guild.voice_client
-
-    # buscar canción
-    tracks = await wavelink.Playable.search(nombre)
-
-    if not tracks:
-        return await i.response.send_message("No encontré esa canción", ephemeral=True)
-
-    track = tracks[0]
-
-    # reproducir
-    await vc.play(track)
-
-    # embed
-    embed = discord.Embed(
-        title=track.title,
-        color=COLOR
-    )
-
-    embed.description = (
-        f"artista: {track.author}\n"
-        f"creada el: desconocido\n"
-        f"Likes: desconocido\n"
-        f"seguidores: desconocido"
-    )
-
-    embed.set_thumbnail(url=track.artwork)
-
-    await i.response.send_message(embed=embed)
-
 # -------------------------
 # RUN
 # -------------------------
