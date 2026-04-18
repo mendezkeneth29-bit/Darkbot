@@ -221,19 +221,19 @@ class ObjetoSelect(discord.ui.Select):
         inv[objeto] = inv.get(objeto, 0) + 1
 
         # CASA AUTOMÁTICA
-        if objeto == "habitacion🛌":
+        if objeto == "Habitacion🛌":
             categoria = discord.utils.get(i.guild.categories, name="⚊⚊⚊⚊        000 .    HABITACIONES")
             if not categoria:
                 categoria = await i.guild.create_category("⚊⚊⚊⚊        000 .    HABITACIONES")
 
-            numero = len(casas) + 1
+            numero = len(habitaciones) + 1
 
             canal = await i.guild.create_text_channel(
                 f"Habitacion-{numero}",
                 category=categoria
             )
 
-            casas[uid] = canal.id
+            habitaciones[uid] = canal.id
 
             embed = discord.Embed(title="Controls", color=COLOR)
             embed.set_thumbnail(url=i.user.display_avatar.url)
