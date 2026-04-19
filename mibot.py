@@ -514,6 +514,148 @@ async def fiesta_invite(i: discord.Interaction, hora: str):
     await canal.send(embed=embed)
 
     await i.response.send_message("Invitación enviada 🪩", ephemeral=True)
+
+welc_config = {}
+
+# -------------------------
+# MODALES
+# -------------------------
+class PrincipalModal(discord.ui.Modal, title="Principal"):
+    titulo = discord.ui.TextInput(label="Titulo")
+    descripcion = discord.ui.TextInput(label="Descripcion", style=discord.TextStyle.long)
+    color = discord.ui.TextInput(label="Color HEX (ej: #000000)")
+
+    async def on_submit(self, i: discord.Interaction):
+        cfg = welc_config.setdefault(i.guild.id, {})
+        cfg["title"] = self.titulo.value
+        cfg["desc"] = self.descripcion.value
+        cfg["color"] = int(self.color.value.replace("#",""), 16)
+        await i.response.send_message("Principal guardado", ephemeral=True)
+
+class FooterModal(discord.ui.Modal, title="Pie de pagina"):
+    texto = discord.ui.TextInput(label="Texto")
+    imagen = discord.ui.TextInput(label="URL imagen/gif")
+
+    async def on_submit(self, i):
+        cfg = welc_config.setdefault(i.guild.id, {})
+        cfg["footer"] = (self.texto.value, self.imagen.value)
+        await i.response.send_message("Footer guardado", ephemeral=True)
+
+class AutorModal(discord.ui.Modal, title="Autor"):
+    texto = discord.ui.TextInput(label="Autor")
+    imagen = discord.ui.TextInput(label="URL imagen")
+
+    async def on_submit(self, i):
+        cfg = welc_config.setdefault(i.guild.id, {})
+        cfg["autor"] = (self.texto.value, self.imagen.value)
+        await i.response.send_message("Autor guardado", ephemeral=True)
+
+class ImagenModal(discord.ui.Modal, title="Imagen principal"):
+    url = discord.ui.TextInput(label="URL")
+
+    async def on_submit(self, i):
+        cfg = welc_config.setdefault(i.guild.id, {})
+        cfg["image"] = self.url.value
+        await i.response.send_message("Imagen guardada", ephemeral=True)
+
+class ConfigModal(discord.ui.Modal, title="Configuracion"):
+    canal = discord.ui.TextInput(label="ID del canal")
+    activar = discord.ui.TextInput(label="Activar? (yes/no)")
+
+    async def on_submit(self, i):
+        cfg = welc_config.setdefault(i.guild.id, {})
+        cfg["canal"] = int(self.canal.value)
+        cfg["activo"] = self.activar.value.lower() == "yes"
+        await i.response.send_message("Configuracion guardada", ephemeral=True)
+
+# -------------------------
+# VIEW
+# -------------------------
+class WelcView(discord.ui.View):
+
+    def get_embed(self, guild_id):
+        cfg = welc_config.get(guild_id, {})
+        embed = discord.Embed(
+            title=cfg.get("title", "Preview"),
+            description=cfg.get("desc", "Configura tu embed"),
+            color=cfg.get("color", 0x000000)
+        )
+
+        if "footer" in cfg:
+            embed.set_footer(text=cfg["footer"][0], icon_url=cfg["footer"][1])
+
+        if "autor" in cfg:
+            embed.set_author(name=cfg["autor"][0], icon_url=cfg["autor"][1])
+
+        if "image" in cfg:
+            embed.set_image(url=cfg["image"])
+
+        return embed
+
+    @discord.ui.button(label="Principal")
+    async def principal(self, i, b):
+        await i.response.send_modal(PrincipalModal())
+
+    @discord.ui.button(label="Píe de pagina")
+    async def footer(self, i, b):
+        await i.response.send_modal(FooterModal())
+
+    @discord.ui.button(label="Autor")
+    async def autor(self, i, b):
+        await i.response.send_modal(AutorModal())
+
+    @discord.ui.button(label="Principal Image")
+    async def image(self, i, b):
+        await i.response.send_modal(ImagenModal())
+
+    @discord.ui.button(label="Configuraciones")
+    async def config(self, i, b):
+        await i.response.send_modal(ConfigModal())
+
+# -------------------------
+# COMANDO
+# -------------------------
+@bot.tree.command(name="welc-create")
+async def welc_create(i: discord.Interaction):
+
+    view = WelcView()
+    embed = view.get_embed(i.guild.id)
+
+    await i.response.send_message(embed=embed, view=view, ephemeral=True)
+
+# -------------------------
+# EVENTO BIENVENIDA
+# -------------------------
+@bot.event
+async def on_member_join(member):
+
+    if member.bot:
+        return
+
+    cfg = welc_config.get(member.guild.id)
+    if not cfg or not cfg.get("activo"):
+        return
+
+    canal = member.guild.get_channel(cfg["canal"])
+    if not canal:
+        return
+
+    embed = discord.Embed(
+        title=cfg.get("title", "Bienvenido"),
+        description=cfg.get("desc", f"{member.mention} se unio"),
+        color=cfg.get("color", 0x000000)
+    )
+
+    if "footer" in cfg:
+        embed.set_footer(text=cfg["footer"][0], icon_url=cfg["footer"][1])
+
+    if "autor" in cfg:
+        embed.set_author(name=cfg["autor"][0], icon_url=cfg["autor"][1])
+
+    if "image" in cfg:
+        embed.set_image(url=cfg["image"])
+
+    await canal.send(embed=embed)
     
 # -------------------------
 # RUN
