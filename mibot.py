@@ -675,28 +675,30 @@ async def on_member_join(member):
         return
 
     embed = discord.Embed(
-        title=cfg.get("title", "Bienvenido"),
-        description=cfg.get("desc", ""),
+        title=parse_welc(cfg.get("title", "Bienvenido"), member),
+        description=parse_welc(cfg.get("desc", ""), member),
         color=cfg.get("color", 0x000000)
     )
 
     if "footer" in cfg:
         embed.set_footer(
-            text=cfg["footer"][0],
+            text=parse_welc(cfg["footer"][0], member),
             icon_url=cfg["footer"][1]
         )
 
     if "autor" in cfg:
         embed.set_author(
-            name=cfg["autor"][0],
+            name=parse_welc(cfg["autor"][0], member),
             icon_url=cfg["autor"][1]
         )
 
     if "image" in cfg:
         embed.set_image(url=cfg["image"])
 
-    await canal.send(embed=embed)
+    # 🔥 ESTE ES EL IMPORTANTE
+    embed.set_thumbnail(url=member.display_avatar.url)
 
+    await canal.send(embed=embed)
 
 # ---------------- COMANDO ----------------
 
@@ -707,6 +709,15 @@ async def welc_create(i: discord.Interaction):
     embed = view.get_embed(i.guild.id)
 
     await i.response.send_message(embed=embed, view=view)  # 👈 SIN EPHEMERAL
+
+def parse_welc(texto, member):
+    if not texto:
+        return texto
+
+    return texto.replace("{user_name}", member.name) \
+                .replace("{user_mention}", member.mention) \
+                .replace("{user_id}", str(member.id)) \
+                .replace("{server_name}", member.guild.name)
     
 # -------------------------
 # RUN
