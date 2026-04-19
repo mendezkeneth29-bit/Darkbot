@@ -718,6 +718,208 @@ def parse_welc(texto, member):
                 .replace("{user_mention}", member.mention) \
                 .replace("{user_id}", str(member.id)) \
                 .replace("{server_name}", member.guild.name)
+
+bye_config = {}
+
+class ByeView(discord.ui.View):
+    def __init__(self, owner_id):
+        super().__init__(timeout=None)
+        self.owner_id = owner_id
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message("No puedes usar esto", ephemeral=True)
+            return False
+        return True
+
+    def get_embed(self, gid):
+        cfg = welc_config.get(gid, {})
+
+        embed = discord.Embed(
+            title=cfg.get("title", "Vista previa"),
+            description=cfg.get("desc", "Configurando embed..."),
+            color=cfg.get("color", 0x000000)
+        )
+
+        if "footer" in cfg:
+            embed.set_footer(text=cfg["footer"][0], icon_url=cfg["footer"][1])
+
+        if "autor" in cfg:
+            embed.set_author(name=cfg["autor"][0], icon_url=cfg["autor"][1])
+
+        if "image" in cfg:
+            embed.set_image(url=cfg["image"])
+
+        return embed
+
+    @discord.ui.button(label="Principal", style=discord.ButtonStyle.gray)
+    async def principal(self, i: discord.Interaction, b):
+        await i.response.send_modal(PrincipalModal(self.owner_id))
+
+    @discord.ui.button(label="Pie de pagina", style=discord.ButtonStyle.gray)
+    async def footer(self, i: discord.Interaction, b):
+        await i.response.send_modal(FooterModal(self.owner_id))
+
+    @discord.ui.button(label="Autor", style=discord.ButtonStyle.gray)
+    async def autor(self, i: discord.Interaction, b):
+        await i.response.send_modal(AutorModal(self.owner_id))
+
+    @discord.ui.button(label="Imagen", style=discord.ButtonStyle.gray)
+    async def imagen(self, i: discord.Interaction, b):
+        await i.response.send_modal(ImageModal(self.owner_id))
+
+    # 🔥 ESTE ES EL QUE TE FALTABA BIEN PUESTO
+    @discord.ui.button(label="Guardar y Activar", style=discord.ButtonStyle.gray)
+    async def guardar(self, i: discord.Interaction, b):
+
+        gid = i.guild.id
+        welc_config.setdefault(gid, {})
+
+        welc_config[gid]["activo"] = True
+        welc_config[gid]["canal"] = i.channel.id
+
+        await i.response.send_message(" Bienvenida activada", ephemeral=True)
+
+
+# ---------------- MODALES ----------------
+
+class PrincipalModal(discord.ui.Modal, title="Principal"):
+    def __init__(self, owner_id):
+        super().__init__()
+        self.owner_id = owner_id
+
+    titulo = discord.ui.TextInput(label="Titulo")
+    desc = discord.ui.TextInput(label="Descripcion", style=discord.TextStyle.paragraph)
+    color = discord.ui.TextInput(label="Color HEX (ej: FF0000)")
+
+    async def on_submit(self, i: discord.Interaction):
+        gid = i.guild.id
+        welc_config.setdefault(gid, {})
+
+        welc_config[gid]["title"] = self.titulo.value
+        welc_config[gid]["desc"] = self.desc.value
+        welc_config[gid]["color"] = int(self.color.value, 16)
+
+        await i.response.defer()
+        await i.message.edit(embed=WelcView(self.owner_id).get_embed(gid),
+                             view=WelcView(self.owner_id))
+
+
+class FooterModal(discord.ui.Modal, title="Footer"):
+    def __init__(self, owner_id):
+        super().__init__()
+        self.owner_id = owner_id
+
+    texto = discord.ui.TextInput(label="Texto")
+    icono = discord.ui.TextInput(label="URL icono")
+
+    async def on_submit(self, i: discord.Interaction):
+        gid = i.guild.id
+        welc_config.setdefault(gid, {})
+
+        welc_config[gid]["footer"] = (self.texto.value, self.icono.value)
+
+        await i.response.defer()
+        await i.message.edit(embed=WelcView(self.owner_id).get_embed(gid),
+                             view=WelcView(self.owner_id))
+
+
+class AutorModal(discord.ui.Modal, title="Autor"):
+    def __init__(self, owner_id):
+        super().__init__()
+        self.owner_id = owner_id
+
+    texto = discord.ui.TextInput(label="Nombre autor")
+    icono = discord.ui.TextInput(label="URL icono")
+
+    async def on_submit(self, i: discord.Interaction):
+        gid = i.guild.id
+        welc_config.setdefault(gid, {})
+
+        welc_config[gid]["autor"] = (self.texto.value, self.icono.value)
+
+        await i.response.defer()
+        await i.message.edit(embed=WelcView(self.owner_id).get_embed(gid),
+                             view=WelcView(self.owner_id))
+
+
+class ImageModal(discord.ui.Modal, title="Imagen"):
+    def __init__(self, owner_id):
+        super().__init__()
+        self.owner_id = owner_id
+
+    url = discord.ui.TextInput(label="URL imagen")
+
+    async def on_submit(self, i: discord.Interaction):
+        gid = i.guild.id
+        welc_config.setdefault(gid, {})
+
+        welc_config[gid]["image"] = self.url.value
+
+        await i.response.defer()
+        await i.message.edit(embed=WelcView(self.owner_id).get_embed(gid),
+                             view=WelcView(self.owner_id))
+
+@bot.event
+async def on_member_join(member):
+
+    if member.bot:
+        return
+
+    gid = member.guild.id
+    cfg = welc_config.get(gid)
+
+    if not cfg or not cfg.get("activo"):
+        return
+
+    canal = member.guild.get_channel(cfg["canal"])
+    if not canal:
+        return
+
+    embed = discord.Embed(
+        title=parse_welc(cfg.get("title", "Bienvenido"), member),
+        description=parse_welc(cfg.get("desc", ""), member),
+        color=cfg.get("color", 0x000000)
+    )
+
+    if "footer" in cfg:
+        embed.set_footer(
+            text=parse_welc(cfg["footer"][0], member),
+            icon_url=cfg["footer"][1]
+        )
+
+    if "autor" in cfg:
+        embed.set_author(
+            name=parse_welc(cfg["autor"][0], member),
+            icon_url=cfg["autor"][1]
+        )
+
+    if "image" in cfg:
+        embed.set_image(url=cfg["image"])
+
+    # 🔥 ESTE ES EL IMPORTANTE
+    embed.set_thumbnail(url=member.display_avatar.url)
+
+    await canal.send(embed=embed)
+
+# ---------------- COMANDO ----------------
+
+@bot.tree.command(name="bye-create")
+async def bye_create(i: discord.Interaction):
+
+    view = ByeView(i.user.id)
+    embed = view.get_embed(i.guild.id)
+
+    await i.response.send_message(embed=embed, view=view)  # 👈 SIN EPHEMERAL
+
+def parse_welc(texto, member):
+    if not texto:
+        return texto
+
+    return texto.replace("{user_name}", member.name) \
+                .replace("{user_mention}", member.mention) \
+                .replace("{user_id}", str(member.id)) \
+                .replace("{server_name}", member.guild.name)
     
 # -------------------------
 # RUN
