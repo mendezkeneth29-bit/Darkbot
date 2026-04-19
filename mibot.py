@@ -556,7 +556,7 @@ class WelcView(discord.ui.View):
 
         return embed
 
-    @discord.ui.button(label="Principal", style=discord.ButtonStyle.blurple)
+    @discord.ui.button(label="Principal", style=discord.ButtonStyle.gray)
     async def principal(self, i: discord.Interaction, b):
         await i.response.send_modal(PrincipalModal(self.owner_id))
 
@@ -564,7 +564,7 @@ class WelcView(discord.ui.View):
     async def footer(self, i: discord.Interaction, b):
         await i.response.send_modal(FooterModal(self.owner_id))
 
-    @discord.ui.button(label="Autor", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="Autor", style=discord.ButtonStyle.gray)
     async def autor(self, i: discord.Interaction, b):
         await i.response.send_modal(AutorModal(self.owner_id))
 
