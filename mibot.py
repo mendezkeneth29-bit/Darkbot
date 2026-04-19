@@ -918,7 +918,79 @@ async def on_member_remove(member):
     embed.set_thumbnail(url=member.display_avatar.url)
 
     await canal.send(embed=embed)
-    
+
+# -------------------------
+# EMBED-CREATE
+# -------------------------
+@bot.tree.command(name="embed-create")
+async def embed_create(
+    i: discord.Interaction,
+    titulo: str,
+    descripcion: str,
+    color: str,
+    canal: discord.TextChannel,
+    imagen: str = None,
+    footer_texto: str = None,
+    footer_icono: str = None,
+    autor_texto: str = None,
+    autor_icono: str = None
+):
+
+    # convertir color HEX
+    try:
+        color_hex = int(color.replace("#", ""), 16)
+    except:
+        return await i.response.send_message("Color inválido, usa HEX tipo FF0000", ephemeral=True)
+
+    embed = discord.Embed(
+        title=titulo,
+        description=descripcion,
+        color=color_hex
+    )
+
+    # imagen principal
+    if imagen:
+        embed.set_image(url=imagen)
+
+    # footer
+    if footer_texto:
+        embed.set_footer(
+            text=footer_texto,
+            icon_url=footer_icono if footer_icono else None
+        )
+
+    # autor
+    if autor_texto:
+        embed.set_author(
+            name=autor_texto,
+            icon_url=autor_icono if autor_icono else None
+        )
+
+    # enviar al canal elegido
+    await canal.send(embed=embed)
+
+    # respuesta invisible
+    await i.response.send_message("Embed enviado", ephemeral=True)
+
+# -------------------------
+# DELETE-COMAND
+# -------------------------
+@bot.tree.command(name="delete")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def delete(
+    i: discord.Interaction,
+    cantidad: app_commands.Range[int, 1, 500]
+):
+
+    await i.response.defer(ephemeral=True)
+
+    mensajes = await i.channel.purge(limit=cantidad)
+
+    await i.followup.send(
+        f"Se eliminaron {len(mensajes)} mensajes 🧹",
+        ephemeral=True
+    )
+
 # -------------------------
 # RUN
 # -------------------------
