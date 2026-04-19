@@ -572,6 +572,20 @@ class WelcView(discord.ui.View):
     async def imagen(self, i: discord.Interaction, b):
         await i.response.send_modal(ImageModal(self.owner_id))
 
+@discord.ui.button(label="Guardar y Activar", style=discord.ButtonStyle.gray)
+async def guardar(self, i: discord.Interaction, b):
+
+    gid = i.guild.id
+    welc_config.setdefault(gid, {})
+
+    # activar sistema
+    welc_config[gid]["activo"] = True
+
+    # guardar canal actual
+    welc_config[gid]["canal"] = i.channel.id
+
+    await i.response.send_message("✅ Bienvenida activada", ephemeral=True)
+
 
 # ---------------- MODALES ----------------
 
@@ -651,6 +665,45 @@ class ImageModal(discord.ui.Modal, title="Imagen"):
         await i.response.defer()
         await i.message.edit(embed=WelcView(self.owner_id).get_embed(gid),
                              view=WelcView(self.owner_id))
+
+@bot.event
+async def on_member_join(member):
+
+    if member.bot:
+        return
+
+    gid = member.guild.id
+    cfg = welc_config.get(gid)
+
+    if not cfg or not cfg.get("activo"):
+        return
+
+    canal = member.guild.get_channel(cfg["canal"])
+    if not canal:
+        return
+
+    embed = discord.Embed(
+        title=cfg.get("title", "Bienvenido"),
+        description=cfg.get("desc", ""),
+        color=cfg.get("color", 0x000000)
+    )
+
+    if "footer" in cfg:
+        embed.set_footer(
+            text=cfg["footer"][0],
+            icon_url=cfg["footer"][1]
+        )
+
+    if "autor" in cfg:
+        embed.set_author(
+            name=cfg["autor"][0],
+            icon_url=cfg["autor"][1]
+        )
+
+    if "image" in cfg:
+        embed.set_image(url=cfg["image"])
+
+    await canal.send(embed=embed)
 
 
 # ---------------- COMANDO ----------------
