@@ -656,6 +656,42 @@ async def on_member_join(member):
         embed.set_image(url=cfg["image"])
 
     await canal.send(embed=embed)
+
+@bot.tree.command(name="welc-test")
+async def welc_test(i: discord.Interaction):
+
+    cfg = welc_config.get(i.guild.id)
+
+    if not cfg:
+        return await i.response.send_message("No hay configuración", ephemeral=True)
+
+    embed = discord.Embed(
+        title=cfg.get("title", "Bienvenido"),
+        description=cfg.get("desc", f"{i.user.mention} se unio"),
+        color=cfg.get("color", 0x000000)
+    )
+
+    # footer
+    if "footer" in cfg:
+        embed.set_footer(
+            text=cfg["footer"][0],
+            icon_url=cfg["footer"][1]
+        )
+
+    # autor
+    if "autor" in cfg:
+        embed.set_author(
+            name=cfg["autor"][0],
+            icon_url=cfg["autor"][1]
+        )
+
+    # imagen
+    if "image" in cfg:
+        embed.set_image(url=cfg["image"])
+
+    embed.set_thumbnail(url=i.user.display_avatar.url)
+
+    await i.response.send_message(embed=embed)
     
 # -------------------------
 # RUN
