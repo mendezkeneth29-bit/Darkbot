@@ -612,16 +612,27 @@ class WelcView(discord.ui.View):
     async def config(self, i, b):
         await i.response.send_modal(ConfigModal())
 
+class WelcView(discord.ui.View):
+    def __init__(self, owner_id):
+        super().__init__(timeout=None)
+        self.owner_id = owner_id
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message("No eres el creador", ephemeral=True)
+            return False
+        return True
+
 # -------------------------
 # COMANDO
 # -------------------------
 @bot.tree.command(name="welc-create")
 async def welc_create(i: discord.Interaction):
 
-    view = WelcView()
+    view = WelcView(i.user.id)
     embed = view.get_embed(i.guild.id)
 
-    await i.response.send_message(embed=embed, view=view, ephemeral=True)
+    await i.response.send_message(embed=embed, view=view)
 
 # -------------------------
 # EVENTO BIENVENIDA
