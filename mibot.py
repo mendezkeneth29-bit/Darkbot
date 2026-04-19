@@ -540,16 +540,10 @@ class WelcView(discord.ui.View):
         )
 
         if "footer" in cfg:
-            embed.set_footer(
-                text=cfg["footer"][0],
-                icon_url=cfg["footer"][1]
-            )
+            embed.set_footer(text=cfg["footer"][0], icon_url=cfg["footer"][1])
 
         if "autor" in cfg:
-            embed.set_author(
-                name=cfg["autor"][0],
-                icon_url=cfg["autor"][1]
-            )
+            embed.set_author(name=cfg["autor"][0], icon_url=cfg["autor"][1])
 
         if "image" in cfg:
             embed.set_image(url=cfg["image"])
@@ -572,19 +566,17 @@ class WelcView(discord.ui.View):
     async def imagen(self, i: discord.Interaction, b):
         await i.response.send_modal(ImageModal(self.owner_id))
 
-@discord.ui.button(label="Guardar y Activar", style=discord.ButtonStyle.gray)
-async def guardar(self, i: discord.Interaction, b):
+    # 🔥 ESTE ES EL QUE TE FALTABA BIEN PUESTO
+    @discord.ui.button(label="Guardar y Activar", style=discord.ButtonStyle.gray)
+    async def guardar(self, i: discord.Interaction, b):
 
-    gid = i.guild.id
-    welc_config.setdefault(gid, {})
+        gid = i.guild.id
+        welc_config.setdefault(gid, {})
 
-    # activar sistema
-    welc_config[gid]["activo"] = True
+        welc_config[gid]["activo"] = True
+        welc_config[gid]["canal"] = i.channel.id
 
-    # guardar canal actual
-    welc_config[gid]["canal"] = i.channel.id
-
-    await i.response.send_message("✅ Bienvenida activada", ephemeral=True)
+        await i.response.send_message(" Bienvenida activada", ephemeral=True)
 
 
 # ---------------- MODALES ----------------
