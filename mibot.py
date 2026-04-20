@@ -751,34 +751,31 @@ def parse_welc(texto, member):
 @bot.tree.command(name="embed-create")
 async def embed_create(
     i: discord.Interaction,
-    titulo: str,
-    descripcion: str,
-    color: str,
-    canal: discord.TextChannel,
     titulo: str = None,
     descripcion: str = None,
     color: str = None,
     imagen: str = None,
     footer_texto: str = None,
     footer_icono: str = None,
-    autor_texto: str = None,
-    autor_icono: str = None
+    autor_nombre: str = None,
+    autor_icono: str = None,
+    canal: discord.TextChannel = None
 ):
 
-    # convertir color HEX
-    # color por defecto
-    try:
-        color_hex = int(color.replace("#", ""), 16)
-        color_hex = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        return await i.response.send_message("Color inválido, usa HEX tipo FF0000", ephemeral=True)
+    # si no eligen canal, usa el actual
+    canal = canal or i.channel
 
+    # convertir color HEX
+    try:
+        color_final = int(color, 16) if color else 0x000000
+    except:
+        color_final = 0x000000
+
+    # crear embed
     embed = discord.Embed(
-        title=titulo,
-        description=descripcion,
         title=titulo if titulo else "",
         description=descripcion if descripcion else "",
-        color=color_hex
+        color=color_final
     )
 
     # imagen principal
@@ -786,23 +783,23 @@ async def embed_create(
         embed.set_image(url=imagen)
 
     # footer
-    if footer_texto:
+    if footer_texto or footer_icono:
         embed.set_footer(
-            text=footer_texto,
+            text=footer_texto if footer_texto else "",
             icon_url=footer_icono if footer_icono else None
         )
 
     # autor
-    if autor_texto:
+    if autor_nombre or autor_icono:
         embed.set_author(
-            name=autor_texto,
+            name=autor_nombre if autor_nombre else "",
             icon_url=autor_icono if autor_icono else None
         )
 
-    # enviar al canal elegido
+    # enviar embed
     await canal.send(embed=embed)
 
-    # respuesta invisible
+    # responder al comando
     await i.response.send_message("Embed enviado", ephemeral=True)
 
 # -------------------------
