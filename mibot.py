@@ -818,8 +818,37 @@ async def delete(
 
     await i.followup.send(
         f"Se eliminaron {len(mensajes)} mensajes ❌",
-        ephemeral=True
-    )
+        ephemeral=True)
+
+# --------------------------
+# RESET-WELC
+# --------------------------
+@bot.tree.command(name="reset-welc")
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_welc(i: discord.Interaction):
+
+    gid = i.guild.id
+
+    if gid in welc_config:
+        del welc_config[gid]
+        await i.response.send_message("🧹 Configuración de bienvenida eliminada", ephemeral=True)
+    else:
+        await i.response.send_message("No había configuración de bienvenida", ephemeral=True)
+        
+# -----------------------
+# RESET-BYE
+# -----------------------
+@bot.tree.command(name="reset-bye")
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_bye(i: discord.Interaction):
+
+    gid = i.guild.id
+
+    if gid in bye_config:
+        del bye_config[gid]
+        await i.response.send_message("🧹 Configuración de despedida eliminada", ephemeral=True)
+    else:
+        await i.response.send_message("No había configuración de despedida", ephemeral=True)
 
 # -------------------------
 # RUN
