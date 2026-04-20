@@ -925,10 +925,10 @@ async def on_member_remove(member):
 @bot.tree.command(name="embed-create")
 async def embed_create(
     i: discord.Interaction,
-    titulo: str,
-    descripcion: str,
-    color: str,
     canal: discord.TextChannel,
+    titulo: str = None,
+    descripcion: str = None,
+    color: str = None,
     imagen: str = None,
     footer_texto: str = None,
     footer_icono: str = None,
@@ -936,40 +936,35 @@ async def embed_create(
     autor_icono: str = None
 ):
 
-    # convertir color HEX
+    # color por defecto
     try:
-        color_hex = int(color.replace("#", ""), 16)
+        color_hex = int(color.replace("#", ""), 16) if color else 0x000000
     except:
         return await i.response.send_message("Color inválido, usa HEX tipo FF0000", ephemeral=True)
 
     embed = discord.Embed(
-        title=titulo,
-        description=descripcion,
+        title=titulo if titulo else "",
+        description=descripcion if descripcion else "",
         color=color_hex
     )
 
-    # imagen principal
     if imagen:
         embed.set_image(url=imagen)
 
-    # footer
     if footer_texto:
         embed.set_footer(
             text=footer_texto,
             icon_url=footer_icono if footer_icono else None
         )
 
-    # autor
     if autor_texto:
         embed.set_author(
             name=autor_texto,
             icon_url=autor_icono if autor_icono else None
         )
 
-    # enviar al canal elegido
     await canal.send(embed=embed)
 
-    # respuesta invisible
     await i.response.send_message("Embed enviado", ephemeral=True)
 
 # -------------------------
