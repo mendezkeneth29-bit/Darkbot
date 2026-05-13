@@ -243,21 +243,6 @@ async def on_member_join(member):
 bye_config = {}
 
 # -------------------------
-# VARIABLES
-# -------------------------
-
-def parse_text(texto, member):
-
-    if not texto:
-        return texto
-
-    return texto.replace("{user_name}", member.name) \
-                .replace("{user_mention}", member.mention) \
-                .replace("{user_id}", str(member.id)) \
-                .replace("{server_name}", member.guild.name) \
-                .replace("{user_avatar}", member.display_avatar.url)
-
-# -------------------------
 # COMANDO BYE
 # -------------------------
 
