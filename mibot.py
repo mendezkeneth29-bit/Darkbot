@@ -471,6 +471,13 @@ async def ask(
 
 @bot.event
 async def on_message(message):
+        except Exception as e:
+
+        await message.reply(
+            f"Error:\n```{e}```"
+        )
+
+    await bot.process_commands(message)
 
     # IGNORAR BOTS
     if message.author.bot:
@@ -1221,8 +1228,7 @@ async def table(i: discord.Interaction):
 # =========================================================
 
 @bot.listen()
-async def on_message(message):
-
+async def on_rank_message(message):
     if message.author.bot:
         return
 
