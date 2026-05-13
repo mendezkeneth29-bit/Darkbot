@@ -89,7 +89,7 @@ async def embed_create(
 
     # RESPUESTA
     await i.response.send_message(
-        f"✅ Embed enviado en {canal.mention}",
+        f"Embed enviado en {canal.mention}",
         ephemeral=True
     )
 
@@ -109,7 +109,7 @@ async def delete(
     eliminados = await i.channel.purge(limit=cantidad)
 
     await i.followup.send(
-        f"🗑️ Se eliminaron {len(eliminados)} mensajes",
+        f"Se eliminaron {len(eliminados)} mensajes",
         ephemeral=True
     )
 
@@ -175,7 +175,7 @@ async def wlc(
     }
 
     await i.response.send_message(
-        "✅ Bienvenida activada",
+        "Bienvenida activada",
         ephemeral=True
     )
 
@@ -291,7 +291,7 @@ async def bye(
     }
 
     await i.response.send_message(
-        "✅ Despedida activada",
+        "Despedida activada",
         ephemeral=True
     )
 
@@ -344,6 +344,54 @@ async def on_member_remove(member):
 
     # ENVIAR
     await canal.send(embed=embed)
+
+# -------------------------
+# RESET-WELC
+# -------------------------
+
+@bot.tree.command(name="reset-wlc")
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_wlc(i: discord.Interaction):
+
+    gid = i.guild.id
+
+    if gid in wlc_config:
+        del wlc_config[gid]
+
+        await i.response.send_message(
+            "Configuración de bienvenida eliminada",
+            ephemeral=True
+        )
+
+    else:
+        await i.response.send_message(
+            "No hay configuración de bienvenida",
+            ephemeral=True
+        )
+
+# -------------------------
+# RESET-BYE
+# -------------------------
+
+@bot.tree.command(name="reset-bye")
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_bye(i: discord.Interaction):
+
+    gid = i.guild.id
+
+    if gid in bye_config:
+        del bye_config[gid]
+
+        await i.response.send_message(
+            "Configuración de despedida eliminada",
+            ephemeral=True
+        )
+
+    else:
+        await i.response.send_message(
+            "No hay configuración de despedida",
+            ephemeral=True
+        )
 
 # -------------------------
 # FLASK WEB
