@@ -1,22 +1,45 @@
 import discord
-from discord import app_commands
 from discord.ext import commands
+from discord import app_commands
 import os
-import random
-import string
-import json
-import time
 
 TOKEN = os.getenv("TOKEN")
-COLOR = 0x000000
-DB_FILE = "data.json"
 
+# -------------------------
+# BOT
+# -------------------------
+
+class DarkyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(
+            command_prefix="!",
+            intents=discord.Intents.all()
+        )
+
+    async def setup_hook(self):
+        await self.tree.sync()
+
+
+bot = DarkyBot()
+
+# -------------------------
+# EVENTOS
+# -------------------------
+
+@bot.event
+async def on_ready():
+    print(f"Conectado como {bot.user}")
+
+
+# -------------------------
+# EMBED CREATE
+# -------------------------
 
 @bot.tree.command(name="embed-create")
 @app_commands.checks.has_permissions(administrator=True)
 async def embed_create(
     i: discord.Interaction,
-    canal: discord.TextChannel,
+    canal: discord.TextChannel = None,
     titulo: str = None,
     descripcion: str = None,
     color: str = None,
@@ -26,6 +49,9 @@ async def embed_create(
     footer: str = None,
     imagen_footer: str = None
 ):
+
+    # SI NO PONEN CANAL USA EL ACTUAL
+    canal = canal or i.channel
 
     # COLOR
     try:
@@ -47,7 +73,7 @@ async def embed_create(
             icon_url=imagen_autor if imagen_autor else None
         )
 
-    # IMAGEN PRINCIPAL
+    # IMAGEN
     if imagen_banner:
         embed.set_image(url=imagen_banner)
 
@@ -66,11 +92,11 @@ async def embed_create(
         f"✅ Embed enviado en {canal.mention}",
         ephemeral=True
     )
-    
+
 # -------------------------
-# RUN
+# FLASK WEB
 # -------------------------
-load_data()
+
 from flask import Flask
 import threading
 
@@ -80,8 +106,15 @@ app = Flask(__name__)
 def home():
     return "Bot activo"
 
+
 def run_web():
     app.run(host="0.0.0.0", port=10000)
 
+
 threading.Thread(target=run_web).start()
+
+# -------------------------
+# RUN
+# -------------------------
+
 bot.run(TOKEN)
