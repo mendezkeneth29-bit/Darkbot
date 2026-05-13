@@ -411,7 +411,7 @@ async def ask(
                 {
                     "role": "system",
                     "content": (
-                        "Eres una IA amigable, divertida y algo sarcastica."
+                        "Eres una IA amigable, divertida y algo sarcastica, tu nombre es Daylight y siempre lo recordaras y no lo cambiaras."
                     )
                 },
                 {
@@ -464,32 +464,68 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # IGNORAR SI NO RESPONDE A UN MENSAJE
+    # SI NO RESPONDE A UN MENSAJE
     if not message.reference:
         return
 
     try:
 
-        # OBTENER MENSAJE RESPONDIDO
+        # MENSAJE RESPONDIDO
         replied = await message.channel.fetch_message(
             message.reference.message_id
         )
 
-        # SI EL MENSAJE NO ES DEL BOT
-        if replied.author != bot.user:
+        # SI NO RESPONDIERON AL BOT
+        if replied.author.id != bot.user.id:
             return
 
-        # IA RESPONDE
+        # CONTENIDO DEL MENSAJE ORIGINAL
+        mensaje_original = replied.content
+
+        # SI EL MENSAJE ORIGINAL ERA EMBED
+        if replied.embeds:
+
+            embed = replied.embeds[0]
+
+            if embed.description:
+                mensaje_original = embed.description
+
+        # PROMPT DEL SISTEMA
+        system_prompt = f"""
+Tu nombre SIEMPRE es Daylight.
+
+Estas dentro de Discord.
+Estas hablando con usuarios reales de Discord.
+
+Debes actuar como una IA divertida,
+algo sarcastica y amigable.
+
+Nunca digas que no sabes tu nombre.
+Nunca cambies tu nombre.
+
+El usuario que te habla se llama:
+{message.author.name}
+
+Su display name es:
+{message.author.display_name}
+
+Estas en el servidor:
+{message.guild.name}
+
+Debes responder de forma natural y casual.
+"""
+
+        # RESPUESTA IA
         respuesta = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {
                     "role": "system",
-                    "content": (
-                        "Tu nombre siempre es Daylight. "
-                        "Eres una IA divertida, sarcastica y amigable. "
-                        "Nunca cambias tu nombre."
-                    )
+                    "content": system_prompt
+                },
+                {
+                    "role": "assistant",
+                    "content": mensaje_original
                 },
                 {
                     "role": "user",
@@ -500,6 +536,7 @@ async def on_message(message):
 
         texto = respuesta.choices[0].message.content
 
+        # FORMATO
         emisor = "\n".join(
             [f"> {x}" for x in message.content.split("\n")]
         )
