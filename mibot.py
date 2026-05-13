@@ -1,13 +1,11 @@
 import discord
 import os
 
-import google.generativeai as genai
+from groq import AsyncGroq
 
-genai.configure(
-    api_key=os.getenv("GEMINI_API_KEY")
+client = AsyncGroq(
+    api_key=os.getenv("GROQ_API_KEY")
 )
-
-model = genai.GenerativeModel("gemini-3-flash")
 
 from discord.ext import commands
 from discord import app_commands
@@ -391,6 +389,12 @@ async def reset_bye(i: discord.Interaction):
 # ASK_IA
 # -------------------------
 
+from groq import AsyncGroq
+
+client = AsyncGroq(
+    api_key=os.getenv("GROQ_API_KEY")
+)
+
 @bot.tree.command(name="ask")
 async def ask(
     i: discord.Interaction,
@@ -401,14 +405,32 @@ async def ask(
 
     try:
 
-        respuesta = model.generate_content(
-            f"Eres una IA divertida y sarcastica.\nUsuario: {mensaje}"
+        respuesta = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Eres una IA amigable, divertida y algo sarcastica."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": mensaje
+                }
+            ]
         )
 
-        texto = respuesta.text
+        texto = respuesta.choices[0].message.content
 
-        emisor = "\n".join([f"> {x}" for x in mensaje.split("\n")])
-        receptor = "\n".join([f"> {x}" for x in texto.split("\n")])
+        # FORMATO CON >
+        emisor = "\n".join(
+            [f"> {x}" for x in mensaje.split("\n")]
+        )
+
+        receptor = "\n".join(
+            [f"> {x}" for x in texto.split("\n")]
+        )
 
         embed = discord.Embed(
             color=0x000000
@@ -421,7 +443,9 @@ async def ask(
             f"{receptor}"
         )
 
-        await i.followup.send(embed=embed)
+        await i.followup.send(
+            embed=embed
+        )
 
     except Exception as e:
 
