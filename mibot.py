@@ -114,6 +114,238 @@ async def delete(
     )
 
 # -------------------------
+# CONFIG
+# -------------------------
+
+wlc_config = {}
+
+# -------------------------
+# VARIABLES
+# -------------------------
+
+def parse_text(texto, member):
+
+    if not texto:
+        return texto
+
+    return texto.replace("{user_name}", member.name) \
+                .replace("{user_mention}", member.mention) \
+                .replace("{user_id}", str(member.id)) \
+                .replace("{server_name}", member.guild.name) \
+                .replace("{user_avatar}", member.display_avatar.url)
+
+# -------------------------
+# COMANDO WLC
+# -------------------------
+
+@bot.tree.command(name="wlc")
+@app_commands.checks.has_permissions(administrator=True)
+async def wlc(
+    i: discord.Interaction,
+    canal: discord.TextChannel = None,
+    titulo: str = None,
+    descripcion: str = None,
+    color: str = None,
+    autor: str = None,
+    imagen_autor: str = None,
+    imagen_banner: str = None,
+    footer: str = None,
+    imagen_footer: str = None
+):
+
+    canal = canal or i.channel
+
+    # COLOR
+    try:
+        color_final = int(color.replace("#", ""), 16) if color else 0x000000
+    except:
+        color_final = 0x000000
+
+    # GUARDAR CONFIG
+    wlc_config[i.guild.id] = {
+        "canal": canal.id,
+        "titulo": titulo,
+        "descripcion": descripcion,
+        "color": color_final,
+        "autor": autor,
+        "imagen_autor": imagen_autor,
+        "imagen_banner": imagen_banner,
+        "footer": footer,
+        "imagen_footer": imagen_footer
+    }
+
+    await i.response.send_message(
+        "✅ Bienvenida activada",
+        ephemeral=True
+    )
+
+# -------------------------
+# EVENTO JOIN
+# -------------------------
+
+@bot.event
+async def on_member_join(member):
+
+    if member.bot:
+        return
+
+    cfg = wlc_config.get(member.guild.id)
+
+    if not cfg:
+        return
+
+    canal = member.guild.get_channel(cfg["canal"])
+
+    if not canal:
+        return
+
+    # EMBED
+    embed = discord.Embed(
+        title=parse_text(cfg.get("titulo") or "", member),
+        description=parse_text(cfg.get("descripcion") or "", member),
+        color=cfg.get("color", 0x000000)
+    )
+
+    # AUTOR
+    if cfg.get("autor"):
+        embed.set_author(
+            name=parse_text(cfg["autor"], member),
+            icon_url=parse_text(cfg.get("imagen_autor") or "", member)
+        )
+
+    # IMAGEN
+    if cfg.get("imagen_banner"):
+        embed.set_image(
+            url=parse_text(cfg["imagen_banner"], member)
+        )
+
+    # FOOTER
+    if cfg.get("footer"):
+        embed.set_footer(
+            text=parse_text(cfg["footer"], member),
+            icon_url=parse_text(cfg.get("imagen_footer") or "", member)
+        )
+
+    # ENVIAR
+    await canal.send(embed=embed)
+
+# -------------------------
+# CONFIG
+# -------------------------
+
+bye_config = {}
+
+# -------------------------
+# VARIABLES
+# -------------------------
+
+def parse_text(texto, member):
+
+    if not texto:
+        return texto
+
+    return texto.replace("{user_name}", member.name) \
+                .replace("{user_mention}", member.mention) \
+                .replace("{user_id}", str(member.id)) \
+                .replace("{server_name}", member.guild.name) \
+                .replace("{user_avatar}", member.display_avatar.url)
+
+# -------------------------
+# COMANDO BYE
+# -------------------------
+
+@bot.tree.command(name="bye")
+@app_commands.checks.has_permissions(administrator=True)
+async def bye(
+    i: discord.Interaction,
+    canal: discord.TextChannel = None,
+    titulo: str = None,
+    descripcion: str = None,
+    color: str = None,
+    autor: str = None,
+    imagen_autor: str = None,
+    imagen_banner: str = None,
+    footer: str = None,
+    imagen_footer: str = None
+):
+
+    canal = canal or i.channel
+
+    # COLOR
+    try:
+        color_final = int(color.replace("#", ""), 16) if color else 0x000000
+    except:
+        color_final = 0x000000
+
+    # GUARDAR CONFIG
+    bye_config[i.guild.id] = {
+        "canal": canal.id,
+        "titulo": titulo,
+        "descripcion": descripcion,
+        "color": color_final,
+        "autor": autor,
+        "imagen_autor": imagen_autor,
+        "imagen_banner": imagen_banner,
+        "footer": footer,
+        "imagen_footer": imagen_footer
+    }
+
+    await i.response.send_message(
+        "✅ Despedida activada",
+        ephemeral=True
+    )
+
+# -------------------------
+# EVENTO REMOVE
+# -------------------------
+
+@bot.event
+async def on_member_remove(member):
+
+    if member.bot:
+        return
+
+    cfg = bye_config.get(member.guild.id)
+
+    if not cfg:
+        return
+
+    canal = member.guild.get_channel(cfg["canal"])
+
+    if not canal:
+        return
+
+    # EMBED
+    embed = discord.Embed(
+        title=parse_text(cfg.get("titulo") or "", member),
+        description=parse_text(cfg.get("descripcion") or "", member),
+        color=cfg.get("color", 0x000000)
+    )
+
+    # AUTOR
+    if cfg.get("autor"):
+        embed.set_author(
+            name=parse_text(cfg["autor"], member),
+            icon_url=parse_text(cfg.get("imagen_autor") or "", member)
+        )
+
+    # IMAGEN
+    if cfg.get("imagen_banner"):
+        embed.set_image(
+            url=parse_text(cfg["imagen_banner"], member)
+        )
+
+    # FOOTER
+    if cfg.get("footer"):
+        embed.set_footer(
+            text=parse_text(cfg["footer"], member),
+            icon_url=parse_text(cfg.get("imagen_footer") or "", member)
+        )
+
+    # ENVIAR
+    await canal.send(embed=embed)
+
+# -------------------------
 # FLASK WEB
 # -------------------------
 
