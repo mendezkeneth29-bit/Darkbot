@@ -590,7 +590,7 @@ async def ban(
 
     if usuario == i.user:
         await i.response.send_message(
-            "No puedes banearte a ti mismo 💀",
+            "No puedes banearte a ti mismo",
             ephemeral=True
         )
         return
@@ -600,7 +600,7 @@ async def ban(
         await usuario.ban(reason=razon)
 
         embed = discord.Embed(
-            title="🔨 Usuario Baneado",
+            title="Usuario Baneado",
             color=0x000000
         )
 
@@ -639,7 +639,7 @@ async def userinfo(
         roles = "Sin roles"
 
     embed = discord.Embed(
-        title="👤 User Info",
+        title="User Info",
         color=0x000000
     )
 
@@ -669,7 +669,7 @@ async def serverinfo(i: discord.Interaction):
     g = i.guild
 
     embed = discord.Embed(
-        title="🌌 Server Info",
+        title="Server Info",
         color=0x000000
     )
 
@@ -725,7 +725,7 @@ async def embed_edit(
         await mensaje.edit(embed=embed)
 
         await i.response.send_message(
-            "Embed editado 💜",
+            "Embed editado",
             ephemeral=True
         )
 
@@ -751,7 +751,7 @@ async def nuke(i: discord.Interaction):
     await canal.delete()
 
     embed = discord.Embed(
-        title="💣 Canal Nukeado",
+        title="Canal Nukeado",
         description="> Canal purificado exitosamente.",
         color=0x000000
     )
@@ -771,7 +771,7 @@ async def avatar(
     usuario = usuario or i.user
 
     embed = discord.Embed(
-        title=f"🖼 Avatar de {usuario.name}",
+        title=f"Avatar de {usuario.name}",
         color=0x000000
     )
 
@@ -842,7 +842,7 @@ async def warnings(
     ):
 
         await i.response.send_message(
-            "Ese usuario no tiene warnings 💜",
+            "Ese usuario no tiene warnings",
             ephemeral=True
         )
         return
@@ -886,7 +886,7 @@ async def lock(i: discord.Interaction):
     )
 
     embed = discord.Embed(
-        title="🔒 Canal Bloqueado",
+        title="Canal Bloqueado",
         description="> Nadie puede enviar mensajes.",
         color=0x000000
     )
@@ -913,7 +913,7 @@ async def unlock(i: discord.Interaction):
     )
 
     embed = discord.Embed(
-        title="🔓 Canal Desbloqueado",
+        title="Canal Desbloqueado",
         description="> Ya pueden hablar otra vez.",
         color=0x000000
     )
