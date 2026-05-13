@@ -452,6 +452,84 @@ async def ask(
         await i.followup.send(
             f"Error:\n```{e}```"
         )
+
+# -------------------------
+# RESPONDER AUTOMATICAMENTE
+# -------------------------
+
+@bot.event
+async def on_message(message):
+
+    # IGNORAR BOTS
+    if message.author.bot:
+        return
+
+    # IGNORAR SI NO RESPONDE A UN MENSAJE
+    if not message.reference:
+        return
+
+    try:
+
+        # OBTENER MENSAJE RESPONDIDO
+        replied = await message.channel.fetch_message(
+            message.reference.message_id
+        )
+
+        # SI EL MENSAJE NO ES DEL BOT
+        if replied.author != bot.user:
+            return
+
+        # IA RESPONDE
+        respuesta = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Tu nombre siempre es Daylight. "
+                        "Eres una IA divertida, sarcastica y amigable. "
+                        "Nunca cambias tu nombre."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": message.content
+                }
+            ]
+        )
+
+        texto = respuesta.choices[0].message.content
+
+        emisor = "\n".join(
+            [f"> {x}" for x in message.content.split("\n")]
+        )
+
+        receptor = "\n".join(
+            [f"> {x}" for x in texto.split("\n")]
+        )
+
+        embed = discord.Embed(
+            color=0x000000
+        )
+
+        embed.description = (
+            f"### Emisor\n"
+            f"{emisor}\n\n"
+            f"### Receptor\n"
+            f"{receptor}"
+        )
+
+        await message.reply(
+            embed=embed,
+            mention_author=False
+        )
+
+    except Exception as e:
+
+        await message.reply(
+            f"Error:\n```{e}```"
+        )
+        
 # -------------------------
 # FLASK WEB
 # -------------------------
