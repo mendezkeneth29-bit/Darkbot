@@ -30,6 +30,25 @@ bot = DarkyBot()
 async def on_ready():
     print(f"Conectado como {bot.user}")
 
+# -------------------------
+# DELETE
+# -------------------------
+
+@bot.tree.command(name="delete")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def delete(
+    i: discord.Interaction,
+    cantidad: app_commands.Range[int, 1, 1000]
+):
+
+    await i.response.defer(ephemeral=True)
+
+    eliminados = await i.channel.purge(limit=cantidad)
+
+    await i.followup.send(
+        f"🗑️ Se eliminaron {len(eliminados)} mensajes",
+        ephemeral=True
+    )
 
 # -------------------------
 # EMBED CREATE
