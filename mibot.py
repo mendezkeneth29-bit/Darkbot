@@ -3,9 +3,6 @@ import os
 import asyncio
 import random
 from datetime import datetime
-from PIL import Image, ImageDraw, ImageFont
-import requests
-from io import BytesIO
 
 from groq import AsyncGroq
 
@@ -471,13 +468,6 @@ async def ask(
 
 @bot.event
 async def on_message(message):
-        except Exception as e:
-
-        await message.reply(
-            f"Error:\n```{e}```"
-        )
-
-    await bot.process_commands(message)
 
     # IGNORAR BOTS
     if message.author.bot:
@@ -610,7 +600,7 @@ async def ban(
         await usuario.ban(reason=razon)
 
         embed = discord.Embed(
-            title="Usuario Baneado",
+            title="🔨 Usuario Baneado",
             color=0x000000
         )
 
@@ -649,7 +639,7 @@ async def userinfo(
         roles = "Sin roles"
 
     embed = discord.Embed(
-        title="User Info",
+        title="👤 User Info",
         color=0x000000
     )
 
@@ -679,7 +669,7 @@ async def serverinfo(i: discord.Interaction):
     g = i.guild
 
     embed = discord.Embed(
-        title="Server Info",
+        title="🌌 Server Info",
         color=0x000000
     )
 
@@ -735,7 +725,7 @@ async def embed_edit(
         await mensaje.edit(embed=embed)
 
         await i.response.send_message(
-            "Embed editado",
+            "Embed editado 💜",
             ephemeral=True
         )
 
@@ -761,7 +751,7 @@ async def nuke(i: discord.Interaction):
     await canal.delete()
 
     embed = discord.Embed(
-        title="Canal Nukeado",
+        title="💣 Canal Nukeado",
         description="> Canal purificado exitosamente.",
         color=0x000000
     )
@@ -781,7 +771,7 @@ async def avatar(
     usuario = usuario or i.user
 
     embed = discord.Embed(
-        title=f"Avatar de {usuario.name}",
+        title=f"🖼 Avatar de {usuario.name}",
         color=0x000000
     )
 
@@ -852,7 +842,7 @@ async def warnings(
     ):
 
         await i.response.send_message(
-            "Ese usuario no tiene warnings",
+            "Ese usuario no tiene warnings 💜",
             ephemeral=True
         )
         return
@@ -896,7 +886,7 @@ async def lock(i: discord.Interaction):
     )
 
     embed = discord.Embed(
-        title="Canal Bloqueado",
+        title="🔒 Canal Bloqueado",
         description="> Nadie puede enviar mensajes.",
         color=0x000000
     )
@@ -923,397 +913,12 @@ async def unlock(i: discord.Interaction):
     )
 
     embed = discord.Embed(
-        title="Canal Desbloqueado",
+        title="🔓 Canal Desbloqueado",
         description="> Ya pueden hablar otra vez.",
         color=0x000000
     )
 
     await i.response.send_message(embed=embed)
-
-# =========================================================
-# RANKING SYSTEM
-# =========================================================
-
-rank_data = {}
-rank_channel = {}
-rank_cooldown = {}
-
-# =========================================================
-# SET RANK CHANNEL
-# =========================================================
-
-@bot.tree.command(name="set-rank-channel")
-@app_commands.checks.has_permissions(administrator=True)
-async def set_rank_channel(
-    i: discord.Interaction,
-    canal: discord.TextChannel
-):
-
-    gid = str(i.guild.id)
-
-    rank_channel[gid] = canal.id
-
-    embed = discord.Embed(
-        title="Canal configurado",
-        description=(
-            f"> Los niveles ahora se enviarán en "
-            f"{canal.mention}"
-        ),
-        color=0x000000
-    )
-
-    await i.response.send_message(
-        embed=embed,
-        ephemeral=True
-    )
-
-# =========================================================
-# CREAR IMAGEN RANK
-# =========================================================
-
-async def create_rank_image(
-    member,
-    level,
-    progress
-):
-
-    width = 1200
-    height = 350
-
-    img = Image.new(
-        "RGB",
-        (width, height),
-        (0, 0, 0)
-    )
-
-    draw = ImageDraw.Draw(img)
-
-    # FOTO PERFIL
-    response = requests.get(
-        member.display_avatar.url
-    )
-
-    avatar = Image.open(
-        BytesIO(response.content)
-    ).convert("RGB")
-
-    avatar = avatar.resize((180, 180))
-
-    # MASCARA CIRCULAR
-    mask = Image.new(
-        "L",
-        (180, 180),
-        0
-    )
-
-    mask_draw = ImageDraw.Draw(mask)
-
-    mask_draw.ellipse(
-        (0, 0, 180, 180),
-        fill=255
-    )
-
-    avatar_bg = Image.new(
-        "RGBA",
-        (180, 180),
-        (0, 0, 0, 0)
-    )
-
-    avatar_bg.paste(
-        avatar,
-        (0, 0),
-        mask
-    )
-
-    img.paste(
-        avatar_bg,
-        (60, 85),
-        mask
-    )
-
-    # BORDE
-    draw.ellipse(
-        (55, 80, 245, 270),
-        outline="white",
-        width=5
-    )
-
-    # BARRA
-    bar_x = 320
-    bar_y = 150
-    bar_width = 700
-    bar_height = 45
-
-    draw.rounded_rectangle(
-        (
-            bar_x,
-            bar_y,
-            bar_x + bar_width,
-            bar_y + bar_height
-        ),
-        radius=25,
-        outline="white",
-        width=4
-    )
-
-    fill_width = int(
-        (progress / 100) * bar_width
-    )
-
-    draw.rounded_rectangle(
-        (
-            bar_x,
-            bar_y,
-            bar_x + fill_width,
-            bar_y + bar_height
-        ),
-        radius=25,
-        fill=(255, 215, 0)
-    )
-
-    # FUENTES
-    try:
-
-        font_big = ImageFont.truetype(
-            "arial.ttf",
-            40
-        )
-
-        font_small = ImageFont.truetype(
-            "arial.ttf",
-            30
-        )
-
-    except:
-
-        font_big = ImageFont.load_default()
-        font_small = ImageFont.load_default()
-
-    # %
-    draw.text(
-        (bar_x, 100),
-        f"{progress}%",
-        fill="white",
-        font=font_big
-    )
-
-    # NIVEL
-    draw.text(
-        (bar_x, 220),
-        f"Estudiante Nivel {level}",
-        fill=(255, 215, 0),
-        font=font_small
-    )
-
-    path = f"rank_{member.id}.png"
-
-    img.save(path)
-
-    return path
-
-# =========================================================
-# WATCH RANKING
-# =========================================================
-
-@bot.tree.command(name="watch-ranking")
-async def watch_ranking(i: discord.Interaction):
-
-    gid = str(i.guild.id)
-    uid = str(i.user.id)
-
-    # CREAR DATA
-    if gid not in rank_data:
-        rank_data[gid] = {}
-
-    if uid not in rank_data[gid]:
-
-        rank_data[gid][uid] = {
-            "messages": 0,
-            "level": 0,
-            "progress": 0
-        }
-
-    user = rank_data[gid][uid]
-
-    # IMAGEN
-    img_path = await create_rank_image(
-        i.user,
-        user["level"],
-        user["progress"]
-    )
-
-    file = discord.File(
-        img_path,
-        filename="rank.png"
-    )
-
-    embed = discord.Embed(
-        title=f"Ranking de {i.user.name}",
-        color=0x000000
-    )
-
-    embed.set_image(
-        url="attachment://rank.png"
-    )
-
-    await i.response.send_message(
-        embed=embed,
-        file=file
-    )
-
-    os.remove(img_path)
-
-# =========================================================
-# TABLE
-# =========================================================
-
-@bot.tree.command(name="table")
-async def table(i: discord.Interaction):
-
-    gid = str(i.guild.id)
-
-    if (
-        gid not in rank_data
-        or not rank_data[gid]
-    ):
-
-        await i.response.send_message(
-            "No hay ranking todavía",
-            ephemeral=True
-        )
-
-        return
-
-    users_sorted = sorted(
-        rank_data[gid].items(),
-        key=lambda x: (
-            x[1]["level"],
-            x[1]["progress"]
-        ),
-        reverse=True
-    )
-
-    texto = ""
-
-    for pos, (uid, data) in enumerate(
-        users_sorted,
-        start=1
-    ):
-
-        member = i.guild.get_member(
-            int(uid)
-        )
-
-        if not member:
-            continue
-
-        texto += (
-            f"> {pos}. {member.name}"
-            f" | Nivel {data['level']}"
-            f" | {data['progress']}%\n"
-        )
-
-    embed = discord.Embed(
-        title="🏆 Tabla de Ranking",
-        description=texto,
-        color=0x000000
-    )
-
-    await i.response.send_message(
-        embed=embed
-    )
-
-# =========================================================
-# LEVEL SYSTEM
-# =========================================================
-
-@bot.listen()
-async def on_rank_message(message):
-    if message.author.bot:
-        return
-
-    if not message.guild:
-        return
-
-    gid = str(message.guild.id)
-    uid = str(message.author.id)
-
-    # COOLDOWN
-    now = datetime.now().timestamp()
-
-    if uid in rank_cooldown:
-
-        if now - rank_cooldown[uid] < 5:
-            return
-
-    rank_cooldown[uid] = now
-
-    # CREAR DATA
-    if gid not in rank_data:
-        rank_data[gid] = {}
-
-    if uid not in rank_data[gid]:
-
-        rank_data[gid][uid] = {
-            "messages": 0,
-            "level": 0,
-            "progress": 0
-        }
-
-    user = rank_data[gid][uid]
-
-    # SUMAR
-    user["messages"] += 1
-    user["progress"] += 5
-
-    # LEVEL UP
-    if user["progress"] >= 100:
-
-        user["progress"] = 0
-        user["level"] += 1
-
-        # CANAL
-        send_channel = message.channel
-
-        if gid in rank_channel:
-
-            canal = message.guild.get_channel(
-                rank_channel[gid]
-            )
-
-            if canal:
-                send_channel = canal
-
-        # CREAR IMAGEN
-        img_path = await create_rank_image(
-            message.author,
-            user["level"],
-            user["progress"]
-        )
-
-        file = discord.File(
-            img_path,
-            filename="rank.png"
-        )
-
-        embed = discord.Embed(
-            title=(
-                f"{message.author.mention} "
-                f"subió al nivel {user['level']} 🎓"
-            ),
-            color=0x000000
-        )
-
-        embed.set_image(
-            url="attachment://rank.png"
-        )
-
-        await send_channel.send(
-            embed=embed,
-            file=file
-        )
-
-        os.remove(img_path)
         
 # -------------------------
 # FLASK WEB
