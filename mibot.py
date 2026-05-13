@@ -1,5 +1,11 @@
 import discord
 import os
+import asyncio
+import random
+from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
+import requests
+from io import BytesIO
 
 from groq import AsyncGroq
 
@@ -11,6 +17,14 @@ from discord.ext import commands
 from discord import app_commands
 
 TOKEN = os.getenv("TOKEN")
+
+# -------------------------
+# DATA
+# -------------------------
+
+warnings_data = {}
+rank_data = {}
+rank_channel = {}
 
 # -------------------------
 # BOT
@@ -566,6 +580,428 @@ Debes responder de forma natural y casual.
         await message.reply(
             f"Error:\n```{e}```"
         )
+
+# =========================================================
+# BAN
+# =========================================================
+
+@bot.tree.command(name="ban")
+@app_commands.checks.has_permissions(ban_members=True)
+async def ban(
+    i: discord.Interaction,
+    usuario: discord.Member,
+    razon: str = "Sin razón"
+):
+
+    if usuario == i.user:
+        await i.response.send_message(
+            "No puedes banearte a ti mismo 💀",
+            ephemeral=True
+        )
+        return
+
+    try:
+
+        await usuario.ban(reason=razon)
+
+        embed = discord.Embed(
+            title="Usuario Baneado",
+            color=0x000000
+        )
+
+        embed.description = (
+            f"> Usuario: {usuario.mention}\n"
+            f"> Razón: {razon}\n"
+            f"> Moderador: {i.user.mention}"
+        )
+
+        await i.response.send_message(embed=embed)
+
+    except Exception as e:
+
+        await i.response.send_message(
+            f"Error:\n```{e}```",
+            ephemeral=True
+        )
+
+# =========================================================
+# USERINFO
+# =========================================================
+
+@bot.tree.command(name="userinfo")
+async def userinfo(
+    i: discord.Interaction,
+    usuario: discord.Member = None
+):
+
+    usuario = usuario or i.user
+
+    roles = ", ".join(
+        [r.mention for r in usuario.roles[1:]]
+    )
+
+    if not roles:
+        roles = "Sin roles"
+
+    embed = discord.Embed(
+        title="User Info",
+        color=0x000000
+    )
+
+    embed.set_thumbnail(
+        url=usuario.display_avatar.url
+    )
+
+    embed.description = (
+        f"> Usuario: {usuario.mention}\n"
+        f"> ID: {usuario.id}\n"
+        f"> Nombre: {usuario.name}\n"
+        f"> Display: {usuario.display_name}\n"
+        f"> Cuenta creada: <t:{int(usuario.created_at.timestamp())}:R>\n"
+        f"> Entró al server: <t:{int(usuario.joined_at.timestamp())}:R>\n"
+        f"> Roles: {roles}"
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# SERVERINFO
+# =========================================================
+
+@bot.tree.command(name="serverinfo")
+async def serverinfo(i: discord.Interaction):
+
+    g = i.guild
+
+    embed = discord.Embed(
+        title="Server Info",
+        color=0x000000
+    )
+
+    if g.icon:
+        embed.set_thumbnail(url=g.icon.url)
+
+    embed.description = (
+        f"> Nombre: {g.name}\n"
+        f"> ID: {g.id}\n"
+        f"> Owner: {g.owner.mention}\n"
+        f"> Miembros: {g.member_count}\n"
+        f"> Canales: {len(g.channels)}\n"
+        f"> Roles: {len(g.roles)}\n"
+        f"> Creado: <t:{int(g.created_at.timestamp())}:R>"
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# EMBED EDIT
+# =========================================================
+
+@bot.tree.command(name="embed-edit")
+@app_commands.checks.has_permissions(administrator=True)
+async def embed_edit(
+    i: discord.Interaction,
+    mensaje_id: str,
+    titulo: str = None,
+    descripcion: str = None
+):
+
+    try:
+
+        mensaje = await i.channel.fetch_message(
+            int(mensaje_id)
+        )
+
+        if not mensaje.embeds:
+            await i.response.send_message(
+                "Ese mensaje no tiene embeds",
+                ephemeral=True
+            )
+            return
+
+        viejo = mensaje.embeds[0]
+
+        embed = discord.Embed(
+            title=titulo if titulo else viejo.title,
+            description=descripcion if descripcion else viejo.description,
+            color=0x000000
+        )
+
+        await mensaje.edit(embed=embed)
+
+        await i.response.send_message(
+            "Embed editado",
+            ephemeral=True
+        )
+
+    except Exception as e:
+
+        await i.response.send_message(
+            f"Error:\n```{e}```",
+            ephemeral=True
+        )
+
+# =========================================================
+# NUKE
+# =========================================================
+
+@bot.tree.command(name="nuke")
+@app_commands.checks.has_permissions(manage_channels=True)
+async def nuke(i: discord.Interaction):
+
+    canal = i.channel
+
+    nuevo = await canal.clone()
+
+    await canal.delete()
+
+    embed = discord.Embed(
+        title="Canal Nukeado",
+        description="> Canal purificado exitosamente.",
+        color=0x000000
+    )
+
+    await nuevo.send(embed=embed)
+
+# =========================================================
+# AVATAR
+# =========================================================
+
+@bot.tree.command(name="avatar")
+async def avatar(
+    i: discord.Interaction,
+    usuario: discord.Member = None
+):
+
+    usuario = usuario or i.user
+
+    embed = discord.Embed(
+        title=f"Avatar de {usuario.name}",
+        color=0x000000
+    )
+
+    embed.set_image(
+        url=usuario.display_avatar.url
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# WARN
+# =========================================================
+
+@bot.tree.command(name="warn")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def warn(
+    i: discord.Interaction,
+    usuario: discord.Member,
+    razon: str
+):
+
+    gid = str(i.guild.id)
+    uid = str(usuario.id)
+
+    if gid not in warnings_data:
+        warnings_data[gid] = {}
+
+    if uid not in warnings_data[gid]:
+        warnings_data[gid][uid] = []
+
+    warnings_data[gid][uid].append({
+        "razon": razon,
+        "moderador": str(i.user),
+        "fecha": str(datetime.now())
+    })
+
+    total = len(warnings_data[gid][uid])
+
+    embed = discord.Embed(
+        title="⚠ Usuario Advertido",
+        color=0x000000
+    )
+
+    embed.description = (
+        f"> Usuario: {usuario.mention}\n"
+        f"> Razón: {razon}\n"
+        f"> Warnings: {total}"
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# WARNINGS
+# =========================================================
+
+@bot.tree.command(name="warnings")
+async def warnings(
+    i: discord.Interaction,
+    usuario: discord.Member
+):
+
+    gid = str(i.guild.id)
+    uid = str(usuario.id)
+
+    if (
+        gid not in warnings_data
+        or uid not in warnings_data[gid]
+    ):
+
+        await i.response.send_message(
+            "Ese usuario no tiene warnings",
+            ephemeral=True
+        )
+        return
+
+    warns = warnings_data[gid][uid]
+
+    texto = ""
+
+    for n, w in enumerate(warns, start=1):
+
+        texto += (
+            f"> {n}. {w['razon']}\n"
+            f"> Moderador: {w['moderador']}\n\n"
+        )
+
+    embed = discord.Embed(
+        title=f"⚠ Warnings de {usuario.name}",
+        description=texto,
+        color=0x000000
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# LOCK
+# =========================================================
+
+@bot.tree.command(name="lock")
+@app_commands.checks.has_permissions(manage_channels=True)
+async def lock(i: discord.Interaction):
+
+    overwrite = i.channel.overwrites_for(
+        i.guild.default_role
+    )
+
+    overwrite.send_messages = False
+
+    await i.channel.set_permissions(
+        i.guild.default_role,
+        overwrite=overwrite
+    )
+
+    embed = discord.Embed(
+        title="Canal Bloqueado",
+        description="> Nadie puede enviar mensajes.",
+        color=0x000000
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# UNLOCK
+# =========================================================
+
+@bot.tree.command(name="unlock")
+@app_commands.checks.has_permissions(manage_channels=True)
+async def unlock(i: discord.Interaction):
+
+    overwrite = i.channel.overwrites_for(
+        i.guild.default_role
+    )
+
+    overwrite.send_messages = True
+
+    await i.channel.set_permissions(
+        i.guild.default_role,
+        overwrite=overwrite
+    )
+
+    embed = discord.Embed(
+        title="Canal Desbloqueado",
+        description="> Ya pueden hablar otra vez.",
+        color=0x000000
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+            "level": 0,
+            "progress": 0
+        }
+
+    user = rank_data[gid][uid]
+
+    img_path = await create_rank_image(
+        i.user,
+        user["level"],
+        user["progress"]
+    )
+
+    file = discord.File(img_path)
+
+    embed = discord.Embed(
+        title=f"Ranking de {i.user.name}",
+        color=0x000000
+    )
+
+    embed.set_image(
+        url=f"attachment://{img_path}"
+    )
+
+    await i.response.send_message(
+        embed=embed,
+        file=file
+    )
+
+    os.remove(img_path)
+
+# =========================================================
+# TABLE
+# =========================================================
+
+@bot.tree.command(name="table")
+async def table(i: discord.Interaction):
+
+    gid = str(i.guild.id)
+
+    if gid not in rank_data or not rank_data[gid]:
+
+        await i.response.send_message(
+            "No hay datos de ranking",
+            ephemeral=True
+        )
+
+        return
+
+    users_sorted = sorted(
+        rank_data[gid].items(),
+        key=lambda x: x[1]["level"],
+        reverse=True
+    )
+
+    texto = ""
+
+    for pos, (uid, data) in enumerate(users_sorted, start=1):
+
+        member = i.guild.get_member(int(uid))
+
+        if not member:
+            continue
+
+        texto += (
+            f"> {pos}. {member.name}"
+            f" | Nivel: {data['level']}"
+            f" | Progreso: {data['progress']}%\n"
+        )
+
+    embed = discord.Embed(
+        title="🏆 Tabla de Ranking",
+        description=texto,
+        color=0x000000
+    )
+
+    await i.response.send_message(embed=embed)
         
 # -------------------------
 # FLASK WEB
