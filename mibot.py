@@ -926,12 +926,17 @@ async def unlock(i: discord.Interaction):
     await i.response.send_message(embed=embed)
 
 # =========================================================
-            "level": 0,
-            "progress": 0
-        }
+if gid not in rank_data:
+    rank_data[gid] = {}
 
-    user = rank_data[gid][uid]
+if uid not in rank_data[gid]:
+    rank_data[gid][uid] = {
+        "messages": 0,
+        "level": 0,
+        "progress": 0
+    }
 
+user = rank_data[gid][uid]
     img_path = await create_rank_image(
         i.user,
         user["level"],
