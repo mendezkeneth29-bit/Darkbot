@@ -1,7 +1,14 @@
 import discord
+import os
+
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
+)
+
 from discord.ext import commands
 from discord import app_commands
-import os
 
 TOKEN = os.getenv("TOKEN")
 
@@ -391,6 +398,61 @@ async def reset_bye(i: discord.Interaction):
         await i.response.send_message(
             "No hay configuración de despedida",
             ephemeral=True
+        )
+
+# -------------------------
+# ASK_IA
+# -------------------------
+
+@bot.tree.command(name="ask")
+async def ask(
+    i: discord.Interaction,
+    mensaje: str
+):
+
+    await i.response.defer()
+
+    try:
+
+        respuesta = await client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Eres una IA amigable, divertida y algo sarcastica."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": mensaje
+                }
+            ]
+        )
+
+        texto = respuesta.choices[0].message.content
+
+        # FORMATO CON >
+        emisor = "\n".join([f"> {x}" for x in mensaje.split("\n")])
+        receptor = "\n".join([f"> {x}" for x in texto.split("\n")])
+
+        embed = discord.Embed(
+            color=0x000000
+        )
+
+        embed.description = (
+            f"### Emisor\n"
+            f"{emisor}\n\n"
+            f"### Receptor\n"
+            f"{receptor}"
+        )
+
+        await i.followup.send(embed=embed)
+
+    except Exception as e:
+
+        await i.followup.send(
+            f"Error:\n```{e}```"
         )
 
 # -------------------------
