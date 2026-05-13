@@ -1,11 +1,13 @@
 import discord
 import os
 
-from openai import AsyncOpenAI
+import google.generativeai as genai
 
-client = AsyncOpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
+genai.configure(
+    api_key=os.getenv("GEMINI_API_KEY")
 )
+
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 from discord.ext import commands
 from discord import app_commands
@@ -399,25 +401,12 @@ async def ask(
 
     try:
 
-        respuesta = await client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Eres una IA amigable, divertida y algo sarcastica."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": mensaje
-                }
-            ]
+        respuesta = model.generate_content(
+            f"Eres una IA divertida y sarcastica.\nUsuario: {mensaje}"
         )
 
-        texto = respuesta.choices[0].message.content
+        texto = respuesta.text
 
-        # FORMATO CON >
         emisor = "\n".join([f"> {x}" for x in mensaje.split("\n")])
         receptor = "\n".join([f"> {x}" for x in texto.split("\n")])
 
@@ -439,7 +428,6 @@ async def ask(
         await i.followup.send(
             f"Error:\n```{e}```"
         )
-
 # -------------------------
 # FLASK WEB
 # -------------------------
