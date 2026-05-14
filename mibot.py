@@ -28,9 +28,8 @@ warnings_data = {}
 class DarkyBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix=commands.when_mentioned_or(">dl "),
-            intents=discord.Intents.all(),
-            case_insensitive=True
+            command_prefix=">Dl",
+            intents=discord.Intents.all()
         )
 
     async def setup_hook(self):
@@ -405,7 +404,7 @@ client = AsyncGroq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-@bot.hybrid_command(name="ask")
+@bot.tree.command(name="ask")
 async def ask(
     i: discord.Interaction,
     mensaje: str
@@ -555,13 +554,23 @@ async def ask(
 @bot.event
 async def on_message(message):
 
+    # IGNORAR BOTS
     if message.author.bot:
         return
 
-    # PERMITE PREFIX COMMANDS
+    @bot.event
+async def on_message(message):
+
+    if message.author.bot:
+        return
+
     await bot.process_commands(message)
 
-    # SOLO SI RESPONDEN A UN MENSAJE
+    # SI NO RESPONDE A UN MENSAJE
+    if not message.reference:
+        return
+
+    # SI NO RESPONDE A UN MENSAJE
     if not message.reference:
         return
 
@@ -668,7 +677,7 @@ Debes responder de forma natural y casual.
 # BAN
 # =========================================================
 
-@bot.hybrid_command(name="ban")
+@bot.tree.command(name="ban")
 @app_commands.checks.has_permissions(ban_members=True)
 async def ban(
     i: discord.Interaction,
@@ -711,7 +720,7 @@ async def ban(
 # USERINFO
 # =========================================================
 
-@bot.hybrid_command(name="userinfo")
+@bot.tree.command(name="userinfo")
 async def userinfo(
     i: discord.Interaction,
     usuario: discord.Member = None
@@ -751,7 +760,7 @@ async def userinfo(
 # SERVERINFO
 # =========================================================
 
-@bot.hybrid_command(name="serverinfo")
+@bot.tree.command(name="serverinfo")
 async def serverinfo(i: discord.Interaction):
 
     g = i.guild
@@ -828,7 +837,7 @@ async def embed_edit(
 # NUKE
 # =========================================================
 
-@bot.hybrid_command(name="nuke")
+@bot.tree.command(name="nuke")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def nuke(i: discord.Interaction):
 
@@ -850,7 +859,7 @@ async def nuke(i: discord.Interaction):
 # AVATAR
 # =========================================================
 
-@bot.hybrid_command(name="avatar")
+@bot.tree.command(name="avatar")
 async def avatar(
     i: discord.Interaction,
     usuario: discord.Member = None
@@ -873,7 +882,7 @@ async def avatar(
 # WARN
 # =========================================================
 
-@bot.hybrid_command(name="warn")
+@bot.tree.command(name="warn")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def warn(
     i: discord.Interaction,
@@ -915,7 +924,7 @@ async def warn(
 # WARNINGS
 # =========================================================
 
-@bot.hybrid_command(name="warnings")
+@bot.tree.command(name="warnings")
 async def warnings(
     i: discord.Interaction,
     usuario: discord.Member
@@ -958,7 +967,7 @@ async def warnings(
 # LOCK
 # =========================================================
 
-@bot.hybrid_command(name="lock")
+@bot.tree.command(name="lock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def lock(i: discord.Interaction):
 
@@ -985,7 +994,7 @@ async def lock(i: discord.Interaction):
 # UNLOCK
 # =========================================================
 
-@bot.hybrid_command(name="unlock")
+@bot.tree.command(name="unlock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def unlock(i: discord.Interaction):
 
