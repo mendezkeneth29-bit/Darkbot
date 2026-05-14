@@ -554,13 +554,6 @@ async def ask(
 @bot.event
 async def on_message(message):
 
-    # IGNORAR BOTS
-    if message.author.bot:
-        return
-
-    @bot.event
-async def on_message(message):
-
     if message.author.bot:
         return
 
