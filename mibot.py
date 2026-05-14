@@ -558,7 +558,23 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    # PERMITE COMANDOS PREFIX
     await bot.process_commands(message)
+
+    # SOLO RESPONDE SI ES REPLY
+    if not message.reference:
+        return
+
+    try:
+
+        replied = await message.channel.fetch_message(
+            message.reference.message_id
+        )
+
+        if replied.author.id != bot.user.id:
+            return
+
+        # TU CODIGO IA...
 
     # SI NO RESPONDE A UN MENSAJE
     if not message.reference:
