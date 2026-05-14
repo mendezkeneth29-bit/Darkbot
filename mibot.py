@@ -28,8 +28,9 @@ warnings_data = {}
 class DarkyBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix=">Dl",
-            intents=discord.Intents.all()
+            command_prefix=commands.when_mentioned_or(">dl "),
+            intents=discord.Intents.all(),
+            case_insensitive=True
         )
 
     async def setup_hook(self):
