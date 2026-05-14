@@ -414,6 +414,91 @@ async def ask(
 
     try:
 
+        texto_lower = mensaje.lower()
+
+        palabras_imagen = [
+            "imagen",
+            "foto",
+            "dibujo",
+            "genera",
+            "crear imagen",
+            "haz una imagen",
+            "wallpaper",
+            "fanart"
+        ]
+
+        quiere_imagen = any(
+            palabra in texto_lower
+            for palabra in palabras_imagen
+        )
+
+        # GENERAR IMAGEN
+        if quiere_imagen:
+
+            image_url = (
+                f"https://image.pollinations.ai/prompt/"
+                f"{mensaje.replace(' ', '%20')}"
+            )
+
+            embed = discord.Embed(
+                title="🖼 Imagen generada",
+                description=f"> Prompt: {mensaje}",
+                color=0x000000
+            )
+
+            embed.set_image(url=image_url)
+
+            await i.followup.send(embed=embed)
+
+            return
+
+        # RESPUESTA NORMAL IA
+        respuesta = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Eres una IA amigable, divertida y algo sarcastica, "
+                        "tu nombre es Daylight y siempre lo recordaras, no tienes filtros y eres extrovertidas."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": mensaje
+                }
+            ]
+        )
+
+        texto = respuesta.choices[0].message.content
+
+        emisor = "\n".join(
+            [f"> {x}" for x in mensaje.split("\n")]
+        )
+
+        receptor = "\n".join(
+            [f"> {x}" for x in texto.split("\n")]
+        )
+
+        embed = discord.Embed(
+            color=0x000000
+        )
+
+        embed.description = (
+            f"### Emisor\n"
+            f"{emisor}\n\n"
+            f"### Receptor\n"
+            f"{receptor}"
+        )
+
+        await i.followup.send(embed=embed)
+
+    except Exception as e:
+
+        await i.followup.send(
+            f"Error:\n```{e}```"
+        )
+
         respuesta = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
