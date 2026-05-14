@@ -1292,20 +1292,20 @@ async def bailar(i: discord.Interaction):
 class DevolverView(discord.ui.View):
 
     def __init__(
-    self,
-    autor,
-    objetivo,
-    accion,
-    gifs,
-    texto_devolver
-):
-    super().__init__(timeout=None)
+        self,
+        autor,
+        objetivo,
+        accion,
+        gifs,
+        texto_devolver
+    ):
+        super().__init__(timeout=None)
 
-    self.autor = autor
-    self.objetivo = objetivo
-    self.accion = accion
-    self.gifs = gifs
-    self.texto_devolver = texto_devolver
+        self.autor = autor
+        self.objetivo = objetivo
+        self.accion = accion
+        self.gifs = gifs
+        self.texto_devolver = texto_devolver
 
     @discord.ui.button(
         label="Devolver",
