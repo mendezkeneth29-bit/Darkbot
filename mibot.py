@@ -1011,13 +1011,13 @@ async def unlock(i: discord.Interaction):
 
 # GIFS
 abrazar_gifs = [
-    "https://media.tenor.com/0jWk6K7b6xAAAAAC/stranger-things-hug.gif",
-    "https://media.tenor.com/FxqEp0l0kKAAAAAC/wednesday-hug.gif"
+    "https://tenor.com/es-US/view/harry-potter-hermione-granger-gif-19915872",
+    "https://tenor.com/es-US/view/mileven-mileven-season-5-mileven-hug-mileven-reunion-mike-wheeler-gif-1031149959124018240"
 ]
 
 besar_gifs = [
-    "https://media.tenor.com/8lWlN8Y6xEAAAAAC/wednesday-kiss.gif",
-    "https://media.tenor.com/y6kF8K6Y8gAAAAAC/stranger-things-kiss.gif"
+    "https://tenor.com/es-US/view/harry-potter-ginny-kiss-love-win-gif-4958198",
+    "https://tenor.com/es-US/view/jenna-ortega-emma-myers-wednesday-enid-serie-clip-gif-3794335437046571717"
 ]
 
 bofetada_gifs = [
