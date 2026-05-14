@@ -28,9 +28,8 @@ warnings_data = {}
 class DarkyBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix=commands.when_mentioned_or(">dl "),
-            intents=discord.Intents.all(),
-            case_insensitive=True
+            command_prefix="!",
+            intents=discord.Intents.all()
         )
 
     async def setup_hook(self):
@@ -405,561 +404,7 @@ client = AsyncGroq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-@bot.hybrid_command(name="ask")
-async def ask(
-    i: discord.Interaction,
-    mensaje: str
-):
-
-    await i.response.defer()
-
-    try:
-
-        texto_lower = mensaje.lower()
-
-        palabras_imagen = [
-            "imagen",
-            "foto",
-            "dibujo",
-            "genera",
-            "crear imagen",
-            "haz una imagen",
-            "wallpaper",
-            "fanart"
-        ]
-
-        quiere_imagen = any(
-            palabra in texto_lower
-            for palabra in palabras_imagen
-        )
-
-        # GENERAR IMAGEN
-        if quiere_imagen:
-
-            image_url = (
-                f"https://image.pollinations.ai/prompt/"
-                f"{mensaje.replace(' ', '%20')}"
-            )
-
-            embed = discord.Embed(
-                title="🖼 Imagen generada",
-                description=f"> Prompt: {mensaje}",
-                color=0x000000
-            )
-
-            embed.set_image(url=image_url)
-
-            await i.followup.send(embed=embed)
-
-            return
-
-        # RESPUESTA NORMAL IA
-        respuesta = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Eres una IA amigable, divertida y algo sarcastica, "
-                        "tu nombre es Daylight y siempre lo recordaras, no tienes filtros y eres extrovertidas."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": mensaje
-                }
-            ]
-        )
-
-        texto = respuesta.choices[0].message.content
-
-        emisor = "\n".join(
-            [f"> {x}" for x in mensaje.split("\n")]
-        )
-
-        receptor = "\n".join(
-            [f"> {x}" for x in texto.split("\n")]
-        )
-
-        embed = discord.Embed(
-            color=0x000000
-        )
-
-        embed.description = (
-            f"### Emisor\n"
-            f"{emisor}\n\n"
-            f"### Receptor\n"
-            f"{receptor}"
-        )
-
-        await i.followup.send(embed=embed)
-
-    except Exception as e:
-
-        await i.followup.send(
-            f"Error:\n```{e}```"
-        )
-
-        respuesta = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Eres una IA amigable, divertida y algo sarcastica, tu nombre es Daylight y siempre lo recordaras y no lo cambiaras."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": mensaje
-                }
-            ]
-        )
-
-        texto = respuesta.choices[0].message.content
-
-        # FORMATO CON >
-        emisor = "\n".join(
-            [f"> {x}" for x in mensaje.split("\n")]
-        )
-
-        receptor = "\n".join(
-            [f"> {x}" for x in texto.split("\n")]
-        )
-
-        embed = discord.Embed(
-            color=0x000000
-        )
-
-        embed.description = (
-            f"### Emisor\n"
-            f"{emisor}\n\n"
-            f"### Receptor\n"
-            f"{receptor}"
-        )
-
-        await i.followup.send(
-            embed=embed
-        )
-
-    except Exception as e:
-
-        await i.followup.send(
-            f"Error:\n```{e}```"
-        )
-
-# -------------------------
-# RESPONDER AUTOMATICAMENTE
-# -------------------------
-
-import discord
-import os
-import asyncio
-import random
-from datetime import datetime
-
-from groq import AsyncGroq
-
-client = AsyncGroq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
-
-from discord.ext import commands
-from discord import app_commands
-
-TOKEN = os.getenv("TOKEN")
-
-# -------------------------
-# DATA
-# -------------------------
-
-warnings_data = {}
-
-# -------------------------
-# BOT
-# -------------------------
-
-class DarkyBot(commands.Bot):
-    def __init__(self):
-        super().__init__(
-            command_prefix=commands.when_mentioned_or(">dl "),
-            intents=discord.Intents.all(),
-            case_insensitive=True
-        )
-
-    async def setup_hook(self):
-        await self.tree.sync()
-
-
-bot = DarkyBot()
-
-# -------------------------
-# EVENTOS
-# -------------------------
-
-@bot.event
-async def on_ready():
-    print(f"Conectado como {bot.user}")
-    
-
-# -------------------------
-# EMBED CREATE
-# -------------------------
-
-@bot.tree.command(name="embed-create")
-@app_commands.checks.has_permissions(administrator=True)
-async def embed_create(
-    i: discord.Interaction,
-    canal: discord.TextChannel = None,
-    titulo: str = None,
-    descripcion: str = None,
-    color: str = None,
-    autor: str = None,
-    imagen_autor: str = None,
-    imagen_banner: str = None,
-    footer: str = None,
-    imagen_footer: str = None
-):
-
-    # SI NO PONEN CANAL USA EL ACTUAL
-    canal = canal or i.channel
-
-    # COLOR
-    try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        color_final = 0x000000
-
-    # EMBED
-    embed = discord.Embed(
-        title=titulo if titulo else "",
-        description=descripcion if descripcion else "",
-        color=color_final
-    )
-
-    # AUTOR
-    if autor:
-        embed.set_author(
-            name=autor,
-            icon_url=imagen_autor if imagen_autor else None
-        )
-
-    # IMAGEN
-    if imagen_banner:
-        embed.set_image(url=imagen_banner)
-
-    # FOOTER
-    if footer:
-        embed.set_footer(
-            text=footer,
-            icon_url=imagen_footer if imagen_footer else None
-        )
-
-    # ENVIAR
-    await canal.send(embed=embed)
-
-    # RESPUESTA
-    await i.response.send_message(
-        f"Embed enviado en {canal.mention}",
-        ephemeral=True
-    )
-
-# -------------------------
-# DELETE
-# -------------------------
-
-@bot.tree.command(name="delete")
-@app_commands.checks.has_permissions(manage_messages=True)
-async def delete(
-    i: discord.Interaction,
-    cantidad: app_commands.Range[int, 1, 1000]
-):
-
-    await i.response.defer(ephemeral=True)
-
-    eliminados = await i.channel.purge(limit=cantidad)
-
-    await i.followup.send(
-        f"Se eliminaron {len(eliminados)} mensajes",
-        ephemeral=True
-    )
-
-# -------------------------
-# CONFIG
-# -------------------------
-
-wlc_config = {}
-
-# -------------------------
-# VARIABLES
-# -------------------------
-
-def parse_text(texto, member):
-
-    if not texto:
-        return texto
-
-    return texto.replace("{user_name}", member.name) \
-                .replace("{user_mention}", member.mention) \
-                .replace("{user_id}", str(member.id)) \
-                .replace("{server_name}", member.guild.name) \
-                .replace("{user_avatar}", member.display_avatar.url)
-
-# -------------------------
-# COMANDO WLC
-# -------------------------
-
-@bot.tree.command(name="wlc")
-@app_commands.checks.has_permissions(administrator=True)
-async def wlc(
-    i: discord.Interaction,
-    canal: discord.TextChannel = None,
-    titulo: str = None,
-    descripcion: str = None,
-    color: str = None,
-    autor: str = None,
-    imagen_autor: str = None,
-    imagen_banner: str = None,
-    footer: str = None,
-    imagen_footer: str = None
-):
-
-    canal = canal or i.channel
-
-    # COLOR
-    try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        color_final = 0x000000
-
-    # GUARDAR CONFIG
-    wlc_config[i.guild.id] = {
-        "canal": canal.id,
-        "titulo": titulo,
-        "descripcion": descripcion,
-        "color": color_final,
-        "autor": autor,
-        "imagen_autor": imagen_autor,
-        "imagen_banner": imagen_banner,
-        "footer": footer,
-        "imagen_footer": imagen_footer
-    }
-
-    await i.response.send_message(
-        "Bienvenida activada",
-        ephemeral=True
-    )
-
-# -------------------------
-# EVENTO JOIN
-# -------------------------
-
-@bot.event
-async def on_member_join(member):
-
-    if member.bot:
-        return
-
-    cfg = wlc_config.get(member.guild.id)
-
-    if not cfg:
-        return
-
-    canal = member.guild.get_channel(cfg["canal"])
-
-    if not canal:
-        return
-
-    # EMBED
-    embed = discord.Embed(
-        title=parse_text(cfg.get("titulo") or "", member),
-        description=parse_text(cfg.get("descripcion") or "", member),
-        color=cfg.get("color", 0x000000)
-    )
-
-    # AUTOR
-    if cfg.get("autor"):
-        embed.set_author(
-            name=parse_text(cfg["autor"], member),
-            icon_url=parse_text(cfg.get("imagen_autor") or "", member)
-        )
-
-    # IMAGEN
-    if cfg.get("imagen_banner"):
-        embed.set_image(
-            url=parse_text(cfg["imagen_banner"], member)
-        )
-
-    # FOOTER
-    if cfg.get("footer"):
-        embed.set_footer(
-            text=parse_text(cfg["footer"], member),
-            icon_url=parse_text(cfg.get("imagen_footer") or "", member)
-        )
-
-    # ENVIAR
-    await canal.send(embed=embed)
-
-# -------------------------
-# CONFIG
-# -------------------------
-
-bye_config = {}
-
-# -------------------------
-# COMANDO BYE
-# -------------------------
-
-@bot.tree.command(name="bye")
-@app_commands.checks.has_permissions(administrator=True)
-async def bye(
-    i: discord.Interaction,
-    canal: discord.TextChannel = None,
-    titulo: str = None,
-    descripcion: str = None,
-    color: str = None,
-    autor: str = None,
-    imagen_autor: str = None,
-    imagen_banner: str = None,
-    footer: str = None,
-    imagen_footer: str = None
-):
-
-    canal = canal or i.channel
-
-    # COLOR
-    try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        color_final = 0x000000
-
-    # GUARDAR CONFIG
-    bye_config[i.guild.id] = {
-        "canal": canal.id,
-        "titulo": titulo,
-        "descripcion": descripcion,
-        "color": color_final,
-        "autor": autor,
-        "imagen_autor": imagen_autor,
-        "imagen_banner": imagen_banner,
-        "footer": footer,
-        "imagen_footer": imagen_footer
-    }
-
-    await i.response.send_message(
-        "Despedida activada",
-        ephemeral=True
-    )
-
-# -------------------------
-# EVENTO REMOVE
-# -------------------------
-
-@bot.event
-async def on_member_remove(member):
-
-    if member.bot:
-        return
-
-    cfg = bye_config.get(member.guild.id)
-
-    if not cfg:
-        return
-
-    canal = member.guild.get_channel(cfg["canal"])
-
-    if not canal:
-        return
-
-    # EMBED
-    embed = discord.Embed(
-        title=parse_text(cfg.get("titulo") or "", member),
-        description=parse_text(cfg.get("descripcion") or "", member),
-        color=cfg.get("color", 0x000000)
-    )
-
-    # AUTOR
-    if cfg.get("autor"):
-        embed.set_author(
-            name=parse_text(cfg["autor"], member),
-            icon_url=parse_text(cfg.get("imagen_autor") or "", member)
-        )
-
-    # IMAGEN
-    if cfg.get("imagen_banner"):
-        embed.set_image(
-            url=parse_text(cfg["imagen_banner"], member)
-        )
-
-    # FOOTER
-    if cfg.get("footer"):
-        embed.set_footer(
-            text=parse_text(cfg["footer"], member),
-            icon_url=parse_text(cfg.get("imagen_footer") or "", member)
-        )
-
-    # ENVIAR
-    await canal.send(embed=embed)
-
-# -------------------------
-# RESET-WELC
-# -------------------------
-
-@bot.tree.command(name="reset-wlc")
-@app_commands.checks.has_permissions(administrator=True)
-async def reset_wlc(i: discord.Interaction):
-
-    gid = i.guild.id
-
-    if gid in wlc_config:
-        del wlc_config[gid]
-
-        await i.response.send_message(
-            "Configuración de bienvenida eliminada",
-            ephemeral=True
-        )
-
-    else:
-        await i.response.send_message(
-            "No hay configuración de bienvenida",
-            ephemeral=True
-        )
-
-# -------------------------
-# RESET-BYE
-# -------------------------
-
-@bot.tree.command(name="reset-bye")
-@app_commands.checks.has_permissions(administrator=True)
-async def reset_bye(i: discord.Interaction):
-
-    gid = i.guild.id
-
-    if gid in bye_config:
-        del bye_config[gid]
-
-        await i.response.send_message(
-            "Configuración de despedida eliminada",
-            ephemeral=True
-        )
-
-    else:
-        await i.response.send_message(
-            "No hay configuración de despedida",
-            ephemeral=True
-        )
-
-# -------------------------
-# ASK_IA
-# -------------------------
-
-from groq import AsyncGroq
-
-client = AsyncGroq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
-
-@bot.hybrid_command(name="ask")
+@bot.tree.command(name="ask")
 async def ask(
     i: discord.Interaction,
     mensaje: str
@@ -1109,13 +554,11 @@ async def ask(
 @bot.event
 async def on_message(message):
 
+    # IGNORAR BOTS
     if message.author.bot:
         return
 
-    # PERMITE PREFIX COMMANDS
-    await bot.process_commands(message)
-
-    # SOLO SI RESPONDEN A UN MENSAJE
+    # SI NO RESPONDE A UN MENSAJE
     if not message.reference:
         return
 
@@ -1222,7 +665,7 @@ Debes responder de forma natural y casual.
 # BAN
 # =========================================================
 
-@bot.hybrid_command(name="ban")
+@bot.tree.command(name="ban")
 @app_commands.checks.has_permissions(ban_members=True)
 async def ban(
     i: discord.Interaction,
@@ -1265,7 +708,7 @@ async def ban(
 # USERINFO
 # =========================================================
 
-@bot.hybrid_command(name="userinfo")
+@bot.tree.command(name="userinfo")
 async def userinfo(
     i: discord.Interaction,
     usuario: discord.Member = None
@@ -1305,7 +748,7 @@ async def userinfo(
 # SERVERINFO
 # =========================================================
 
-@bot.hybrid_command(name="serverinfo")
+@bot.tree.command(name="serverinfo")
 async def serverinfo(i: discord.Interaction):
 
     g = i.guild
@@ -1382,7 +825,7 @@ async def embed_edit(
 # NUKE
 # =========================================================
 
-@bot.hybrid_command(name="nuke")
+@bot.tree.command(name="nuke")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def nuke(i: discord.Interaction):
 
@@ -1404,7 +847,7 @@ async def nuke(i: discord.Interaction):
 # AVATAR
 # =========================================================
 
-@bot.hybrid_command(name="avatar")
+@bot.tree.command(name="avatar")
 async def avatar(
     i: discord.Interaction,
     usuario: discord.Member = None
@@ -1427,7 +870,7 @@ async def avatar(
 # WARN
 # =========================================================
 
-@bot.hybrid_command(name="warn")
+@bot.tree.command(name="warn")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def warn(
     i: discord.Interaction,
@@ -1469,7 +912,7 @@ async def warn(
 # WARNINGS
 # =========================================================
 
-@bot.hybrid_command(name="warnings")
+@bot.tree.command(name="warnings")
 async def warnings(
     i: discord.Interaction,
     usuario: discord.Member
@@ -1512,7 +955,7 @@ async def warnings(
 # LOCK
 # =========================================================
 
-@bot.hybrid_command(name="lock")
+@bot.tree.command(name="lock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def lock(i: discord.Interaction):
 
@@ -1539,7 +982,7 @@ async def lock(i: discord.Interaction):
 # UNLOCK
 # =========================================================
 
-@bot.hybrid_command(name="unlock")
+@bot.tree.command(name="unlock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def unlock(i: discord.Interaction):
 
@@ -1561,479 +1004,345 @@ async def unlock(i: discord.Interaction):
     )
 
     await i.response.send_message(embed=embed)
-        
-# -------------------------
-# FLASK WEB
-# -------------------------
-
-from flask import Flask
-import threading
-
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return "Bot activo"
-
-
-def run_web():
-    app.run(host="0.0.0.0", port=10000)
-
-
-threading.Thread(target=run_web).start()
-
-# -------------------------
-# RUN
-# -------------------------
-
-bot.run(TOKEN)
-
-    # SOLO SI RESPONDEN A UN MENSAJE
-    if not message.reference:
-        return
-
-    try:
-
-        # MENSAJE RESPONDIDO
-        replied = await message.channel.fetch_message(
-            message.reference.message_id
-        )
-
-        # SI NO RESPONDIERON AL BOT
-        if replied.author.id != bot.user.id:
-            return
-
-        # CONTENIDO DEL MENSAJE ORIGINAL
-        mensaje_original = replied.content
-
-        # SI EL MENSAJE ORIGINAL ERA EMBED
-        if replied.embeds:
-
-            embed = replied.embeds[0]
-
-            if embed.description:
-                mensaje_original = embed.description
-
-        # PROMPT DEL SISTEMA
-        system_prompt = f"""
-Tu nombre SIEMPRE es Daylight.
-
-Estas dentro de Discord.
-Estas hablando con usuarios reales de Discord.
-
-Debes actuar como una IA divertida,
-algo sarcastica y amigable.
-
-Nunca digas que no sabes tu nombre.
-Nunca cambies tu nombre.
-
-El usuario que te habla se llama:
-{message.author.name}
-
-Su display name es:
-{message.author.display_name}
-
-Estas en el servidor:
-{message.guild.name}
-
-Debes responder de forma natural y casual.
-"""
-
-        # RESPUESTA IA
-        respuesta = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "assistant",
-                    "content": mensaje_original
-                },
-                {
-                    "role": "user",
-                    "content": message.content
-                }
-            ]
-        )
-
-        texto = respuesta.choices[0].message.content
-
-        # FORMATO
-        emisor = "\n".join(
-            [f"> {x}" for x in message.content.split("\n")]
-        )
-
-        receptor = "\n".join(
-            [f"> {x}" for x in texto.split("\n")]
-        )
-
-        embed = discord.Embed(
-            color=0x000000
-        )
-
-        embed.description = (
-            f"### Emisor\n"
-            f"{emisor}\n\n"
-            f"### Receptor\n"
-            f"{receptor}"
-        )
-
-        await message.reply(
-            embed=embed,
-            mention_author=False
-        )
-
-    except Exception as e:
-
-        await message.reply(
-            f"Error:\n```{e}```"
-        )
 
 # =========================================================
-# BAN
+# GESTOS
 # =========================================================
 
-@bot.hybrid_command(name="ban")
-@app_commands.checks.has_permissions(ban_members=True)
-async def ban(
+# GIFS
+abrazar_gifs = [
+    "https://tenor.com/es-US/view/harry-potter-hermione-granger-gif-19915872",
+    "https://tenor.com/es-US/view/mileven-mileven-season-5-mileven-hug-mileven-reunion-mike-wheeler-gif-1031149959124018240"
+]
+
+besar_gifs = [
+    "https://tenor.com/es-US/view/harry-potter-ginny-kiss-love-win-gif-4958198",
+    "https://tenor.com/es-US/view/jenna-ortega-emma-myers-wednesday-enid-serie-clip-gif-3794335437046571717"
+]
+
+bofetada_gifs = [
+    "https://media.tenor.com/r6qG4ZlT0AAAAAAC/slap-wednesday.gif",
+    "https://media.tenor.com/Nd7bS6mJ8yAAAAAC/harry-potter-slap.gif"
+]
+
+cocinar_gifs = [
+    "https://media.tenor.com/W8bK6QxXjYAAAAAC/cooking-wednesday.gif",
+    "https://media.tenor.com/U0f6dKjQ5SAAAAAC/stranger-things-cooking.gif"
+]
+
+comer_gifs = [
+    "https://media.tenor.com/L6l9K2p8wzAAAAAC/eating-wednesday.gif",
+    "https://media.tenor.com/8Xq4K6h3dKAAAAAC/harry-potter-eating.gif"
+]
+
+enojado_gifs = [
+    "https://media.tenor.com/9jK3h2P6v8AAAAAC/wednesday-angry.gif",
+    "https://media.tenor.com/J6s7K3pQ9AAAAAAC/stranger-things-angry.gif"
+]
+
+llorar_gifs = [
+    "https://media.tenor.com/cQz7K8f8V8AAAAAC/crying-will-byers.gif",
+    "https://media.tenor.com/U7f8K3nL0AAAAAAC/wednesday-cry.gif"
+]
+
+matar_gifs = [
+    "https://media.tenor.com/l2xQ4b6Q8AAAAAAC/wednesday-kill.gif",
+    "https://media.tenor.com/D7k3L9p0AAAAAAC/the-black-phone.gif"
+]
+
+alegre_gifs = [
+    "https://media.tenor.com/L0a9Q8mKAAAAAAC/wednesday-smile.gif",
+    "https://media.tenor.com/J9k3P8v0AAAAAAC/stranger-things-happy.gif"
+]
+
+bailar_gifs = [
+    "https://media.tenor.com/4K6g9P2xAAAAAAC/wednesday-dance.gif",
+    "https://media.tenor.com/Z9k3L8x0AAAAAAC/harry-potter-dance.gif"
+]
+
+# =========================================================
+# ABRAZO
+# =========================================================
+
+@bot.tree.command(name="abrazo")
+async def abrazo(
     i: discord.Interaction,
-    usuario: discord.Member,
-    razon: str = "Sin razón"
+    usuario: discord.Member
 ):
-
-    if usuario == i.user:
-        await i.response.send_message(
-            "No puedes banearte a ti mismo",
-            ephemeral=True
-        )
-        return
-
-    try:
-
-        await usuario.ban(reason=razon)
-
-        embed = discord.Embed(
-            title="Usuario Baneado",
-            color=0x000000
-        )
-
-        embed.description = (
-            f"> Usuario: {usuario.mention}\n"
-            f"> Razón: {razon}\n"
-            f"> Moderador: {i.user.mention}"
-        )
-
-        await i.response.send_message(embed=embed)
-
-    except Exception as e:
-
-        await i.response.send_message(
-            f"Error:\n```{e}```",
-            ephemeral=True
-        )
-
-# =========================================================
-# USERINFO
-# =========================================================
-
-@bot.hybrid_command(name="userinfo")
-async def userinfo(
-    i: discord.Interaction,
-    usuario: discord.Member = None
-):
-
-    usuario = usuario or i.user
-
-    roles = ", ".join(
-        [r.mention for r in usuario.roles[1:]]
-    )
-
-    if not roles:
-        roles = "Sin roles"
 
     embed = discord.Embed(
-        title="User Info",
         color=0x000000
     )
 
-    embed.set_thumbnail(
-        url=usuario.display_avatar.url
+    embed.description = (
+        f"{i.user.mention} abrazó a {usuario.mention}"
     )
 
-    embed.description = (
-        f"> Usuario: {usuario.mention}\n"
-        f"> ID: {usuario.id}\n"
-        f"> Nombre: {usuario.name}\n"
-        f"> Display: {usuario.display_name}\n"
-        f"> Cuenta creada: <t:{int(usuario.created_at.timestamp())}:R>\n"
-        f"> Entró al server: <t:{int(usuario.joined_at.timestamp())}:R>\n"
-        f"> Roles: {roles}"
+    embed.set_image(
+        url=random.choice(abrazar_gifs)
     )
 
     await i.response.send_message(embed=embed)
 
 # =========================================================
-# SERVERINFO
+# BESO
 # =========================================================
 
-@bot.hybrid_command(name="serverinfo")
-async def serverinfo(i: discord.Interaction):
-
-    g = i.guild
+@bot.tree.command(name="beso")
+async def beso(
+    i: discord.Interaction,
+    usuario: discord.Member
+):
 
     embed = discord.Embed(
-        title="Server Info",
         color=0x000000
     )
 
-    if g.icon:
-        embed.set_thumbnail(url=g.icon.url)
-
     embed.description = (
-        f"> Nombre: {g.name}\n"
-        f"> ID: {g.id}\n"
-        f"> Owner: {g.owner.mention}\n"
-        f"> Miembros: {g.member_count}\n"
-        f"> Canales: {len(g.channels)}\n"
-        f"> Roles: {len(g.roles)}\n"
-        f"> Creado: <t:{int(g.created_at.timestamp())}:R>"
+        f"{i.user.mention} besó a {usuario.mention}"
+    )
+
+    embed.set_image(
+        url=random.choice(besar_gifs)
     )
 
     await i.response.send_message(embed=embed)
 
 # =========================================================
-# EMBED EDIT
+# BOFETADA
 # =========================================================
 
-@bot.tree.command(name="embed-edit")
-@app_commands.checks.has_permissions(administrator=True)
-async def embed_edit(
+@bot.tree.command(name="bofetada")
+async def bofetada(
     i: discord.Interaction,
-    mensaje_id: str,
-    titulo: str = None,
-    descripcion: str = None
+    usuario: discord.Member
 ):
 
-    try:
+    embed = discord.Embed(
+        color=0x000000
+    )
 
-        mensaje = await i.channel.fetch_message(
-            int(mensaje_id)
-        )
+    embed.description = (
+        f"{i.user.mention} bofeteó a {usuario.mention}"
+    )
 
-        if not mensaje.embeds:
-            await i.response.send_message(
-                "Ese mensaje no tiene embeds",
+    embed.set_image(
+        url=random.choice(bofetada_gifs)
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# COCINAR
+# =========================================================
+
+@bot.tree.command(name="cocinar")
+async def cocinar(
+    i: discord.Interaction,
+    usuario: discord.Member
+):
+
+    embed = discord.Embed(
+        color=0x000000
+    )
+
+    embed.description = (
+        f"{i.user.mention} cocinó para {usuario.mention}"
+    )
+
+    embed.set_image(
+        url=random.choice(cocinar_gifs)
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# COMER
+# =========================================================
+
+@bot.tree.command(name="comer")
+async def comer(i: discord.Interaction):
+
+    embed = discord.Embed(
+        color=0x000000
+    )
+
+    embed.description = (
+        f"{i.user.mention} está comiendo"
+    )
+
+    embed.set_image(
+        url=random.choice(comer_gifs)
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# ENOJADO
+# =========================================================
+
+@bot.tree.command(name="enojado")
+async def enojado(i: discord.Interaction):
+
+    embed = discord.Embed(
+        color=0x000000
+    )
+
+    embed.description = (
+        f"{i.user.mention} está enojado"
+    )
+
+    embed.set_image(
+        url=random.choice(enojado_gifs)
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# LLORAR
+# =========================================================
+
+@bot.tree.command(name="llorar")
+async def llorar(i: discord.Interaction):
+
+    embed = discord.Embed(
+        color=0x000000
+    )
+
+    embed.description = (
+        f"{i.user.mention} está llorando"
+    )
+
+    embed.set_image(
+        url=random.choice(llorar_gifs)
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# MATAR
+# =========================================================
+
+@bot.tree.command(name="matar")
+async def matar(
+    i: discord.Interaction,
+    usuario: discord.Member
+):
+
+    embed = discord.Embed(
+        color=0x000000
+    )
+
+    embed.description = (
+        f"{i.user.mention} mató a {usuario.mention}"
+    )
+
+    embed.set_image(
+        url=random.choice(matar_gifs)
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# ALEGRE
+# =========================================================
+
+@bot.tree.command(name="alegre")
+async def alegre(i: discord.Interaction):
+
+    embed = discord.Embed(
+        color=0x000000
+    )
+
+    embed.description = (
+        f"{i.user.mention} está alegre"
+    )
+
+    embed.set_image(
+        url=random.choice(alegre_gifs)
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# BAILAR
+# =========================================================
+
+@bot.tree.command(name="bailar")
+async def bailar(i: discord.Interaction):
+
+    embed = discord.Embed(
+        color=0x000000
+    )
+
+    embed.description = (
+        f"{i.user.mention} está bailando 💃"
+    )
+
+    embed.set_image(
+        url=random.choice(bailar_gifs)
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# VIEW BOTON DEVOLVER
+# =========================================================
+
+class DevolverView(discord.ui.View):
+
+    def __init__(
+        self,
+        autor,
+        objetivo,
+        accion,
+        gifs,
+        texto_devolver
+    ):
+        super().__init__(timeout=None)
+
+        self.autor = autor
+        self.objetivo = objetivo
+        self.accion = accion
+        self.gifs = gifs
+        self.texto_devolver = texto_devolver
+
+    @discord.ui.button(
+        label="Devolver",
+        style=discord.ButtonStyle.secondary
+    )
+    async def devolver(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+
+        # SOLO EL USUARIO OBJETIVO
+        if interaction.user.id != self.objetivo.id:
+
+            await interaction.response.send_message(
+                "No puedes usar este botón",
                 ephemeral=True
             )
             return
 
-        viejo = mensaje.embeds[0]
-
         embed = discord.Embed(
-            title=titulo if titulo else viejo.title,
-            description=descripcion if descripcion else viejo.description,
             color=0x000000
         )
 
-        await mensaje.edit(embed=embed)
+        embed.description = (
+    f"{self.objetivo.mention} "
+    f"devolvió {self.texto_devolver} "
+    f"a {self.autor.mention} 💜"
+)
 
-        await i.response.send_message(
-            "Embed editado",
-            ephemeral=True
+        embed.set_image(
+            url=random.choice(self.gifs)
         )
 
-    except Exception as e:
-
-        await i.response.send_message(
-            f"Error:\n```{e}```",
-            ephemeral=True
+        await interaction.response.send_message(
+            embed=embed
         )
-
-# =========================================================
-# NUKE
-# =========================================================
-
-@bot.hybrid_command(name="nuke")
-@app_commands.checks.has_permissions(manage_channels=True)
-async def nuke(i: discord.Interaction):
-
-    canal = i.channel
-
-    nuevo = await canal.clone()
-
-    await canal.delete()
-
-    embed = discord.Embed(
-        title="Canal Nukeado",
-        description="> Canal purificado exitosamente.",
-        color=0x000000
-    )
-
-    await nuevo.send(embed=embed)
-
-# =========================================================
-# AVATAR
-# =========================================================
-
-@bot.hybrid_command(name="avatar")
-async def avatar(
-    i: discord.Interaction,
-    usuario: discord.Member = None
-):
-
-    usuario = usuario or i.user
-
-    embed = discord.Embed(
-        title=f"Avatar de {usuario.name}",
-        color=0x000000
-    )
-
-    embed.set_image(
-        url=usuario.display_avatar.url
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# WARN
-# =========================================================
-
-@bot.hybrid_command(name="warn")
-@app_commands.checks.has_permissions(manage_messages=True)
-async def warn(
-    i: discord.Interaction,
-    usuario: discord.Member,
-    razon: str
-):
-
-    gid = str(i.guild.id)
-    uid = str(usuario.id)
-
-    if gid not in warnings_data:
-        warnings_data[gid] = {}
-
-    if uid not in warnings_data[gid]:
-        warnings_data[gid][uid] = []
-
-    warnings_data[gid][uid].append({
-        "razon": razon,
-        "moderador": str(i.user),
-        "fecha": str(datetime.now())
-    })
-
-    total = len(warnings_data[gid][uid])
-
-    embed = discord.Embed(
-        title="⚠ Usuario Advertido",
-        color=0x000000
-    )
-
-    embed.description = (
-        f"> Usuario: {usuario.mention}\n"
-        f"> Razón: {razon}\n"
-        f"> Warnings: {total}"
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# WARNINGS
-# =========================================================
-
-@bot.hybrid_command(name="warnings")
-async def warnings(
-    i: discord.Interaction,
-    usuario: discord.Member
-):
-
-    gid = str(i.guild.id)
-    uid = str(usuario.id)
-
-    if (
-        gid not in warnings_data
-        or uid not in warnings_data[gid]
-    ):
-
-        await i.response.send_message(
-            "Ese usuario no tiene warnings",
-            ephemeral=True
-        )
-        return
-
-    warns = warnings_data[gid][uid]
-
-    texto = ""
-
-    for n, w in enumerate(warns, start=1):
-
-        texto += (
-            f"> {n}. {w['razon']}\n"
-            f"> Moderador: {w['moderador']}\n\n"
-        )
-
-    embed = discord.Embed(
-        title=f"⚠ Warnings de {usuario.name}",
-        description=texto,
-        color=0x000000
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# LOCK
-# =========================================================
-
-@bot.hybrid_command(name="lock")
-@app_commands.checks.has_permissions(manage_channels=True)
-async def lock(i: discord.Interaction):
-
-    overwrite = i.channel.overwrites_for(
-        i.guild.default_role
-    )
-
-    overwrite.send_messages = False
-
-    await i.channel.set_permissions(
-        i.guild.default_role,
-        overwrite=overwrite
-    )
-
-    embed = discord.Embed(
-        title="Canal Bloqueado",
-        description="> Nadie puede enviar mensajes.",
-        color=0x000000
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# UNLOCK
-# =========================================================
-
-@bot.hybrid_command(name="unlock")
-@app_commands.checks.has_permissions(manage_channels=True)
-async def unlock(i: discord.Interaction):
-
-    overwrite = i.channel.overwrites_for(
-        i.guild.default_role
-    )
-
-    overwrite.send_messages = True
-
-    await i.channel.set_permissions(
-        i.guild.default_role,
-        overwrite=overwrite
-    )
-
-    embed = discord.Embed(
-        title="Canal Desbloqueado",
-        description="> Ya pueden hablar otra vez.",
-        color=0x000000
-    )
-
-    await i.response.send_message(embed=embed)
         
 # -------------------------
 # FLASK WEB
