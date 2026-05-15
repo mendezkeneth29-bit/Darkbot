@@ -1071,7 +1071,7 @@ async def spotify(i: discord.Interaction, usuario: discord.Member = None):
     if not spotify_act:
         return await i.followup.send(
             f"**{target.display_name} no está escuchando Spotify ahora mismo**"
-            f"> o spotify no esta vinculado a su cuenta.
+            f"> o spotify no esta vinculado a su cuenta."
         )
 
     # 5. Extraemos la información y calculamos la duración
