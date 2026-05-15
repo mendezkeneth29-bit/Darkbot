@@ -1052,40 +1052,90 @@ async def unlock(i: discord.Interaction):
 # MUSIC
 # =========================================================
 
-@bot.tree.command(name="spotify", description="Muestra la tarjeta de música")
-async def spotify(i: discord.Interaction, usuario: discord.Member = None):
-    # Esto le dice a Discord que el bot recibió la orden de inmediato
-    await i.response.defer() 
-    
-    # Usar 'target' directamente del objeto de la interacción es más rápido
+@bot.tree.command(
+    name="spotify",
+    description="Muestra la tarjeta de música"
+)
+async def spotify(
+    i: discord.Interaction,
+    usuario: discord.Member = None
+):
+
+    await i.response.defer()
+
     target = usuario or i.user
-    
-    # Forzamos la actualización del miembro si es necesario para leer la actividad
-    if not isinstance(target, discord.Member):
-        target = i.guild.get_member(target.id)
 
-    spotify_act = discord.utils.find(lambda a: isinstance(a, discord.Spotify), target.activities)
+    spotify_act = discord.utils.find(
+        lambda a: isinstance(a, discord.Spotify),
+        target.activities
+    )
 
+    # SI NO ESCUCHA
     if not spotify_act:
-        return await i.followup.send(f"❌ **{target.display_name}** no está escuchando Spotify.")
 
-    # Formato de duración rápido
-    duracion = spotify_act.duration.strftime("%M:%S")
+        await i.followup.send(
+            f"❌ **{target.display_name}** no está escuchando Spotify."
+        )
 
-    # Embed Estilo Dusty (Limpio y Negro)
-    embed = discord.Embed(color=0x000000)
-    embed.set_author(name=f"Spotify de {target.display_name}", icon_url="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg")
-    
-    embed.add_field(name="Canción", value=f"**{spotify_act.title}**", inline=False)
-    embed.add_field(name="Artista", value=spotify_act.artist, inline=True)
-    embed.add_field(name="Álbum", value=spotify_act.album, inline=True)
-    embed.add_field(name="Duración", value=f"`{duracion}`", inline=True)
-    
-    # Portada arriba a la derecha (Thumbnail)
-    embed.set_thumbnail(url=spotify_act.album_cover_url)
-    embed.set_footer(text=f"Solicitado por {i.user.name}", icon_url=i.user.display_avatar.url)
+        return
 
-    await i.followup.send(embed=embed)
+    # DURACION
+    total_seconds = int(
+        spotify_act.duration.total_seconds()
+    )
+
+    minutos = total_seconds // 60
+    segundos = total_seconds % 60
+
+    duracion = f"{minutos:02}:{segundos:02}"
+
+    # EMBED
+    embed = discord.Embed(
+        color=0x000000
+    )
+
+    embed.set_author(
+        name=f"Spotify de {target.display_name}",
+        icon_url="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg"
+    )
+
+    embed.add_field(
+        name="🎵 Canción",
+        value=f"**{spotify_act.title}**",
+        inline=False
+    )
+
+    embed.add_field(
+        name="👤 Artista",
+        value=spotify_act.artist,
+        inline=True
+    )
+
+    embed.add_field(
+        name="💿 Álbum",
+        value=spotify_act.album,
+        inline=True
+    )
+
+    embed.add_field(
+        name="⏱️ Duración",
+        value=f"`{duracion}`",
+        inline=True
+    )
+
+    # PORTADA
+    embed.set_thumbnail(
+        url=spotify_act.album_cover_url
+    )
+
+    embed.set_footer(
+        text=f"Solicitado por {i.user.name}",
+        icon_url=i.user.display_avatar.url
+    )
+
+    await i.followup.send(
+        embed=embed
+    )
 # ------------------------
 # AFK
 # ------------------------
