@@ -567,7 +567,8 @@ async def on_message(message):
         tiempo_texto = f"{m}m {s}s"
 
         # 2. Tu mensaje de bienvenida
-        await message.channel.send(f"> bienvenido de nuevo {message.author.name}, estuviste {tiempo_texto} inactivo...")
+        await message.channel.send(f"**bienvenido de nuevo {message.author.name}**")
+        (f"> , estuviste `{tiempo_texto}` inactivo...")
 
         # 3. Lo borramos de la lista
         del afk_data[message.author.id]
@@ -1101,12 +1102,12 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
     )
 
     embed.description = (
-        f"> motivo:\n"
-        f"> {motivo}\n"
+        f" **motivo:**\n"
+        f"> __{motivo}__\n"
     )
 
     embed.set_footer(
-        text="Te avisaré si te mencionan <:Group:1504584463953297438>..."
+        text="Te avisaré si te mencionan..."
     )
 
     await i.response.send_message(embed=embed)
@@ -1115,13 +1116,15 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
     # AFK CHECK (MENTIONES)
     # -------------------------
 
-    for user in message.mentions:
-
-        if user.id in afk_data:
-
-            await message.channel.send(
-                f"> {user.mention} está dormido en este momento, vuelve más tarde..."
-            )
+for user in message.mentions:
+    if user.id in afk_data:
+        # Extraemos el motivo guardado en la libreta
+        motivo_guardado = afk_data[user.id]["motivo"]
+        
+        await message.channel.send(
+            f"**{user.mention} está dormido en este momento, vuelve más tarde...**\n"
+            f"> su motivo es: {motivo_guardado}"
+        )
         
 # -------------------------
 # FLASK WEB
