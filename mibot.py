@@ -1052,50 +1052,39 @@ async def unlock(i: discord.Interaction):
 # MUSIC
 # =========================================================
 
-@bot.tree.command(name="spotify", description="Muestra la tarjeta de música del usuario")
+@bot.tree.command(name="spotify", description="Muestra la tarjeta de música")
 async def spotify(i: discord.Interaction, usuario: discord.Member = None):
-    # 1. Defer inmediato para evitar lag
-    await i.response.defer()
+    # Esto le dice a Discord que el bot recibió la orden de inmediato
+    await i.response.defer() 
     
-    # 2. Obtenemos al miembro para leer actividades
-    target = usuario or i.guild.get_member(i.user.id)
+    # Usar 'target' directamente del objeto de la interacción es más rápido
+    target = usuario or i.user
     
-    spotify_act = None
-    # 3. Buscamos Spotify
-    for activity in target.activities:
-        if isinstance(activity, discord.Spotify):
-            spotify_act = activity
-            break
+    # Forzamos la actualización del miembro si es necesario para leer la actividad
+    if not isinstance(target, discord.Member):
+        target = i.guild.get_member(target.id)
 
-    # 4. Si no hay música (Mensaje limpio)
+    spotify_act = discord.utils.find(lambda a: isinstance(a, discord.Spotify), target.activities)
+
     if not spotify_act:
         return await i.followup.send(f"❌ **{target.display_name}** no está escuchando Spotify.")
 
-    # 5. Formatear duración (Estilo 03:45)
+    # Formato de duración rápido
     duracion = spotify_act.duration.strftime("%M:%S")
 
-    # 6. Embed Estilo Profesional
-    embed = discord.Embed(
-        title=f"Spotify Status",
-        color=0x000000 # Negro puro
-    )
+    # Embed Estilo Dusty (Limpio y Negro)
+    embed = discord.Embed(color=0x000000)
+    embed.set_author(name=f"Spotify de {target.display_name}", icon_url="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg")
     
-    # Información organizada
-    embed.add_field(name="Canción", value=f"**[{spotify_act.title}](https://open.spotify.com/track/{spotify_act.track_id})**", inline=False)
-    embed.add_field(name="Artista", value=f"{spotify_act.artist}", inline=True)
-    embed.add_field(name="Álbum", value=f"{spotify_act.album}", inline=True)
+    embed.add_field(name="Canción", value=f"**{spotify_act.title}**", inline=False)
+    embed.add_field(name="Artista", value=spotify_act.artist, inline=True)
+    embed.add_field(name="Álbum", value=spotify_act.album, inline=True)
     embed.add_field(name="Duración", value=f"`{duracion}`", inline=True)
     
-    # Portada a la derecha (Thumbnail)
+    # Portada arriba a la derecha (Thumbnail)
     embed.set_thumbnail(url=spotify_act.album_cover_url)
-    
-    # Footer pequeño
-    embed.set_footer(
-        text=f"Escuchado por {target.display_name}", 
-        icon_url=target.display_avatar.url
-    )
+    embed.set_footer(text=f"Solicitado por {i.user.name}", icon_url=i.user.display_avatar.url)
 
-    # 7. Enviamos
     await i.followup.send(embed=embed)
 # ------------------------
 # AFK
