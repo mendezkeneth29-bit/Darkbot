@@ -556,35 +556,6 @@ async def ask(
 async def on_message(message):
     import time
 
-        # -------------------------
-    # AFK RETURN
-    # -------------------------
-
-    if message.author.id in afk_data:
-
-        data = afk_data.pop(message.author.id)
-
-        tiempo = time.time() - data["tiempo"]
-
-        segundos = int(tiempo)
-
-        minutos = segundos // 60
-        horas = minutos // 60
-        dias = horas // 24
-
-        tiempo_texto = ""
-
-        if dias > 0:
-            tiempo_texto += f"{dias} días "
-        if horas % 24 > 0:
-            tiempo_texto += f"{horas % 24} horas "
-        if minutos % 60 > 0:
-            tiempo_texto += f"{minutos % 60} minutos"
-
-        await message.channel.send(
-            f"> bienvenido de nuevo {message.author.name}, estuviste {tiempo_texto.strip()} inactivo..."
-        )
-
     # IGNORAR BOTS
     if message.author.bot:
         return
@@ -1153,6 +1124,35 @@ def run_web():
 
 
 threading.Thread(target=run_web).start()
+
+# -------------------------
+# AFK RETURN
+# -------------------------
+
+    if message.author.id in afk_data:
+
+        data = afk_data.pop(message.author.id)
+
+        tiempo = time.time() - data["tiempo"]
+
+        segundos = int(tiempo)
+
+        minutos = segundos // 60
+        horas = minutos // 60
+        dias = horas // 24
+
+        tiempo_texto = ""
+
+        if dias > 0:
+            tiempo_texto += f"{dias} días "
+        if horas % 24 > 0:
+            tiempo_texto += f"{horas % 24} horas "
+        if minutos % 60 > 0:
+            tiempo_texto += f"{minutos % 60} minutos"
+
+        await message.channel.send(
+            f"> bienvenido de nuevo {message.author.name}, estuviste {tiempo_texto.strip()} inactivo..."
+        )
 
 # -------------------------
 # RUN
