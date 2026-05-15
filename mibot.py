@@ -562,7 +562,8 @@ async def on_message(message):
     if message.author.id in afk_data:
         segundos = int(time.time() - afk_data[message.author.id]["tiempo"])
         m, s = divmod(segundos, 60)
-        await message.channel.send(f"Bienvenido {message.author.name}, estuviste {m}m {s}s fuera.")
+        await message.channel.send(f"**Bienvenido {message.author.name}**") 
+        (f"> estuviste {m}m {s}s fuera.")
         del afk_data[message.author.id]
 
     # 2. ESTO AVISA SI ALGUIEN MENCIONA A UN AFK
@@ -570,7 +571,8 @@ async def on_message(message):
         if user.id in afk_data:
             motivo_guardado = afk_data[user.id]["motivo"]
             await message.channel.send(
-                f"{user.mention} está dormido...\n> Motivo: {motivo_guardado}"
+                f"**{user.mention} está dormido...**\n>"
+                f"> Motivo: {motivo_guardado}"
             )
 
     # IGNORAR BOTS
