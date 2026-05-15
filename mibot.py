@@ -1054,57 +1054,41 @@ async def unlock(i: discord.Interaction):
 
 @bot.tree.command(name="spotify", description="Mira qué canción está escuchando un usuario")
 async def spotify(i: discord.Interaction, usuario: discord.Member = None):
-    # 1. El defer evita que el comando diga "La aplicación no respondió"
+    # 1. Defer para que no diga "no respondió"
     await i.response.defer()
     
-    # 2. Si no eligen a nadie, el objetivo es quien usó el comando
+    # 2. Obtener al miembro correctamente (Esto es lo que te faltaba)
     target = usuario or i.guild.get_member(i.user.id)
     
     spotify_act = None
-    # 3. Buscamos la actividad de Spotify (REVISADO: sin breakS, código limpio)
+    # 3. Buscar Spotify
     for activity in target.activities:
         if isinstance(activity, discord.Spotify):
             spotify_act = activity
             break
 
-    # 4. Si no está escuchando Spotify o tiene la actividad oculta
+    # 4. Si no hay música
     if not spotify_act:
-        return await i.followup.send(
-            f"**{target.display_name} no está escuchando Spotify ahora mismo**"
-            f"> o spotify no esta vinculado a su cuenta."
-        )
+        return await i.followup.send(f"**{target.display_name} no está escuchando Spotify**")
+        (f"> o su spotify no esta vinculado a su cuenta.")
 
-    # 5. Extraemos la información y calculamos la duración
-    cancion = spotify_act.title
-    artistas = spotify_act.artist
-    album = spotify_act.album
-    portada = spotify_act.album_cover_url
+    # 5. Datos y Duración
     duracion = spotify_act.duration.strftime("%M:%S") if spotify_act.duration else "00:00"
 
-    # 6. Creamos el Embed Negro (0x000000)
-    embed = discord.Embed(
-        title="Escuchando ahora en Spotify <:music:1504691247619641404>",
-        color=0x000000
-    )
+    # 6. Embed Negro con Portada arriba a la derecha
+    embed = discord.Embed(title="Escuchando ahora en Spotify <:music:1504691247619641404>", color=0x000000)
     
-    # Descripción principal
     embed.description = (
-        f"> **Canción:** {cancion}\n"
-        f"> **Artista(s):** {artistas}\n"
-        f"> **Álbum:** {album}\n"
+        f"> **Canción:** {spotify_act.title}\n"
+        f"> **Artista(s):** {spotify_act.artist}\n"
+        f"> **Álbum:** {spotify_act.album}\n"
         f"> **Duración:** `{duracion}`"
     )
     
-    # 7. Portada arriba a la derecha (Thumbnail)
-    embed.set_thumbnail(url=portada)
-    
-    # Footer con la foto del usuario que escucha la música
-    embed.set_footer(
-        text=f"Música de {target.display_name}", 
-        icon_url=target.display_avatar.url
-    )
+    embed.set_thumbnail(url=spotify_act.album_cover_url) # Portada arriba a la derecha
+    embed.set_footer(text=f"Música de {target.display_name}", icon_url=target.display_avatar.url)
 
-    # 8. Enviamos la respuesta final
+    # 7. Enviar
     await i.followup.send(embed=embed)
 # ------------------------
 # AFK
