@@ -556,6 +556,21 @@ async def ask(
 async def on_message(message):
     import time
 
+    # -------------------------
+# AFK RETURN
+# -------------------------
+
+# 1. Calculamos cuánto tiempo pasó
+segundos_totales = int(time.time() - afk_data[message.author.id]["tiempo"])
+m, s = divmod(segundos_totales, 60)
+tiempo_texto = f"{m}m {s}s"
+
+# 2. Tu línea de la segunda imagen actualizada:
+await message.channel.send(f"> bienvenido de nuevo {message.author.name}, estuviste {tiempo_texto} inactivo...")
+
+# 3. Importante: Lo borramos de la lista para que ya no esté AFK
+del afk_data[message.author.id]
+
     # IGNORAR BOTS
     if message.author.bot:
         return
@@ -1124,35 +1139,6 @@ def run_web():
 
 
 threading.Thread(target=run_web).start()
-
-# -------------------------
-# AFK RETURN
-# -------------------------
-
-    if message.author.id in afk_data:
-
-        data = afk_data.pop(message.author.id)
-
-        tiempo = time.time() - data["tiempo"]
-
-        segundos = int(tiempo)
-
-        minutos = segundos // 60
-        horas = minutos // 60
-        dias = horas // 24
-
-        tiempo_texto = ""
-
-        if dias > 0:
-            tiempo_texto += f"{dias} días "
-        if horas % 24 > 0:
-            tiempo_texto += f"{horas % 24} horas "
-        if minutos % 60 > 0:
-            tiempo_texto += f"{minutos % 60} minutos"
-
-        await message.channel.send(
-            f"> bienvenido de nuevo {message.author.name}, estuviste {tiempo_texto.strip()} inactivo..."
-        )
 
 # -------------------------
 # RUN
