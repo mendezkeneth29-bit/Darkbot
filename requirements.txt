@@ -5,3 +5,5 @@ pillow
 yt-dlp
 PyNaCl
 wavelink
+groq
+aiohttp
