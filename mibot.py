@@ -1133,6 +1133,93 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
     )
 
     await i.response.send_message(embed=embed)
+
+# --- LISTA DE GIFS (Puedes añadir más links entre las comillas) ---
+gifs = {
+    "abrazo": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/3bh6W962AsMda/giphy.gif", "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/l41lIs69xT3U41LAA/giphy.gif"],
+    "beso": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/K976W7D8Xm6Y0/giphy.gif", "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/vUfPArL9Z5x9S/giphy.gif"],
+    "puño": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/3o7TKFpLp5J6O/giphy.gif"],
+    "matar": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/76ySi7j99Sst2/giphy.gif", "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/3o7TKUM3IgJBX2RZ6w/giphy.gif"],
+    "cocinar": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/720g7C1jz13wI/giphy.gif"],
+    "comer": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/U8S8FGHLy6n96/giphy.gif"],
+    "triste": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/OPU6wHnHZlWp2/giphy.gif"],
+    "reirse": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/10JhviCbbIfTdS/giphy.gif"],
+    "alegre": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/3o7TKDkDbIDJieKbVm/giphy.gif"],
+    "enojado": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/11f6c6I1pXG7S/giphy.gif"]
+}
+
+# --- CLASE PARA EL BOTÓN DE DEVOLVER ---
+class DevolverView(discord.ui.View):
+    def __init__(self, quien_dio, quien_recibio, gesto):
+        super().__init__(timeout=60)
+        self.quien_dio = quien_dio
+        self.quien_recibio = quien_recibio
+        self.gesto = gesto
+
+    @discord.ui.button(label="Devolver", style=discord.ButtonStyle.grey)
+    async def devolver_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.quien_recibio.id:
+            return await interaction.response.send_message("¡Solo el que recibió el gesto puede devolverlo!", ephemeral=True)
+        
+        embed = discord.Embed(
+            description=f"**{self.quien_recibio.name}** devolvió un {self.gesto} a **{self.quien_dio.name}**",
+            color=0x000000 # Color Negro
+        )
+        embed.set_image(url=random.choice(gifs[self.gesto]))
+        await interaction.response.send_message(embed=embed)
+        self.stop() # Desactiva el botón después de usarse
+
+# --- COMANDO MAESTRO DE GESTOS ---
+@bot.tree.command(name="gesto", description="Realiza una acción")
+@app_commands.choices(accion=[
+    app_commands.Choice(name="Abrazo ", value="abrazo"),
+    app_commands.Choice(name="Beso ", value="beso"),
+    app_commands.Choice(name="Puño ", value="puño"),
+    app_commands.Choice(name="Matar ", value="matar"),
+    app_commands.Choice(name="Cocinar ", value="cocinar"),
+    app_commands.Choice(name="Comer  (Solo)", value="comer"),
+    app_commands.Choice(name="Triste  (Solo)", value="triste"),
+    app_commands.Choice(name="Reírse  (Solo)", value="reirse"),
+    app_commands.Choice(name="Alegre  (Solo)", value="alegre"),
+    app_commands.Choice(name="Enojado  (Solo)", value="enojado")
+])
+async def gesto(i: discord.Interaction, accion: str, usuario: discord.Member = None):
+    # Gestos que NO piden usuario
+    personales = ["comer", "triste", "reirse", "alegre", "enojado"]
+    
+    embed = discord.Embed(color=0x000000) # Color Negro
+    embed.set_image(url=random.choice(gifs[accion]))
+
+    if accion in personales:
+        textos = {
+            "comer": f"**{i.user.name}** está comiendo algo delicioso...",
+            "triste": f"**{i.user.name}** se siente triste hoy...",
+            "reirse": f"**{i.user.name}** no puede parar de reír...",
+            "alegre": f"**{i.user.name}** está muy alegre, ¡qué bien!",
+            "enojado": f"**{i.user.name}** está muy enojado, ¡cuidado!"
+        }
+        embed.description = textos[accion]
+        await i.response.send_message(embed=embed)
+    
+    else:
+        # Gestos que SÍ piden usuario
+        if usuario is None:
+            return await i.response.send_message("¡Debes mencionar a alguien para este gesto!", ephemeral=True)
+        
+        if usuario == i.user:
+            return await i.response.send_message("No puedes hacerte eso a ti mismo...", ephemeral=True)
+
+        textos_interaccion = {
+            "abrazo": f"**{i.user.name}** le dio un fuerte abrazo a **{usuario.name}**",
+            "beso": f"**{i.user.name}** le dio un beso a **{usuario.name}**",
+            "puño": f"**{i.user.name}** choco puños con **{usuario.name}**",
+            "matar": f"**{i.user.name}** eliminó a **{usuario.name}** con un hechizo...",
+            "cocinar": f"**{i.user.name}** le está cocinando algo a **{usuario.name}**"
+        }
+        
+        embed.description = textos_interaccion[accion]
+        view = DevolverView(i.user, usuario, accion)
+        await i.response.send_message(embed=embed, view=view)
         
 # -------------------------
 # FLASK WEB
