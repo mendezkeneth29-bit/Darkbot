@@ -556,36 +556,37 @@ async def ask(
 
 @bot.event
 async def on_message(message):
-    # 1. Ignorar si el mensaje es del propio bot (Para evitar bucles)
-    if message.author.id == bot.user.id:
+    # 1. Ignorar si el mensaje es de un bot (IMPORTANTE para evitar bucles)
+    if message.author.bot:
         return
 
-    # 2. QUITAR EL AFK (Si el que escribe estaba inactivo)
+    # 2. QUITAR AFK (Si el que habla está en la lista)
     if message.author.id in afk_data:
-        # Calculamos el tiempo
+        import time
         tiempo_inicio = afk_data[message.author.id]["tiempo"]
         segundos_totales = int(time.time() - tiempo_inicio)
         
+        # Calculamos minutos y segundos
         m, s = divmod(segundos_totales, 60)
         h, m = divmod(m, 60)
         
-        # Formateamos el texto
+        # Formateamos el texto del tiempo
         if h > 0: tiempo_texto = f"{h}h {m}m {s}s"
         elif m > 0: tiempo_texto = f"{m}m {s}s"
         else: tiempo_texto = f"{s}s"
 
-        # Enviamos el saludo
+        # Mensaje de bienvenida con tu formato
         await message.channel.send(
             f"**Bienvenido de nuevo {message.author.name}**\n"
             f"> estuviste `{tiempo_texto}` inactivo"
         )
         
-        # BORRAMOS el AFK para que ya no esté inactivo
+        # Borramos al usuario de la lista para que ya NO esté AFK
         del afk_data[message.author.id]
 
-    # 3. REVISAR MENCIONES (Si alguien menciona a un AFK)
+    # 3. AVISAR MENCIONES (Si alguien menciona a OTRO que esté AFK)
     for user in message.mentions:
-        # Solo avisamos si NO es el mismo autor (porque ya le dimos la bienvenida arriba)
+        # Solo avisamos si el mencionado está AFK y NO eres tú mismo
         if user.id in afk_data and user.id != message.author.id:
             motivo_guardado = afk_data[user.id]["motivo"]
             await message.channel.send(
@@ -593,7 +594,7 @@ async def on_message(message):
                 f"> Motivo: `{motivo_guardado}`"
             )
 
-    # 4. Procesar comandos (Si usas prefijos como !)
+    # 4. Procesar comandos (Si usas !comando)
     await bot.process_commands(message)
 
     # IGNORAR BOTS
