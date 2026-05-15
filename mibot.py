@@ -1051,9 +1051,10 @@ class ConfigView(discord.ui.View):
 )
 @app_commands.checks.has_permissions(administrator=True)
 async def wlc(i: discord.Interaction):
-    cfg  = wlc_config.get(i.guild.id, {}).copy()
+    # Primero respondemos para que Discord no dé timeout
+    cfg = wlc_config.get(i.guild.id, {}).copy()
     view = ConfigView("wlc", cfg)
-
+    
     control = build_control_embed("wlc", cfg)
     preview = build_preview(cfg, i.user)
 
@@ -1063,7 +1064,7 @@ async def wlc(i: discord.Interaction):
         ephemeral=True
     )
 
-    # guardar referencia al mensaje para poder editarlo
+    # AHORA obtenemos el mensaje y lo asignamos a la view
     msg = await i.original_response()
     view.msg = msg
 
@@ -1074,7 +1075,7 @@ async def wlc(i: discord.Interaction):
 )
 @app_commands.checks.has_permissions(administrator=True)
 async def bye(i: discord.Interaction):
-    cfg  = bye_config.get(i.guild.id, {}).copy()
+    cfg = bye_config.get(i.guild.id, {}).copy()
     view = ConfigView("bye", cfg)
 
     control = build_control_embed("bye", cfg)
