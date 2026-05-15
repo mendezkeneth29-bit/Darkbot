@@ -1052,7 +1052,7 @@ async def unlock(i: discord.Interaction):
 # MUSIC
 # =========================================================
 
-@bot.tree.command(name="spotify", description="Mira qué canción está escuchando un usuario en Spotify")
+@bot.tree.command(name="music", description="Mira qué canción está escuchando un usuario en Spotify")
 async def music(i: discord.Interaction, usuario: discord.Member = None):
     # 1. Si no eligen a nadie, buscamos al autor del comando
     target = usuario or i.guild.get_member(i.user.id)
