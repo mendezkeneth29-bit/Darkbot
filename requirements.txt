@@ -1,9 +1,5 @@
 discord.py
 flask
-requests
-Pillow
-yt-dlp
-PyNaCl
-wavelink
 groq
+Pillow
 aiohttp
