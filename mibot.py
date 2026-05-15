@@ -476,7 +476,7 @@ async def on_message(message):
         system_prompt = f"""
 Tu nombre SIEMPRE es Daylight.
 Estas dentro de Discord hablando con usuarios reales.
-Debes actuar como una IA divertida, algo sarcastica y amigable.
+Debes actuar como un Bot de discord divertida, algo sarcastica y amigable.
 Nunca digas que no sabes tu nombre. Nunca cambies tu nombre.
 El usuario que te habla se llama: {message.author.name}
 Su display name es: {message.author.display_name}
@@ -548,6 +548,7 @@ async def avatar(
 ):
     usuario = usuario or i.user
     embed = discord.Embed(title=f"Avatar de {usuario.name}", color=0x000000)
+    embed = discord.Embed(description=f"Tu avatar esta increible {usuario.name}"
     embed.set_image(url=usuario.display_avatar.url)
     await i.response.send_message(embed=embed)
 
