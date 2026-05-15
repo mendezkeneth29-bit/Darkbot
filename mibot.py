@@ -772,7 +772,7 @@ bye_canal = {}
 async def wlc(i: discord.Interaction, canal: discord.TextChannel):
     wlc_canal[i.guild.id] = canal.id
     await i.response.send_message(
-        f"✅ Bienvenida activada en {canal.mention}",
+        f"Bienvenida activada en {canal.mention}...<:Check:1504584129302499399>",
         ephemeral=True
     )
 
@@ -785,7 +785,7 @@ async def wlc(i: discord.Interaction, canal: discord.TextChannel):
 async def bye(i: discord.Interaction, canal: discord.TextChannel):
     bye_canal[i.guild.id] = canal.id
     await i.response.send_message(
-        f"✅ Despedida activada en {canal.mention}",
+        f"Despedida activada en {canal.mention}...<:Check:1504584129302499399>",
         ephemeral=True
     )
 
@@ -797,14 +797,14 @@ async def bye(i: discord.Interaction, canal: discord.TextChannel):
 @app_commands.checks.has_permissions(administrator=True)
 async def reset_wlc(i: discord.Interaction):
     wlc_canal.pop(i.guild.id, None)
-    await i.response.send_message("✅ Bienvenida desactivada", ephemeral=True)
+    await i.response.send_message("Bienvenida desactivada...<:Check:1504584129302499399>", ephemeral=True)
 
 
 @bot.tree.command(name="reset-bye", description="Desactiva la despedida")
 @app_commands.checks.has_permissions(administrator=True)
 async def reset_bye(i: discord.Interaction):
     bye_canal.pop(i.guild.id, None)
-    await i.response.send_message("✅ Despedida desactivada", ephemeral=True)
+    await i.response.send_message("Despedida desactivada...<:Check:1504584129302499399>", ephemeral=True)
 
 # =========================================================
 # EVENTO JOIN
@@ -871,6 +871,154 @@ async def on_member_remove(member):
     )
 
     await canal.send(embed=embed)
+
+# =========================================================
+# NIVELES - DATA
+# =========================================================
+
+import time
+xp_data = {}
+nivel_canal = {}
+xp_cooldown = {}
+
+def get_xp(guild_id, user_id):
+    gid = str(guild_id)
+    uid = str(user_id)
+    if gid not in xp_data:
+        xp_data[gid] = {}
+    if uid not in xp_data[gid]:
+        xp_data[gid][uid] = {"xp": 0, "level": 1}
+    return xp_data[gid][uid]
+
+def xp_para_nivel(nivel):
+    return nivel * 100
+
+# =========================================================
+# GENERAR TARJETA
+# =========================================================
+
+async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed: int) -> discord.File:
+    W, H = 680, 180
+    FONDO       = (14, 14, 14)
+    ACENTO      = (245, 240, 232)   # crema
+    TEXTO       = (255, 255, 255)
+    SUBTEXTO    = (170, 170, 170)
+    GRIS        = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ACENTO)
+
+    # AVATAR
+    try:
+        av = await descargar_imagen(str(usuario.display_avatar.url))
+        av = avatar_circular(av, 100)
+        img.paste(av, (38, 40), av)
+    except:
+        draw.ellipse([(38, 40), (138, 140)], fill=GRIS, outline=ACENTO, width=2)
+
+    # BORDE AVATAR
+    draw.ellipse([(36, 38), (140, 142)], outline=ACENTO, width=2)
+
+    # NOMBRE
+    draw.text((162, 38), usuario.display_name, font=fuente(21, bold=True), fill=TEXTO)
+
+    # BADGE NIVEL
+    draw.rounded_rectangle([(162, 62), (242, 84)], radius=11, fill=ACENTO)
+    draw.text((202, 68), f"Nivel {nivel}", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
+
+    # XP TEXTO
+    draw.text((162, 106), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
+
+    # BARRA XP FONDO
+    draw.rounded_rectangle([(162, 118), (630, 130)], radius=6, fill=GRIS)
+
+    # BARRA XP RELLENO
+    progreso = min(xp / xp_needed, 1.0)
+    fill_w   = int(162 + (468 * progreso))
+    if fill_w > 162:
+        draw.rounded_rectangle([(162, 118), (fill_w, 130)], radius=6, fill=ACENTO)
+
+    # MENSAJE
+    draw.text((162, 152), f"Subiste al nivel {nivel} — sigue así!", font=fuente(12), fill=SUBTEXTO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="nivel.png")
+
+# =========================================================
+# COMANDO: setear canal de niveles
+# =========================================================
+
+@bot.tree.command(name="set-niveles", description="Elige el canal donde se anuncian los niveles")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_niveles(i: discord.Interaction, canal: discord.TextChannel):
+    nivel_canal[i.guild.id] = canal.id
+    await i.response.send_message(f"> Canal de niveles seteado en {canal.mention}", ephemeral=True)
+
+# =========================================================
+# COMANDO: ver nivel
+# =========================================================
+
+@bot.tree.command(name="nivel", description="Ve tu nivel actual")
+async def nivel_cmd(i: discord.Interaction, usuario: discord.Member = None):
+    await i.response.defer()
+    usuario = i.guild.get_member((usuario or i.user).id)
+    data     = get_xp(i.guild.id, usuario.id)
+
+    archivo = await generar_nivel(
+        usuario,
+        data["level"],
+        data["xp"],
+        xp_para_nivel(data["level"])
+    )
+    await i.followup.send(file=archivo)
+
+# =========================================================
+# EVENTO: dar XP por mensaje (cooldown 2 min)
+# =========================================================
+
+@bot.listen("on_message")
+async def dar_xp(message):
+    if message.author.bot or not message.guild:
+        return
+
+    uid = message.author.id
+    ahora = time.time()
+
+    # COOLDOWN 2 MINUTOS
+    if ahora - xp_cooldown.get(uid, 0) < 120:
+        return
+    xp_cooldown[uid] = ahora
+
+    data       = get_xp(message.guild.id, uid)
+    data["xp"] += random.randint(10, 20)
+
+    xp_needed = xp_para_nivel(data["level"])
+
+    if data["xp"] >= xp_needed:
+        data["xp"]    -= xp_needed
+        data["level"] += 1
+
+        canal_id = nivel_canal.get(message.guild.id)
+        canal    = message.guild.get_channel(canal_id) if canal_id else message.channel
+
+        try:
+            archivo = await generar_nivel(
+                message.author,
+                data["level"],
+                data["xp"],
+                xp_para_nivel(data["level"])
+            )
+            await canal.send(
+                content=message.author.mention,
+                file=archivo
+            )
+        except Exception as e:
+            print(f"Error nivel: {e}")
     
 # -------------------------
 # FLASK WEB
