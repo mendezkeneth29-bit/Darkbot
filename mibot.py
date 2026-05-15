@@ -1294,7 +1294,7 @@ async def daily(i: discord.Interaction):
             icon_url=i.user.display_avatar.url
         )
         embed.description = (
-            f"### ⏳ Ya reclamaste tu daily\n\n"
+            f"###  Ya reclamaste tu daily\n\n"
             f"> Vuelve en `{horas:02}:{minutos:02}:{segundos:02}`"
         )
         await i.response.send_message(embed=embed, ephemeral=True)
@@ -1311,7 +1311,7 @@ async def daily(i: discord.Interaction):
         icon_url=i.user.display_avatar.url
     )
     embed.description = (
-        f"### 🪙 Daily reclamado\n\n"
+        f"###  Daily reclamado\n\n"
         f"> Recibiste **{recompensa}** monedas\n"
         f"> Balance: **{data['coins']}** monedas"
     )
@@ -1342,7 +1342,7 @@ async def balance(
     embed.set_thumbnail(url=usuario.display_avatar.url)
 
     embed.add_field(
-        name="🪙 Monedas",
+        name="Monedas",
         value=f"> `{data['coins']}`",
         inline=True
     )
@@ -1355,7 +1355,7 @@ async def balance(
         ultimo_daily = f"> <t:{int(ultimo)}:R>"
 
     embed.add_field(
-        name="📅 Último daily",
+        name="Último daily",
         value=ultimo_daily,
         inline=True
     )
