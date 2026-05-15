@@ -548,7 +548,6 @@ async def avatar(
 ):
     usuario = usuario or i.user
     embed = discord.Embed(title=f"Avatar de {usuario.name}", color=0x000000)
-    embed = discord.Embed(description=f"Tu avatar esta increible {usuario.name}"
     embed.set_image(url=usuario.display_avatar.url)
     await i.response.send_message(embed=embed)
 
