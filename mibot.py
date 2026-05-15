@@ -750,38 +750,74 @@ async def ban(
 # =========================================================
 # USERINFO
 # =========================================================
-
 @bot.tree.command(name="userinfo")
 async def userinfo(
     i: discord.Interaction,
     usuario: discord.Member = None
 ):
-
     usuario = usuario or i.user
 
-    roles = ", ".join(
+    roles = " ".join(
         [r.mention for r in usuario.roles[1:]]
     )
-
     if not roles:
-        roles = "Sin roles"
+        roles = "> Sin roles"
 
     embed = discord.Embed(
-        title="User Info",
-        color=0x000000
+        color=usuario.color if usuario.color.value else 0x2b2d31
     )
 
-    embed.set_thumbnail(
-        url=usuario.display_avatar.url
+    # BANNER SUPERIOR
+    embed.set_author(
+        name=f"{usuario.display_name}",
+        icon_url=usuario.display_avatar.url
     )
 
-    embed.description = (
-        f"> Usuario: {usuario.mention}\n"
-        f"> ID: {usuario.id}\n"
-        f"> Nombre: {usuario.name}\n"
-        f"> Display: {usuario.display_name}\n"
-        f"> Cuenta creada: <t:{int(usuario.created_at.timestamp())}:R>\n"
-        f"> Entró al server: <t:{int(usuario.joined_at.timestamp())}:R>\n"
+    # AVATAR GRANDE
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    # CAMPOS EN DOS COLUMNAS
+    embed.add_field(
+        name="<:user:1504584589715443723> Usuario",
+        value=f"> {usuario.mention}",
+        inline=True
+    )
+    embed.add_field(
+        name="ID",
+        value=f"> `{usuario.id}`",
+        inline=True
+    )
+    embed.add_field(
+        name="\u200b",
+        value="\u200b",
+        inline=True
+    )  # espacio vacío para alinear
+
+    embed.add_field(
+        name="Cuenta creada",
+        value=f"> <t:{int(usuario.created_at.timestamp())}:R>",
+        inline=True
+    )
+    embed.add_field(
+        name="Entró al server",
+        value=f"> <t:{int(usuario.joined_at.timestamp())}:R>",
+        inline=True
+    )
+    embed.add_field(
+        name="\u200b",
+        value="\u200b",
+        inline=True
+    )
+
+    embed.add_field(
+        name="Roles",
+        value=roles,
+        inline=False
+    )
+
+    embed.set_footer(
+        text=f"Solicitado por {i.user.display_name}",
+        icon_url=i.user.display_avatar.url
     )
 
     await i.response.send_message(embed=embed)
@@ -790,31 +826,96 @@ async def userinfo(
 # SERVERINFO
 # =========================================================
 
+# =========================================================
+# SERVERINFO
+# =========================================================
 @bot.tree.command(name="serverinfo")
 async def serverinfo(i: discord.Interaction):
-
     g = i.guild
 
+    # CONTAR TIPOS DE CANALES
+    text_channels = len(g.text_channels)
+    voice_channels = len(g.voice_channels)
+
+    # NIVEL DE BOOST
+    boost_level = g.premium_tier
+    boosts = g.premium_subscription_count
+
     embed = discord.Embed(
-        title="Server Info",
-        color=0x000000
+        color=0x2b2d31
+    )
+
+    embed.set_author(
+        name=g.name,
+        icon_url=g.icon.url if g.icon else None
     )
 
     if g.icon:
         embed.set_thumbnail(url=g.icon.url)
 
-    embed.description = (
-        f"> Nombre: {g.name}\n"
-        f"> ID: {g.id}\n"
-        f"> Owner: {g.owner.mention}\n"
-        f"> Miembros: {g.member_count}\n"
-        f"> Canales: {len(g.channels)}\n"
-        f"> Roles: {len(g.roles)}\n"
-        f"> Creado: <t:{int(g.created_at.timestamp())}:R>"
+    if g.banner:
+        embed.set_image(url=g.banner.url)
+
+    embed.add_field(
+        name="Owner",
+        value=f"> {g.owner.mention}",
+        inline=True
+    )
+    embed.add_field(
+        name="ID",
+        value=f"> `{g.id}`",
+        inline=True
+    )
+    embed.add_field(
+        name="\u200b",
+        value="\u200b",
+        inline=True
+    )
+
+    embed.add_field(
+        name="Miembros",
+        value=f"> `{g.member_count}`",
+        inline=True
+    )
+    embed.add_field(
+        name="Roles",
+        value=f"> `{len(g.roles)}`",
+        inline=True
+    )
+    embed.add_field(
+        name="Emojis",
+        value=f"> `{len(g.emojis)}`",
+        inline=True
+    )
+
+    embed.add_field(
+        name="Canales de texto",
+        value=f"> `{text_channels}`",
+        inline=True
+    )
+    embed.add_field(
+        name="Canales de voz",
+        value=f"> `{voice_channels}`",
+        inline=True
+    )
+    embed.add_field(
+        name="Boosts",
+        value=f"> `{boosts}` (nivel {boost_level})",
+        inline=True
+    )
+
+    embed.add_field(
+        name="Creado",
+        value=f"> <t:{int(g.created_at.timestamp())}:R>",
+        inline=False
+    )
+
+    embed.set_footer(
+        text=f"Solicitado por {i.user.display_name}",
+        icon_url=i.user.display_avatar.url
     )
 
     await i.response.send_message(embed=embed)
-
 # =========================================================
 # EMBED EDIT
 # =========================================================
@@ -1066,7 +1167,7 @@ async def spotify(
 
     if not usuario:
         await i.response.send_message(
-            "❌ No se pudo obtener la información del usuario.",
+            "> **No se pudo obtener la información del usuario** <:fail:1504584281119522916>.",
             ephemeral=True
         )
         return
@@ -1078,7 +1179,8 @@ async def spotify(
 
     if not spotify_activity:
         await i.response.send_message(
-            f"❌ {usuario.display_name} no está escuchando Spotify."
+            f"**{usuario.display_name} no está escuchando Spotify**"
+            f"> o su spotify no esta vinculado a su cuenta"
         )
         return
 
@@ -1095,7 +1197,7 @@ async def spotify(
         color=0x000000
     )
     embed.description = (
-        f"## 🎵 Escuchando ahora\n\n"
+        f"## Escuchando ahora  <:musica:1504691247619641404>\n\n"
         f"> **Canción:**\n"
         f"> {spotify_activity.title}\n\n"
         f"> **Artista:**\n"
@@ -1109,7 +1211,7 @@ async def spotify(
         url=spotify_activity.album_cover_url
     )
     embed.set_footer(
-        text=f"{usuario.display_name} en Spotify 💚",
+        text=f"{usuario.display_name} en Spotify...",
         icon_url=usuario.display_avatar.url
     )
 
@@ -1144,92 +1246,277 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
 
     await i.response.send_message(embed=embed)
 
-# --- LISTA DE GIFS (Puedes añadir más links entre las comillas) ---
-gifs = {
-    "abrazo": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/3bh6W962AsMda/giphy.gif", "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/l41lIs69xT3U41LAA/giphy.gif"],
-    "beso": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/K976W7D8Xm6Y0/giphy.gif", "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/vUfPArL9Z5x9S/giphy.gif"],
-    "puño": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/3o7TKFpLp5J6O/giphy.gif"],
-    "matar": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/76ySi7j99Sst2/giphy.gif", "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/3o7TKUM3IgJBX2RZ6w/giphy.gif"],
-    "cocinar": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/720g7C1jz13wI/giphy.gif"],
-    "comer": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/U8S8FGHLy6n96/giphy.gif"],
-    "triste": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/OPU6wHnHZlWp2/giphy.gif"],
-    "reirse": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/10JhviCbbIfTdS/giphy.gif"],
-    "alegre": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/3o7TKDkDbIDJieKbVm/giphy.gif"],
-    "enojado": ["https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXF6bmZ6bmZ6bmZ6/11f6c6I1pXG7S/giphy.gif"]
-}
+# =========================================================
+# ECONOMIA - DATA
+# =========================================================
 
-# --- CLASE PARA EL BOTÓN DE DEVOLVER ---
-class DevolverView(discord.ui.View):
-    def __init__(self, quien_dio, quien_recibio, gesto):
-        super().__init__(timeout=60)
-        self.quien_dio = quien_dio
-        self.quien_recibio = quien_recibio
-        self.gesto = gesto
+economia_data = {}  # { guild_id: { user_id: { "coins": 0, "last_daily": 0 } } }
 
-    @discord.ui.button(label="Devolver", style=discord.ButtonStyle.grey)
-    async def devolver_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.quien_recibio.id:
-            return await interaction.response.send_message("¡Solo el que recibió el gesto puede devolverlo!", ephemeral=True)
-        
-        embed = discord.Embed(
-            description=f"**{self.quien_recibio.name}** devolvió un {self.gesto} a **{self.quien_dio.name}**",
-            color=0x000000 # Color Negro
+def get_user(guild_id, user_id):
+    gid = str(guild_id)
+    uid = str(user_id)
+    if gid not in economia_data:
+        economia_data[gid] = {}
+    if uid not in economia_data[gid]:
+        economia_data[gid][uid] = {
+            "coins": 0,
+            "last_daily": 0
+        }
+    return economia_data[gid][uid]
+
+# =========================================================
+# DAILY
+# =========================================================
+
+@bot.tree.command(
+    name="daily",
+    description="Reclama tus monedas diarias"
+)
+async def daily(i: discord.Interaction):
+    import time
+
+    data = get_user(i.guild.id, i.user.id)
+    ahora = time.time()
+    tiempo_espera = 86400  # 24 horas en segundos
+    ultimo = data["last_daily"]
+    diferencia = ahora - ultimo
+
+    if diferencia < tiempo_espera:
+        # TIEMPO RESTANTE
+        restante = int(tiempo_espera - diferencia)
+        horas = restante // 3600
+        minutos = (restante % 3600) // 60
+        segundos = restante % 60
+
+        embed = discord.Embed(color=0x2b2d31)
+        embed.set_author(
+            name=i.user.display_name,
+            icon_url=i.user.display_avatar.url
         )
-        embed.set_image(url=random.choice(gifs[self.gesto]))
-        await interaction.response.send_message(embed=embed)
-        self.stop() # Desactiva el botón después de usarse
+        embed.description = (
+            f"### ⏳ Ya reclamaste tu daily\n\n"
+            f"> Vuelve en `{horas:02}:{minutos:02}:{segundos:02}`"
+        )
+        await i.response.send_message(embed=embed, ephemeral=True)
+        return
 
-# --- COMANDO MAESTRO DE GESTOS ---
-@bot.tree.command(name="gesto", description="Realiza una acción")
-@app_commands.choices(accion=[
-    app_commands.Choice(name="Abrazo ", value="abrazo"),
-    app_commands.Choice(name="Beso ", value="beso"),
-    app_commands.Choice(name="Puño ", value="puño"),
-    app_commands.Choice(name="Matar ", value="matar"),
-    app_commands.Choice(name="Cocinar ", value="cocinar"),
-    app_commands.Choice(name="Comer  (Solo)", value="comer"),
-    app_commands.Choice(name="Triste  (Solo)", value="triste"),
-    app_commands.Choice(name="Reírse  (Solo)", value="reirse"),
-    app_commands.Choice(name="Alegre  (Solo)", value="alegre"),
-    app_commands.Choice(name="Enojado  (Solo)", value="enojado")
-])
-async def gesto(i: discord.Interaction, accion: str, usuario: discord.Member = None):
-    # Gestos que NO piden usuario
-    personales = ["comer", "triste", "reirse", "alegre", "enojado"]
-    
-    embed = discord.Embed(color=0x000000) # Color Negro
-    embed.set_image(url=random.choice(gifs[accion]))
+    # RECOMPENSA ALEATORIA
+    recompensa = random.randint(100, 500)
+    data["coins"] += recompensa
+    data["last_daily"] = ahora
 
-    if accion in personales:
-        textos = {
-            "comer": f"**{i.user.name}** está comiendo algo delicioso...",
-            "triste": f"**{i.user.name}** se siente triste hoy...",
-            "reirse": f"**{i.user.name}** no puede parar de reír...",
-            "alegre": f"**{i.user.name}** está muy alegre, ¡qué bien!",
-            "enojado": f"**{i.user.name}** está muy enojado, ¡cuidado!"
-        }
-        embed.description = textos[accion]
-        await i.response.send_message(embed=embed)
-    
+    embed = discord.Embed(color=0x2b2d31)
+    embed.set_author(
+        name=i.user.display_name,
+        icon_url=i.user.display_avatar.url
+    )
+    embed.description = (
+        f"### 🪙 Daily reclamado\n\n"
+        f"> Recibiste **{recompensa}** monedas\n"
+        f"> Balance: **{data['coins']}** monedas"
+    )
+    embed.set_footer(text="Vuelve en 24 horas")
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# BALANCE
+# =========================================================
+
+@bot.tree.command(
+    name="balance",
+    description="Ver el balance de monedas de un usuario"
+)
+async def balance(
+    i: discord.Interaction,
+    usuario: discord.Member = None
+):
+    usuario = usuario or i.user
+    data = get_user(i.guild.id, usuario.id)
+
+    embed = discord.Embed(color=usuario.color if usuario.color.value else 0x2b2d31)
+    embed.set_author(
+        name=usuario.display_name,
+        icon_url=usuario.display_avatar.url
+    )
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    embed.add_field(
+        name="🪙 Monedas",
+        value=f"> `{data['coins']}`",
+        inline=True
+    )
+
+    import time
+    ultimo = data["last_daily"]
+    if ultimo == 0:
+        ultimo_daily = "> Nunca"
     else:
-        # Gestos que SÍ piden usuario
-        if usuario is None:
-            return await i.response.send_message("¡Debes mencionar a alguien para este gesto!", ephemeral=True)
-        
-        if usuario == i.user:
-            return await i.response.send_message("No puedes hacerte eso a ti mismo...", ephemeral=True)
+        ultimo_daily = f"> <t:{int(ultimo)}:R>"
 
-        textos_interaccion = {
-            "abrazo": f"**{i.user.name}** le dio un fuerte abrazo a **{usuario.name}**",
-            "beso": f"**{i.user.name}** le dio un beso a **{usuario.name}**",
-            "puño": f"**{i.user.name}** choco puños con **{usuario.name}**",
-            "matar": f"**{i.user.name}** eliminó a **{usuario.name}** con un hechizo...",
-            "cocinar": f"**{i.user.name}** le está cocinando algo a **{usuario.name}**"
+    embed.add_field(
+        name="📅 Último daily",
+        value=ultimo_daily,
+        inline=True
+    )
+
+    embed.set_footer(
+        text=f"Solicitado por {i.user.display_name}",
+        icon_url=i.user.display_avatar.url
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# RANKING
+# =========================================================
+
+@bot.tree.command(
+    name="ranking",
+    description="Top de usuarios con más monedas"
+)
+async def ranking(i: discord.Interaction):
+    gid = str(i.guild.id)
+
+    if gid not in economia_data or not economia_data[gid]:
+        await i.response.send_message(
+            "> ❌ Nadie tiene monedas todavía.",
+            ephemeral=True
+        )
+        return
+
+    # ORDENAR POR MONEDAS
+    usuarios_ordenados = sorted(
+        economia_data[gid].items(),
+        key=lambda x: x[1]["coins"],
+        reverse=True
+    )[:10]  # top 10
+
+    medallas = ["🥇", "🥈", "🥉"]
+
+    descripcion = ""
+    for n, (uid, data) in enumerate(usuarios_ordenados):
+        member = i.guild.get_member(int(uid))
+        nombre = member.display_name if member else f"Usuario {uid}"
+        medalla = medallas[n] if n < 3 else f"`#{n+1}`"
+        descripcion += f"{medalla} **{nombre}** — `{data['coins']}` monedas\n"
+
+    embed = discord.Embed(
+        color=0x2b2d31
+    )
+    embed.set_author(
+        name=f"Ranking de {i.guild.name}",
+        icon_url=i.guild.icon.url if i.guild.icon else None
+    )
+    embed.description = descripcion
+    embed.set_footer(
+        text=f"Solicitado por {i.user.display_name}",
+        icon_url=i.user.display_avatar.url
+    )
+
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# NIVEL
+# =========================================================
+
+# XP DATA (separado de economía)
+xp_data = {}  # { guild_id: { user_id: { "xp": 0, "level": 1 } } }
+
+def get_xp(guild_id, user_id):
+    gid = str(guild_id)
+    uid = str(user_id)
+    if gid not in xp_data:
+        xp_data[gid] = {}
+    if uid not in xp_data[gid]:
+        xp_data[gid][uid] = {
+            "xp": 0,
+            "level": 1
         }
-        
-        embed.description = textos_interaccion[accion]
-        view = DevolverView(i.user, usuario, accion)
-        await i.response.send_message(embed=embed, view=view)
+    return xp_data[gid][uid]
+
+def xp_para_nivel(nivel):
+    return nivel * 100  # cada nivel requiere 100xp más
+
+# EVENTO: dar XP por mensaje
+@bot.listen("on_message")
+async def dar_xp(message):
+    if message.author.bot or not message.guild:
+        return
+
+    data = get_xp(message.guild.id, message.author.id)
+    data["xp"] += random.randint(5, 15)
+
+    xp_necesario = xp_para_nivel(data["level"])
+
+    if data["xp"] >= xp_necesario:
+        data["xp"] -= xp_necesario
+        data["level"] += 1
+
+        embed = discord.Embed(color=0x2b2d31)
+        embed.description = (
+            f"### ¡Subiste de nivel!\n\n"
+            f"> {message.author.mention} ahora es **nivel {data['level']}**"
+        )
+        await message.channel.send(embed=embed)
+
+# COMANDO /nivel
+@bot.tree.command(
+    name="nivel",
+    description="Ver tu nivel actual"
+)
+async def nivel(
+    i: discord.Interaction,
+    usuario: discord.Member = None
+):
+    usuario = usuario or i.user
+    data = get_xp(i.guild.id, usuario.id)
+
+    xp_actual = data["xp"]
+    nivel_actual = data["level"]
+    xp_necesario = xp_para_nivel(nivel_actual)
+
+    # BARRA DE PROGRESO
+    porcentaje = xp_actual / xp_necesario
+    barras_llenas = int(porcentaje * 10)
+    barra = "█" * barras_llenas + "░" * (10 - barras_llenas)
+
+    embed = discord.Embed(
+        color=usuario.color if usuario.color.value else 0x2b2d31
+    )
+    embed.set_author(
+        name=usuario.display_name,
+        icon_url=usuario.display_avatar.url
+    )
+    embed.set_thumbnail(url=usuario.display_avatar.url)
+
+    embed.add_field(
+        name="Nivel",
+        value=f"> `{nivel_actual}`",
+        inline=True
+    )
+    embed.add_field(
+        name="XP",
+        value=f"> `{xp_actual}/{xp_necesario}`",
+        inline=True
+    )
+    embed.add_field(
+        name="\u200b",
+        value="\u200b",
+        inline=True
+    )
+    embed.add_field(
+        name=" Progreso",
+        value=f"> `{barra}` {int(porcentaje * 100)}%",
+        inline=False
+    )
+
+    embed.set_footer(
+        text=f"Solicitado por {i.user.display_name}",
+        icon_url=i.user.display_avatar.url
+    )
+
+    await i.response.send_message(embed=embed)
         
 # -------------------------
 # FLASK WEB
