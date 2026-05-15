@@ -1054,38 +1054,35 @@ async def unlock(i: discord.Interaction):
 
 @bot.tree.command(
     name="spotify",
-    description="Muestra la tarjeta de música"
+    description="Muestra la música que escucha un usuario"
 )
 async def spotify(
     i: discord.Interaction,
     usuario: discord.Member = None
 ):
 
-    await i.response.defer()
+    usuario = usuario or i.user
 
-    target = usuario or i.user
-
-    spotify_act = discord.utils.find(
+    spotify = discord.utils.find(
         lambda a: isinstance(a, discord.Spotify),
-        target.activities
+        usuario.activities
     )
 
-    # SI NO ESCUCHA
-    if not spotify_act:
+    if not spotify:
 
-        await i.followup.send(
-            f"❌ **{target.display_name}** no está escuchando Spotify."
+        await i.response.send_message(
+            f"❌ {usuario.display_name} no está escuchando Spotify."
         )
 
         return
 
     # DURACION
-    total_seconds = int(
-        spotify_act.duration.total_seconds()
+    segundos_totales = int(
+        spotify.duration.total_seconds()
     )
 
-    minutos = total_seconds // 60
-    segundos = total_seconds % 60
+    minutos = segundos_totales // 60
+    segundos = segundos_totales % 60
 
     duracion = f"{minutos:02}:{segundos:02}"
 
@@ -1094,46 +1091,32 @@ async def spotify(
         color=0x000000
     )
 
-    embed.set_author(
-        name=f"Spotify de {target.display_name}",
-        icon_url="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg"
+    embed.description = (
+        f"## 🎵 Escuchando ahora\n\n"
+
+        f"> **Canción:**\n"
+        f"> {spotify.title}\n\n"
+
+        f"> **Artista:**\n"
+        f"> {spotify.artist}\n\n"
+
+        f"> **Álbum:**\n"
+        f"> {spotify.album}\n\n"
+
+        f"> **Duración:**\n"
+        f"> `{duracion}`"
     )
 
-    embed.add_field(
-        name="🎵 Canción",
-        value=f"**{spotify_act.title}**",
-        inline=False
-    )
-
-    embed.add_field(
-        name="👤 Artista",
-        value=spotify_act.artist,
-        inline=True
-    )
-
-    embed.add_field(
-        name="💿 Álbum",
-        value=spotify_act.album,
-        inline=True
-    )
-
-    embed.add_field(
-        name="⏱️ Duración",
-        value=f"`{duracion}`",
-        inline=True
-    )
-
-    # PORTADA
     embed.set_thumbnail(
-        url=spotify_act.album_cover_url
+        url=spotify.album_cover_url
     )
 
     embed.set_footer(
-        text=f"Solicitado por {i.user.name}",
-        icon_url=i.user.display_avatar.url
+        text=f"{usuario.display_name} en Spotify 💚",
+        icon_url=usuario.display_avatar.url
     )
 
-    await i.followup.send(
+    await i.response.send_message(
         embed=embed
     )
 # ------------------------
