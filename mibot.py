@@ -1052,35 +1052,34 @@ async def unlock(i: discord.Interaction):
 # MUSIC
 # =========================================================
 
-@bot.tree.command(name="spotify", description="Mira qué canción está escuchando un usuario en Spotify")
-async def music(i: discord.Interaction, usuario: discord.Member = None):
-    # 1. El defer evita el error de "La aplicación no respondió"
+@bot.tree.command(name="spotify", description="Mira qué canción está escuchando un usuario")
+async def spotify(i: discord.Interaction, usuario: discord.Member = None):
+    # 1. El defer evita que el comando diga "La aplicación no respondió"
     await i.response.defer()
     
-    # 2. Buscamos al usuario (si no elige a nadie, es él mismo)
+    # 2. Si no eligen a nadie, el objetivo es quien usó el comando
     target = usuario or i.guild.get_member(i.user.id)
     
     spotify_act = None
-    
-    # 3. Buscamos la actividad de Spotify (REVISADO: sin breakS, solo break)
+    # 3. Buscamos la actividad de Spotify (REVISADO: sin breakS, código limpio)
     for activity in target.activities:
         if isinstance(activity, discord.Spotify):
             spotify_act = activity
             break
 
-    # 4. Si no está escuchando nada
+    # 4. Si no está escuchando Spotify o tiene la actividad oculta
     if not spotify_act:
         return await i.followup.send(
-            f"**{target.display_name}** no está escuchando Spotify ahora mismo"
-            f"> o tiene su actividad oculta."
+            f"**{target.display_name} no está escuchando Spotify ahora mismo**"
+            f"> o spotify no esta vinculado a su cuenta.
         )
 
-    # 5. Extraemos la información
+    # 5. Extraemos la información y calculamos la duración
     cancion = spotify_act.title
     artistas = spotify_act.artist
     album = spotify_act.album
     portada = spotify_act.album_cover_url
-    duracion = spotify_act.duration.strftime("%M:%S")
+    duracion = spotify_act.duration.strftime("%M:%S") if spotify_act.duration else "00:00"
 
     # 6. Creamos el Embed Negro (0x000000)
     embed = discord.Embed(
@@ -1088,17 +1087,25 @@ async def music(i: discord.Interaction, usuario: discord.Member = None):
         color=0x000000
     )
     
-    embed.add_field(name="Canción", value=f"**{cancion}**", inline=False)
-    embed.add_field(name="Artista(s)", value=artistas, inline=True)
-    embed.add_field(name="Álbum", value=album, inline=True)
-    embed.add_field(name="Duración", value=f"`{duracion}`", inline=True)
+    # Descripción principal
+    embed.description = (
+        f"> **Canción:** {cancion}\n"
+        f"> **Artista(s):** {artistas}\n"
+        f"> **Álbum:** {album}\n"
+        f"> **Duración:** `{duracion}`"
+    )
     
+    # 7. Portada arriba a la derecha (Thumbnail)
     embed.set_thumbnail(url=portada)
-    embed.set_footer(text=f"Solicitado por {i.user.name}", icon_url=i.user.display_avatar.url)
+    
+    # Footer con la foto del usuario que escucha la música
+    embed.set_footer(
+        text=f"Música de {target.display_name}", 
+        icon_url=target.display_avatar.url
+    )
 
-    # 7. Enviamos la respuesta (usamos followup por el defer de arriba)
+    # 8. Enviamos la respuesta final
     await i.followup.send(embed=embed)
-
 # ------------------------
 # AFK
 # ------------------------
