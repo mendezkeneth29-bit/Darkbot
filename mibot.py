@@ -556,59 +556,44 @@ async def ask(
 
 @bot.event
 async def on_message(message):
-    if message.author.bot: return
-
-    # 1. ESTO QUITA EL AFK CUANDO EL USUARIO ESCRIBE
-    if message.author.id in afk_data:
-        segundos = int(time.time() - afk_data[message.author.id]["tiempo"])
-        m, s = divmod(segundos, 60)
-        await message.channel.send(f"**Bienvenido {message.author.name}**") 
-        (f"> estuviste {m}m {s}s fuera.")
-        del afk_data[message.author.id]
-
-    # 2. ESTO AVISA SI ALGUIEN MENCIONA A UN AFK
-    for user in message.mentions:
-        if user.id in afk_data:
-            motivo_guardado = afk_data[user.id]["motivo"]
-            await message.channel.send(
-                f"**{user.name} está dormido...**\n>"
-                f"> Motivo: {motivo_guardado}"
-            )
-
-    # 1. Ignorar si el mensaje es de un bot
-    if message.author.bot:
+    # 1. Ignorar si el mensaje es del propio bot (Para evitar bucles)
+    if message.author.id == bot.user.id:
         return
 
-    # 2. SISTEMA PARA QUITAR AFK
+    # 2. QUITAR EL AFK (Si el que escribe estaba inactivo)
     if message.author.id in afk_data:
-        # Calculamos el tiempo transcurrido
+        # Calculamos el tiempo
         tiempo_inicio = afk_data[message.author.id]["tiempo"]
         segundos_totales = int(time.time() - tiempo_inicio)
         
-        # Convertimos a formato legible (minutos y segundos)
         m, s = divmod(segundos_totales, 60)
         h, m = divmod(m, 60)
         
-        # Formateamos el texto del tiempo
-        if h > 0:
-            tiempo_texto = f"{h}h {m}m {s}s"
-        elif m > 0:
-            tiempo_texto = f"{m}m {s}s"
-        else:
-            tiempo_texto = f"{s}s"
+        # Formateamos el texto
+        if h > 0: tiempo_texto = f"{h}h {m}m {s}s"
+        elif m > 0: tiempo_texto = f"{m}m {s}s"
+        else: tiempo_texto = f"{s}s"
 
-        # ENVIAMOS EL MENSAJE CON TU FORMATO
+        # Enviamos el saludo
         await message.channel.send(
             f"**Bienvenido de nuevo {message.author.name}**\n"
             f"> estuviste `{tiempo_texto}` inactivo"
         )
-
-        # ¡MUY IMPORTANTE! Borramos al usuario de la lista para que ya no esté AFK
+        
+        # BORRAMOS el AFK para que ya no esté inactivo
         del afk_data[message.author.id]
 
-    # 3. (Opcional) Tu código de menciones a otros usuarios AFK puede ir aquí abajo...
-    
-    # 4. No olvides esto si usas comandos de prefijo (como !ayuda)
+    # 3. REVISAR MENCIONES (Si alguien menciona a un AFK)
+    for user in message.mentions:
+        # Solo avisamos si NO es el mismo autor (porque ya le dimos la bienvenida arriba)
+        if user.id in afk_data and user.id != message.author.id:
+            motivo_guardado = afk_data[user.id]["motivo"]
+            await message.channel.send(
+                f"**{user.name}** está dormido...\n"
+                f"> Motivo: `{motivo_guardado}`"
+            )
+
+    # 4. Procesar comandos (Si usas prefijos como !)
     await bot.process_commands(message)
 
     # IGNORAR BOTS
