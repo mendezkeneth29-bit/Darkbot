@@ -571,9 +571,45 @@ async def on_message(message):
         if user.id in afk_data:
             motivo_guardado = afk_data[user.id]["motivo"]
             await message.channel.send(
-                f"**{user.mention} está dormido...**\n>"
+                f"**{user.name} está dormido...**\n>"
                 f"> Motivo: {motivo_guardado}"
             )
+
+    # 1. Ignorar si el mensaje es de un bot
+    if message.author.bot:
+        return
+
+    # 2. SISTEMA PARA QUITAR AFK
+    if message.author.id in afk_data:
+        # Calculamos el tiempo transcurrido
+        tiempo_inicio = afk_data[message.author.id]["tiempo"]
+        segundos_totales = int(time.time() - tiempo_inicio)
+        
+        # Convertimos a formato legible (minutos y segundos)
+        m, s = divmod(segundos_totales, 60)
+        h, m = divmod(m, 60)
+        
+        # Formateamos el texto del tiempo
+        if h > 0:
+            tiempo_texto = f"{h}h {m}m {s}s"
+        elif m > 0:
+            tiempo_texto = f"{m}m {s}s"
+        else:
+            tiempo_texto = f"{s}s"
+
+        # ENVIAMOS EL MENSAJE CON TU FORMATO
+        await message.channel.send(
+            f"**Bienvenido de nuevo {message.author.name}**\n"
+            f"> estuviste `{tiempo_texto}` inactivo"
+        )
+
+        # ¡MUY IMPORTANTE! Borramos al usuario de la lista para que ya no esté AFK
+        del afk_data[message.author.id]
+
+    # 3. (Opcional) Tu código de menciones a otros usuarios AFK puede ir aquí abajo...
+    
+    # 4. No olvides esto si usas comandos de prefijo (como !ayuda)
+    await bot.process_commands(message)
 
     # IGNORAR BOTS
     if message.author.bot:
@@ -1103,7 +1139,7 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
 
     embed.description = (
         f" **motivo:**\n"
-        f"> __{motivo}__\n"
+        f"> `{motivo}`\n"
     )
 
     embed.set_footer(
