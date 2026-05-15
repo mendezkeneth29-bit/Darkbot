@@ -20,6 +20,7 @@ TOKEN = os.getenv("TOKEN")
 # -------------------------
 
 warnings_data = {}
+afk_data = {}
 
 # -------------------------
 # BOT
@@ -553,6 +554,36 @@ async def ask(
 
 @bot.event
 async def on_message(message):
+    import time
+
+        # -------------------------
+    # AFK RETURN
+    # -------------------------
+
+    if message.author.id in afk_data:
+
+        data = afk_data.pop(message.author.id)
+
+        tiempo = time.time() - data["tiempo"]
+
+        segundos = int(tiempo)
+
+        minutos = segundos // 60
+        horas = minutos // 60
+        dias = horas // 24
+
+        tiempo_texto = ""
+
+        if dias > 0:
+            tiempo_texto += f"{dias} días "
+        if horas % 24 > 0:
+            tiempo_texto += f"{horas % 24} horas "
+        if minutos % 60 > 0:
+            tiempo_texto += f"{minutos % 60} minutos"
+
+        await message.channel.send(
+            f"> bienvenido de nuevo {message.author.name}, estuviste {tiempo_texto.strip()} inactivo..."
+        )
 
     # IGNORAR BOTS
     if message.author.bot:
@@ -675,7 +706,7 @@ async def ban(
 
     if usuario == i.user:
         await i.response.send_message(
-            "No puedes banearte a ti mismo",
+            "> No puedes banearte a ti mismo",
             ephemeral=True
         )
         return
@@ -793,7 +824,7 @@ async def embed_edit(
 
         if not mensaje.embeds:
             await i.response.send_message(
-                "Ese mensaje no tiene embeds",
+                "> Ese mensaje no tiene embeds",
                 ephemeral=True
             )
             return
@@ -926,7 +957,7 @@ async def warnings(
     ):
 
         await i.response.send_message(
-            "Ese usuario no tiene warnings",
+            "> Ese usuario no tiene warnings",
             ephemeral=True
         )
         return
@@ -1030,7 +1061,7 @@ async def music(
     if not spotify:
 
         await i.response.send_message(
-            f"{usuario.mention} no está escuchando Spotify <:Plear:1504584518202556436>"
+            f"> {usuario.name} no está escuchando Spotify <:Plear:1504584518202556436>"
         )
 
         return
@@ -1060,6 +1091,48 @@ async def music(
     await i.response.send_message(
         embed=embed
     )
+
+# ------------------------
+# AFK
+# ------------------------
+
+@bot.tree.command(name="afk")
+async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
+
+    import time
+
+    afk_data[i.user.id] = {
+        "motivo": motivo,
+        "tiempo": time.time()
+    }
+
+    embed = discord.Embed(
+        title=f"{i.user.name} está inactivo...",
+        color=0x000000
+    )
+
+    embed.description = (
+        f"> motivo:\n"
+        f"> {motivo}\n"
+    )
+
+    embed.set_footer(
+        text="Te avisaré si te mencionan <:Group:1504584463953297438>..."
+    )
+
+    await i.response.send_message(embed=embed)
+
+    # -------------------------
+    # AFK CHECK (MENTIONES)
+    # -------------------------
+
+    for user in message.mentions:
+
+        if user.id in afk_data:
+
+            await message.channel.send(
+                f"> {user.mention} está dormido en este momento, vuelve más tarde..."
+            )
         
 # -------------------------
 # FLASK WEB
