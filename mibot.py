@@ -1054,20 +1054,14 @@ async def unlock(i: discord.Interaction):
 
 @bot.tree.command(name="music")
 async def music(i: discord.Interaction, usuario: discord.Member = None):
-    # Si no eligen a nadie, lo buscamos a él mismo pero como miembro del servidor
+    # Si no eligen a nadie, lo buscamos a él mismo
     if usuario is None:
         usuario = i.guild.get_member(i.user.id)
     
     spotify = None
-):
-
-    usuario = usuario or i.user
-
-    spotify = None
-
+    
     # BUSCAR ACTIVIDAD SPOTIFY
     for activity in usuario.activities:
-
         if isinstance(activity, discord.Spotify):
             spotify = activity
             break
