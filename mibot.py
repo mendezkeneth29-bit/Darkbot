@@ -747,175 +747,7 @@ async def ban(
             ephemeral=True
         )
 
-# =========================================================
-# USERINFO
-# =========================================================
-@bot.tree.command(name="userinfo")
-async def userinfo(
-    i: discord.Interaction,
-    usuario: discord.Member = None
-):
-    usuario = usuario or i.user
 
-    roles = " ".join(
-        [r.mention for r in usuario.roles[1:]]
-    )
-    if not roles:
-        roles = "> Sin roles"
-
-    embed = discord.Embed(
-        color=usuario.color if usuario.color.value else 0x2b2d31
-    )
-
-    # BANNER SUPERIOR
-    embed.set_author(
-        name=f"{usuario.display_name}",
-        icon_url=usuario.display_avatar.url
-    )
-
-    # AVATAR GRANDE
-    embed.set_thumbnail(url=usuario.display_avatar.url)
-
-    # CAMPOS EN DOS COLUMNAS
-    embed.add_field(
-        name="<:user:1504584589715443723> Usuario",
-        value=f"> {usuario.mention}",
-        inline=True
-    )
-    embed.add_field(
-        name="ID",
-        value=f"> `{usuario.id}`",
-        inline=True
-    )
-    embed.add_field(
-        name="\u200b",
-        value="\u200b",
-        inline=True
-    )  # espacio vacío para alinear
-
-    embed.add_field(
-        name="Cuenta creada",
-        value=f"> <t:{int(usuario.created_at.timestamp())}:R>",
-        inline=True
-    )
-    embed.add_field(
-        name="Entró al server",
-        value=f"> <t:{int(usuario.joined_at.timestamp())}:R>",
-        inline=True
-    )
-    embed.add_field(
-        name="\u200b",
-        value="\u200b",
-        inline=True
-    )
-
-    embed.add_field(
-        name="Roles",
-        value=roles,
-        inline=False
-    )
-
-    embed.set_footer(
-        text=f"Solicitado por {i.user.display_name}",
-        icon_url=i.user.display_avatar.url
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# SERVERINFO
-# =========================================================
-
-# =========================================================
-# SERVERINFO
-# =========================================================
-@bot.tree.command(name="serverinfo")
-async def serverinfo(i: discord.Interaction):
-    g = i.guild
-
-    # CONTAR TIPOS DE CANALES
-    text_channels = len(g.text_channels)
-    voice_channels = len(g.voice_channels)
-
-    # NIVEL DE BOOST
-    boost_level = g.premium_tier
-    boosts = g.premium_subscription_count
-
-    embed = discord.Embed(
-        color=0x2b2d31
-    )
-
-    embed.set_author(
-        name=g.name,
-        icon_url=g.icon.url if g.icon else None
-    )
-
-    if g.icon:
-        embed.set_thumbnail(url=g.icon.url)
-
-    if g.banner:
-        embed.set_image(url=g.banner.url)
-
-    embed.add_field(
-        name="Owner",
-        value=f"> {g.owner.mention}",
-        inline=True
-    )
-    embed.add_field(
-        name="ID",
-        value=f"> `{g.id}`",
-        inline=True
-    )
-    embed.add_field(
-        name="\u200b",
-        value="\u200b",
-        inline=True
-    )
-
-    embed.add_field(
-        name="Miembros",
-        value=f"> `{g.member_count}`",
-        inline=True
-    )
-    embed.add_field(
-        name="Roles",
-        value=f"> `{len(g.roles)}`",
-        inline=True
-    )
-    embed.add_field(
-        name="Emojis",
-        value=f"> `{len(g.emojis)}`",
-        inline=True
-    )
-
-    embed.add_field(
-        name="Canales de texto",
-        value=f"> `{text_channels}`",
-        inline=True
-    )
-    embed.add_field(
-        name="Canales de voz",
-        value=f"> `{voice_channels}`",
-        inline=True
-    )
-    embed.add_field(
-        name="Boosts",
-        value=f"> `{boosts}` (nivel {boost_level})",
-        inline=True
-    )
-
-    embed.add_field(
-        name="Creado",
-        value=f"> <t:{int(g.created_at.timestamp())}:R>",
-        inline=False
-    )
-
-    embed.set_footer(
-        text=f"Solicitado por {i.user.display_name}",
-        icon_url=i.user.display_avatar.url
-    )
-
-    await i.response.send_message(embed=embed)
 # =========================================================
 # EMBED EDIT
 # =========================================================
@@ -1167,7 +999,7 @@ async def spotify(
 
     if not usuario:
         await i.response.send_message(
-            "> **No se pudo obtener la información del usuario** <:fail:1504584281119522916>.",
+            "> **No se pudo obtener la información del usuario**.",
             ephemeral=True
         )
         return
@@ -1180,7 +1012,7 @@ async def spotify(
     if not spotify_activity:
         await i.response.send_message(
             f"**{usuario.display_name} no está escuchando Spotify**"
-            f"> o su spotify no esta vinculado a su cuenta"
+            "> o su spotify no esta vinculado a su cuenta"
         )
         return
 
@@ -1197,7 +1029,7 @@ async def spotify(
         color=0x000000
     )
     embed.description = (
-        f"## Escuchando ahora  <:musica:1504691247619641404>\n\n"
+        f"## Escuchando ahora  \n\n"
         f"> **Canción:**\n"
         f"> {spotify_activity.title}\n\n"
         f"> **Artista:**\n"
@@ -1246,277 +1078,223 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
 
     await i.response.send_message(embed=embed)
 
-# =========================================================
-# ECONOMIA - DATA
-# =========================================================
-
-economia_data = {}  # { guild_id: { user_id: { "coins": 0, "last_daily": 0 } } }
-
-def get_user(guild_id, user_id):
-    gid = str(guild_id)
-    uid = str(user_id)
-    if gid not in economia_data:
-        economia_data[gid] = {}
-    if uid not in economia_data[gid]:
-        economia_data[gid][uid] = {
-            "coins": 0,
-            "last_daily": 0
-        }
-    return economia_data[gid][uid]
 
 # =========================================================
-# DAILY
+# IMPORTS PARA TARJETAS
+# =========================================================
+import io
+import aiohttp
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+# =========================================================
+# HELPERS PARA GENERAR TARJETAS
 # =========================================================
 
-@bot.tree.command(
-    name="daily",
-    description="Reclama tus monedas diarias"
-)
-async def daily(i: discord.Interaction):
-    import time
+async def descargar_imagen(url: str) -> Image.Image:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as r:
+            data = await r.read()
+    return Image.open(io.BytesIO(data)).convert("RGBA")
 
-    data = get_user(i.guild.id, i.user.id)
-    ahora = time.time()
-    tiempo_espera = 86400  # 24 horas en segundos
-    ultimo = data["last_daily"]
-    diferencia = ahora - ultimo
+def avatar_circular(img: Image.Image, size: int) -> Image.Image:
+    img = img.resize((size, size))
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, size, size), fill=255)
+    resultado = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    resultado.paste(img, (0, 0), mask)
+    return resultado
 
-    if diferencia < tiempo_espera:
-        # TIEMPO RESTANTE
-        restante = int(tiempo_espera - diferencia)
-        horas = restante // 3600
-        minutos = (restante % 3600) // 60
-        segundos = restante % 60
+def fuente(size: int, bold: bool = False):
+    try:
+        path = "/usr/share/fonts/truetype/dejavu/"
+        nombre = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
+        return ImageFont.truetype(path + nombre, size)
+    except:
+        return ImageFont.load_default()
 
-        embed = discord.Embed(color=0x2b2d31)
-        embed.set_author(
-            name=i.user.display_name,
-            icon_url=i.user.display_avatar.url
+# =========================================================
+# GENERAR TARJETA USERINFO
+# =========================================================
+
+async def generar_userinfo(usuario: discord.Member) -> discord.File:
+    W, H = 700, 340
+    FONDO = (30, 31, 34)
+    ACENTO = (88, 101, 242)  # azul discord
+    TEXTO = (255, 255, 255)
+    SUBTEXTO = (180, 180, 190)
+    CAMPO_FONDO = (40, 43, 48)
+
+    img = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA IZQUIERDA DE COLOR
+    color = usuario.color
+    r = color.r if color.value else 88
+    g = color.g if color.value else 101
+    b = color.b if color.value else 242
+    draw.rectangle([(0, 0), (6, H)], fill=(r, g, b))
+
+    # AVATAR
+    avatar_img = await descargar_imagen(str(usuario.display_avatar.url))
+    avatar_img = avatar_circular(avatar_img, 90)
+    img.paste(avatar_img, (24, 20), avatar_img)
+
+    # NOMBRE Y DISPLAY
+    draw.text((128, 22), usuario.display_name, font=fuente(26, bold=True), fill=TEXTO)
+    draw.text((128, 56), f"@{usuario.name}", font=fuente(16), fill=SUBTEXTO)
+
+    # LÍNEA SEPARADORA
+    draw.rectangle([(24, 126), (W - 24, 128)], fill=(60, 63, 70))
+
+    # --- CAMPOS EN DOS COLUMNAS ---
+    col1_x = 24
+    col2_x = 370
+    y = 148
+
+    def campo(x, y, titulo, valor, ancho=320):
+        # fondo del campo
+        draw.rounded_rectangle(
+            [(x, y), (x + ancho, y + 64)],
+            radius=8,
+            fill=CAMPO_FONDO
         )
-        embed.description = (
-            f"###  Ya reclamaste tu daily\n\n"
-            f"> Vuelve en `{horas:02}:{minutos:02}:{segundos:02}`"
-        )
-        await i.response.send_message(embed=embed, ephemeral=True)
-        return
+        draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
+        draw.text((x + 12, y + 30), valor, font=fuente(17, bold=True), fill=TEXTO)
 
-    # RECOMPENSA ALEATORIA
-    recompensa = random.randint(100, 500)
-    data["coins"] += recompensa
-    data["last_daily"] = ahora
+    # FILA 1
+    campo(col1_x, y, "👤  USUARIO", f"@{usuario.display_name}")
+    campo(col2_x, y, "🪪  ID", str(usuario.id))
 
-    embed = discord.Embed(color=0x2b2d31)
-    embed.set_author(
-        name=i.user.display_name,
-        icon_url=i.user.display_avatar.url
+    # FILA 2
+    y2 = y + 80
+    creado = usuario.created_at.strftime("%d/%m/%Y")
+    entro = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
+    campo(col1_x, y2, "📅  CUENTA CREADA", creado)
+    campo(col2_x, y2, "📥  ENTRÓ AL SERVER", entro)
+
+    # ROLES
+    y3 = y2 + 80
+    roles_lista = [r.name for r in usuario.roles[1:]]
+    roles_texto = ", ".join(roles_lista[:5]) if roles_lista else "Sin roles"
+    if len(roles_lista) > 5:
+        roles_texto += f" +{len(roles_lista) - 5} más"
+    campo(col1_x, y3, "🎭  ROLES", roles_texto, ancho=652)
+
+    # FOOTER
+    draw.text(
+        (24, H - 22),
+        f"Solicitado por {usuario.display_name}",
+        font=fuente(12),
+        fill=SUBTEXTO
     )
-    embed.description = (
-        f"###  Daily reclamado\n\n"
-        f"> Recibiste **{recompensa}** monedas\n"
-        f"> Balance: **{data['coins']}** monedas"
-    )
-    embed.set_footer(text="Vuelve en 24 horas")
 
-    await i.response.send_message(embed=embed)
+    # EXPORTAR
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="userinfo.png")
+
 
 # =========================================================
-# BALANCE
+# GENERAR TARJETA SERVERINFO
 # =========================================================
 
-@bot.tree.command(
-    name="balance",
-    description="Ver el balance de monedas de un usuario"
-)
-async def balance(
-    i: discord.Interaction,
-    usuario: discord.Member = None
-):
-    usuario = usuario or i.user
-    data = get_user(i.guild.id, usuario.id)
+async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) -> discord.File:
+    W, H = 700, 400
+    FONDO = (30, 31, 34)
+    TEXTO = (255, 255, 255)
+    SUBTEXTO = (180, 180, 190)
+    CAMPO_FONDO = (40, 43, 48)
 
-    embed = discord.Embed(color=usuario.color if usuario.color.value else 0x2b2d31)
-    embed.set_author(
-        name=usuario.display_name,
-        icon_url=usuario.display_avatar.url
-    )
-    embed.set_thumbnail(url=usuario.display_avatar.url)
+    img = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
 
-    embed.add_field(
-        name="Monedas",
-        value=f"> `{data['coins']}`",
-        inline=True
-    )
+    # BARRA IZQUIERDA
+    draw.rectangle([(0, 0), (6, H)], fill=(88, 101, 242))
 
-    import time
-    ultimo = data["last_daily"]
-    if ultimo == 0:
-        ultimo_daily = "> Nunca"
+    # ICONO DEL SERVER
+    if guild.icon:
+        icon_img = await descargar_imagen(str(guild.icon.url))
+        icon_img = avatar_circular(icon_img, 90)
+        img.paste(icon_img, (24, 20), icon_img)
+        nombre_x = 128
     else:
-        ultimo_daily = f"> <t:{int(ultimo)}:R>"
+        nombre_x = 24
 
-    embed.add_field(
-        name="Último daily",
-        value=ultimo_daily,
-        inline=True
-    )
+    # NOMBRE
+    draw.text((nombre_x, 22), guild.name, font=fuente(26, bold=True), fill=TEXTO)
+    draw.text((nombre_x, 56), f"ID: {guild.id}", font=fuente(14), fill=SUBTEXTO)
 
-    embed.set_footer(
-        text=f"Solicitado por {i.user.display_name}",
-        icon_url=i.user.display_avatar.url
-    )
+    # LÍNEA
+    draw.rectangle([(24, 126), (W - 24, 128)], fill=(60, 63, 70))
 
-    await i.response.send_message(embed=embed)
+    # CAMPOS
+    col1_x = 24
+    col2_x = 370
+    col3_x = 200  # para fila de 3
 
-# =========================================================
-# RANKING
-# =========================================================
-
-@bot.tree.command(
-    name="ranking",
-    description="Top de usuarios con más monedas"
-)
-async def ranking(i: discord.Interaction):
-    gid = str(i.guild.id)
-
-    if gid not in economia_data or not economia_data[gid]:
-        await i.response.send_message(
-            "> ❌ Nadie tiene monedas todavía.",
-            ephemeral=True
+    def campo(x, y, titulo, valor, ancho=320):
+        draw.rounded_rectangle(
+            [(x, y), (x + ancho, y + 64)],
+            radius=8,
+            fill=CAMPO_FONDO
         )
-        return
+        draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
+        draw.text((x + 12, y + 30), str(valor), font=fuente(17, bold=True), fill=TEXTO)
 
-    # ORDENAR POR MONEDAS
-    usuarios_ordenados = sorted(
-        economia_data[gid].items(),
-        key=lambda x: x[1]["coins"],
-        reverse=True
-    )[:10]  # top 10
+    y = 148
 
-    medallas = ["🥇", "🥈", "🥉"]
+    # FILA 1
+    campo(col1_x, y, "👑  OWNER", guild.owner.display_name if guild.owner else "?")
+    campo(col2_x, y, "📅  CREADO", guild.created_at.strftime("%d/%m/%Y"))
 
-    descripcion = ""
-    for n, (uid, data) in enumerate(usuarios_ordenados):
-        member = i.guild.get_member(int(uid))
-        nombre = member.display_name if member else f"Usuario {uid}"
-        medalla = medallas[n] if n < 3 else f"`#{n+1}`"
-        descripcion += f"{medalla} **{nombre}** — `{data['coins']}` monedas\n"
+    # FILA 2
+    y2 = y + 80
+    ancho3 = 204
+    campo(col1_x,       y2, "👥  MIEMBROS",    str(guild.member_count),          ancho=ancho3)
+    campo(col1_x + 224, y2, "🎭  ROLES",       str(len(guild.roles)),             ancho=ancho3)
+    campo(col1_x + 448, y2, "😀  EMOJIS",      str(len(guild.emojis)),            ancho=ancho3)
 
-    embed = discord.Embed(
-        color=0x2b2d31
+    # FILA 3
+    y3 = y2 + 80
+    campo(col1_x,       y3, "💬  TEXTO",       str(len(guild.text_channels)),     ancho=ancho3)
+    campo(col1_x + 224, y3, "🔊  VOZ",         str(len(guild.voice_channels)),    ancho=ancho3)
+    campo(col1_x + 448, y3, "🚀  BOOSTS",      f"{guild.premium_subscription_count} (nv {guild.premium_tier})", ancho=ancho3)
+
+    # FOOTER
+    draw.text(
+        (24, H - 22),
+        f"Solicitado por {solicitante.display_name}",
+        font=fuente(12),
+        fill=SUBTEXTO
     )
-    embed.set_author(
-        name=f"Ranking de {i.guild.name}",
-        icon_url=i.guild.icon.url if i.guild.icon else None
-    )
-    embed.description = descripcion
-    embed.set_footer(
-        text=f"Solicitado por {i.user.display_name}",
-        icon_url=i.user.display_avatar.url
-    )
 
-    await i.response.send_message(embed=embed)
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="serverinfo.png")
+
 
 # =========================================================
-# NIVEL
+# COMANDOS
 # =========================================================
 
-# XP DATA (separado de economía)
-xp_data = {}  # { guild_id: { user_id: { "xp": 0, "level": 1 } } }
-
-def get_xp(guild_id, user_id):
-    gid = str(guild_id)
-    uid = str(user_id)
-    if gid not in xp_data:
-        xp_data[gid] = {}
-    if uid not in xp_data[gid]:
-        xp_data[gid][uid] = {
-            "xp": 0,
-            "level": 1
-        }
-    return xp_data[gid][uid]
-
-def xp_para_nivel(nivel):
-    return nivel * 100  # cada nivel requiere 100xp más
-
-# EVENTO: dar XP por mensaje
-@bot.listen("on_message")
-async def dar_xp(message):
-    if message.author.bot or not message.guild:
-        return
-
-    data = get_xp(message.guild.id, message.author.id)
-    data["xp"] += random.randint(5, 15)
-
-    xp_necesario = xp_para_nivel(data["level"])
-
-    if data["xp"] >= xp_necesario:
-        data["xp"] -= xp_necesario
-        data["level"] += 1
-
-        embed = discord.Embed(color=0x2b2d31)
-        embed.description = (
-            f"### ¡Subiste de nivel!\n\n"
-            f"> {message.author.mention} ahora es **nivel {data['level']}**"
-        )
-        await message.channel.send(embed=embed)
-
-# COMANDO /nivel
-@bot.tree.command(
-    name="nivel",
-    description="Ver tu nivel actual"
-)
-async def nivel(
+@bot.tree.command(name="userinfo")
+async def userinfo(
     i: discord.Interaction,
     usuario: discord.Member = None
 ):
-    usuario = usuario or i.user
-    data = get_xp(i.guild.id, usuario.id)
+    await i.response.defer()
+    usuario = usuario or i.guild.get_member(i.user.id)
+    archivo = await generar_userinfo(usuario)
+    await i.followup.send(file=archivo)
 
-    xp_actual = data["xp"]
-    nivel_actual = data["level"]
-    xp_necesario = xp_para_nivel(nivel_actual)
 
-    # BARRA DE PROGRESO
-    porcentaje = xp_actual / xp_necesario
-    barras_llenas = int(porcentaje * 10)
-    barra = "█" * barras_llenas + "░" * (10 - barras_llenas)
-
-    embed = discord.Embed(
-        color=usuario.color if usuario.color.value else 0x2b2d31
-    )
-    embed.set_author(
-        name=usuario.display_name,
-        icon_url=usuario.display_avatar.url
-    )
-    embed.set_thumbnail(url=usuario.display_avatar.url)
-
-    embed.add_field(
-        name="Nivel",
-        value=f"> `{nivel_actual}`",
-        inline=True
-    )
-    embed.add_field(
-        name="XP",
-        value=f"> `{xp_actual}/{xp_necesario}`",
-        inline=True
-    )
-    embed.add_field(
-        name="\u200b",
-        value="\u200b",
-        inline=True
-    )
-    embed.add_field(
-        name=" Progreso",
-        value=f"> `{barra}` {int(porcentaje * 100)}%",
-        inline=False
-    )
-
-    embed.set_footer(
-        text=f"Solicitado por {i.user.display_name}",
-        icon_url=i.user.display_avatar.url
-    )
-
-    await i.response.send_message(embed=embed)
+@bot.tree.command(name="serverinfo")
+async def serverinfo(i: discord.Interaction):
+    await i.response.defer()
+    archivo = await generar_serverinfo(i.guild, i.user)
+    await i.followup.send(file=archivo)
         
 # -------------------------
 # FLASK WEB
