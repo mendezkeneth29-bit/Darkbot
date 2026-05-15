@@ -753,6 +753,9 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
     embed.set_footer(text="Te avisaré si te mencionan...")
     await i.response.send_message(embed=embed)
 
+import discord
+from discord import app_commands
+
 # =========================================================
 # DATA
 # =========================================================
@@ -760,44 +763,62 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
 wlc_config = {}
 bye_config = {}
 
-def parse_text(texto, member):
+def parse_text(texto: str, member: discord.Member) -> str:
     if not texto:
         return texto
+    
+    # Asegurar valores seguros para iconos/avatars por si no están definidos
+    user_avatar_url = str(member.display_avatar.url) if member.display_avatar else ""
+    server_icon_url = str(member.guild.icon.url) if member.guild.icon else ""
+    
     return texto.replace("{user_name}", member.name) \
                 .replace("{user_mention}", member.mention) \
                 .replace("{user_id}", str(member.id)) \
+                .replace("{user_avatar}", user_avatar_url) \
                 .replace("{server_name}", member.guild.name) \
-                .replace("{user_avatar}", member.display_avatar.url)
+                .replace("{server_id}", str(member.guild.id)) \
+                .replace("{server_icon}", server_icon_url) \
+                .replace("{member_count}", str(member.guild.member_count))
 
 # =========================================================
 # HELPER: construir embed de previsualización
 # =========================================================
 
-def build_preview(cfg: dict, guild) -> discord.Embed:
+def build_preview(cfg: dict, member: discord.Member) -> discord.Embed:
     try:
         color = int(cfg.get("color", "000000").replace("#", ""), 16)
     except:
         color = 0x000000
 
+    # Parseamos los textos y URLs usando al Administrador como "tester"
+    titulo = parse_text(cfg.get("titulo") or "", member)
+    descripcion = parse_text(cfg.get("descripcion") or "", member)
+    autor = parse_text(cfg.get("autor") or "", member)
+    footer = parse_text(cfg.get("footer") or "", member)
+    
+    imagen_autor = parse_text(cfg.get("imagen_autor") or "", member)
+    imagen_footer = parse_text(cfg.get("imagen_footer") or "", member)
+    imagen_banner = parse_text(cfg.get("imagen_banner") or "", member)
+
     embed = discord.Embed(
-        title=cfg.get("titulo") or "",
-        description=cfg.get("descripcion") or "",
+        title=titulo,
+        description=descripcion,
         color=color
     )
 
-    if cfg.get("autor"):
+    if autor:
         embed.set_author(
-            name=cfg["autor"],
-            icon_url=cfg.get("imagen_autor") or discord.Embed.Empty
+            name=autor,
+            icon_url=imagen_autor or discord.Embed.Empty
         )
 
-    if cfg.get("imagen_banner"):
-        embed.set_thumbnail(url=cfg["imagen_banner"])
+    if imagen_banner:
+        embed.set_thumbnail(url=imagen_banner)
 
-    if cfg.get("footer"):
+    if footer:
         embed.set_footer(
-            text=cfg["footer"],
-            icon_url=cfg.get("imagen_footer") or discord.Embed.Empty
+            text=footer,
+            icon_url=imagen_footer or discord.Embed.Empty
         )
 
     return embed
@@ -809,12 +830,12 @@ def build_preview(cfg: dict, guild) -> discord.Embed:
 def build_control_embed(tipo: str, cfg: dict) -> discord.Embed:
     nombre = "Bienvenida" if tipo == "wlc" else "Despedida"
     embed = discord.Embed(
-        title=f"Configuración de {nombre}",
+        title=f" Configuración de {nombre}",
         color=0x2b2d31
     )
 
-    bots = "Si" if cfg.get("mandar_bots") else "No"
-    dm   = "Si" if cfg.get("mandar_dm")   else "No"
+    bots = "Yes" if cfg.get("mandar_bots") else "No"
+    dm   = "Yes" if cfg.get("mandar_dm")   else "No"
 
     embed.description = (
         f"**Primario**\n"
@@ -830,6 +851,16 @@ def build_control_embed(tipo: str, cfg: dict) -> discord.Embed:
         f"**Vista previa** ↓"
     )
     return embed
+
+# =========================================================
+# HELPER: refrescar mensaje con nueva previsualización
+# =========================================================
+
+async def refresh_message(msg: discord.Message, tipo: str, cfg: dict, interaction: discord.Interaction):
+    control = build_control_embed(tipo, cfg)
+    preview = build_preview(cfg, interaction.user)
+    view    = ConfigView(tipo, cfg, msg)
+    await msg.edit(embeds=[control, preview], view=view)
 
 # =========================================================
 # MODALS
@@ -873,7 +904,7 @@ class ModalPrimario(discord.ui.Modal):
         self.cfg["color"]       = self.color.value.strip().replace("#", "")
 
         await interaction.response.defer()
-        await refresh_message(self.msg, self.tipo, self.cfg)
+        await refresh_message(self.msg, self.tipo, self.cfg, interaction)
 
 
 class ModalSecundario(discord.ui.Modal):
@@ -928,7 +959,7 @@ class ModalSecundario(discord.ui.Modal):
         self.cfg["imagen_banner"] = self.imagen_banner.value.strip()
 
         await interaction.response.defer()
-        await refresh_message(self.msg, self.tipo, self.cfg)
+        await refresh_message(self.msg, self.tipo, self.cfg, interaction)
 
 
 class ModalConfig(discord.ui.Modal):
@@ -961,17 +992,7 @@ class ModalConfig(discord.ui.Modal):
         self.cfg["mandar_dm"]   = self.dm.value.strip().lower()   == "si"
 
         await interaction.response.defer()
-        await refresh_message(self.msg, self.tipo, self.cfg)
-
-# =========================================================
-# HELPER: refrescar mensaje con nueva previsualización
-# =========================================================
-
-async def refresh_message(msg: discord.Message, tipo: str, cfg: dict):
-    control = build_control_embed(tipo, cfg)
-    preview = build_preview(cfg, msg.guild)
-    view    = ConfigView(tipo, cfg, msg)
-    await msg.edit(embeds=[control, preview], view=view)
+        await refresh_message(self.msg, self.tipo, self.cfg, interaction)
 
 # =========================================================
 # VIEW PRINCIPAL
@@ -984,25 +1005,25 @@ class ConfigView(discord.ui.View):
         self.cfg  = cfg
         self.msg  = message  # se asigna después del primer send
 
-    @discord.ui.button(label="Primario", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label=" Primario", style=discord.ButtonStyle.primary)
     async def btn_primario(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(
             ModalPrimario(self.tipo, self.cfg, self.msg)
         )
 
-    @discord.ui.button(label="Secundario", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label=" Secundario", style=discord.ButtonStyle.secondary)
     async def btn_secundario(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(
             ModalSecundario(self.tipo, self.cfg, self.msg)
         )
 
-    @discord.ui.button(label="Config", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label=" Config", style=discord.ButtonStyle.secondary)
     async def btn_config(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(
             ModalConfig(self.tipo, self.cfg, self.msg)
         )
 
-    @discord.ui.button(label="Guardar & Activar", style=discord.ButtonStyle.success)
+    @discord.ui.button(label=" Guardar & Activar", style=discord.ButtonStyle.success)
     async def btn_guardar(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.tipo == "wlc":
             wlc_config[interaction.guild.id] = self.cfg
@@ -1016,7 +1037,7 @@ class ConfigView(discord.ui.View):
 
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(
-            f"Configuración de {nombre} guardada y activada.",
+            f" Configuración de {nombre} guardada y activada.",
             ephemeral=True
         )
 
@@ -1034,7 +1055,7 @@ async def wlc(i: discord.Interaction):
     view = ConfigView("wlc", cfg)
 
     control = build_control_embed("wlc", cfg)
-    preview = build_preview(cfg, i.guild)
+    preview = build_preview(cfg, i.user)
 
     await i.response.send_message(
         embeds=[control, preview],
@@ -1045,8 +1066,6 @@ async def wlc(i: discord.Interaction):
     # guardar referencia al mensaje para poder editarlo
     msg = await i.original_response()
     view.msg = msg
-    for modal_cls in [ModalPrimario, ModalSecundario, ModalConfig]:
-        pass  # la referencia ya se pasa al abrir cada modal
 
 
 @bot.tree.command(
@@ -1059,7 +1078,7 @@ async def bye(i: discord.Interaction):
     view = ConfigView("bye", cfg)
 
     control = build_control_embed("bye", cfg)
-    preview = build_preview(cfg, i.guild)
+    preview = build_preview(cfg, i.user)
 
     await i.response.send_message(
         embeds=[control, preview],
@@ -1088,17 +1107,22 @@ async def on_member_join(member):
     if not canal:
         return
 
+    # Extracción segura de imágenes para evitar fallos si el usuario ingresó variables ahí
+    imagen_autor = parse_text(cfg.get("imagen_autor") or "", member)
+    imagen_footer = parse_text(cfg.get("imagen_footer") or "", member)
+    imagen_banner = parse_text(cfg.get("imagen_banner") or "", member)
+
     embed = discord.Embed(
         title=parse_text(cfg.get("titulo") or "", member),
         description=parse_text(cfg.get("descripcion") or "", member),
         color=int(cfg.get("color", "000000").replace("#", "") or "000000", 16)
     )
     if cfg.get("autor"):
-        embed.set_author(name=parse_text(cfg["autor"], member), icon_url=cfg.get("imagen_autor") or discord.Embed.Empty)
-    if cfg.get("imagen_banner"):
-        embed.set_thumbnail(url=cfg["imagen_banner"])
+        embed.set_author(name=parse_text(cfg["autor"], member), icon_url=imagen_autor or discord.Embed.Empty)
+    if imagen_banner:
+        embed.set_thumbnail(url=imagen_banner)
     if cfg.get("footer"):
-        embed.set_footer(text=parse_text(cfg["footer"], member), icon_url=cfg.get("imagen_footer") or discord.Embed.Empty)
+        embed.set_footer(text=parse_text(cfg["footer"], member), icon_url=imagen_footer or discord.Embed.Empty)
 
     await canal.send(embed=embed)
 
@@ -1124,20 +1148,24 @@ async def on_member_remove(member):
     if not canal:
         return
 
+    # Extracción segura de imágenes para evitar fallos si el usuario ingresó variables ahí
+    imagen_autor = parse_text(cfg.get("imagen_autor") or "", member)
+    imagen_footer = parse_text(cfg.get("imagen_footer") or "", member)
+    imagen_banner = parse_text(cfg.get("imagen_banner") or "", member)
+
     embed = discord.Embed(
         title=parse_text(cfg.get("titulo") or "", member),
         description=parse_text(cfg.get("descripcion") or "", member),
         color=int(cfg.get("color", "000000").replace("#", "") or "000000", 16)
     )
     if cfg.get("autor"):
-        embed.set_author(name=parse_text(cfg["autor"], member), icon_url=cfg.get("imagen_autor") or discord.Embed.Empty)
-    if cfg.get("imagen_banner"):
-        embed.set_thumbnail(url=cfg["imagen_banner"])
+        embed.set_author(name=parse_text(cfg["autor"], member), icon_url=imagen_autor or discord.Embed.Empty)
+    if imagen_banner:
+        embed.set_thumbnail(url=imagen_banner)
     if cfg.get("footer"):
-        embed.set_footer(text=parse_text(cfg["footer"], member), icon_url=cfg.get("imagen_footer") or discord.Embed.Empty)
+        embed.set_footer(text=parse_text(cfg["footer"], member), icon_url=imagen_footer or discord.Embed.Empty)
 
     await canal.send(embed=embed)
-
 # -------------------------
 # FLASK WEB
 # -------------------------
