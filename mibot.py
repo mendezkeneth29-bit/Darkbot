@@ -1060,65 +1060,60 @@ async def spotify(
     i: discord.Interaction,
     usuario: discord.Member = None
 ):
+    # OBTENER MIEMBRO DESDE EL GUILD (trae activities actualizadas)
+    member_id = (usuario or i.user).id
+    usuario = i.guild.get_member(member_id)
 
-    usuario = usuario or i.user
+    if not usuario:
+        await i.response.send_message(
+            "❌ No se pudo obtener la información del usuario.",
+            ephemeral=True
+        )
+        return
 
-    spotify = discord.utils.find(
+    spotify_activity = discord.utils.find(
         lambda a: isinstance(a, discord.Spotify),
         usuario.activities
     )
 
-    if not spotify:
-
+    if not spotify_activity:
         await i.response.send_message(
             f"❌ {usuario.display_name} no está escuchando Spotify."
         )
-
         return
 
     # DURACION
     segundos_totales = int(
-        spotify.duration.total_seconds()
+        spotify_activity.duration.total_seconds()
     )
-
     minutos = segundos_totales // 60
     segundos = segundos_totales % 60
-
     duracion = f"{minutos:02}:{segundos:02}"
 
     # EMBED
     embed = discord.Embed(
         color=0x000000
     )
-
     embed.description = (
         f"## 🎵 Escuchando ahora\n\n"
-
         f"> **Canción:**\n"
-        f"> {spotify.title}\n\n"
-
+        f"> {spotify_activity.title}\n\n"
         f"> **Artista:**\n"
-        f"> {spotify.artist}\n\n"
-
+        f"> {spotify_activity.artist}\n\n"
         f"> **Álbum:**\n"
-        f"> {spotify.album}\n\n"
-
+        f"> {spotify_activity.album}\n\n"
         f"> **Duración:**\n"
         f"> `{duracion}`"
     )
-
     embed.set_thumbnail(
-        url=spotify.album_cover_url
+        url=spotify_activity.album_cover_url
     )
-
     embed.set_footer(
         text=f"{usuario.display_name} en Spotify 💚",
         icon_url=usuario.display_avatar.url
     )
 
-    await i.response.send_message(
-        embed=embed
-    )
+    await i.response.send_message(embed=embed)
 # ------------------------
 # AFK
 # ------------------------
