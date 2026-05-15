@@ -1052,54 +1052,50 @@ async def unlock(i: discord.Interaction):
 # MUSIC
 # =========================================================
 
-@bot.tree.command(name="music")
+@bot.tree.command(name="spotify", description="Mira qué canción está escuchando un usuario en Spotify")
 async def music(i: discord.Interaction, usuario: discord.Member = None):
-    # Si no eligen a nadie, lo buscamos a él mismo
-    if usuario is None:
-        usuario = i.guild.get_member(i.user.id)
+    # 1. Si no eligen a nadie, buscamos al autor del comando
+    target = usuario or i.guild.get_member(i.user.id)
     
-    spotify = None
+    spotify_act = None
     
-    # BUSCAR ACTIVIDAD SPOTIFY
-    for activity in usuario.activities:
+    # 2. Buscamos la actividad de Spotify entre todas las que tenga el usuario
+    for activity in target.activities:
         if isinstance(activity, discord.Spotify):
-            spotify = activity
-            break
+            spotify_act = activity
+            break # Detenemos la búsqueda al encontrarlo
 
-    # SI NO ESCUCHA NADA
-    if not spotify:
-
-        await i.response.send_message(
-            f"> {usuario.name} no está escuchando Spotify <:Plear:1504584518202556436>"
+    # 3. Si no está escuchando nada o no tiene la cuenta vinculada
+    if not spotify_act:
+        return await i.response.send_message(
+            f"**{target.display_name} no está escuchando Spotify ahora mismo"
+            f"> o tiene su actividad oculta."
         )
 
-        return
+    # 4. Extraemos la información de la canción
+    cancion = spotify_act.title
+    artistas = spotify_act.artist
+    album = spotify_act.album
+    portada = spotify_act.album_cover_url
+    # Calculamos la duración en formato MM:SS
+    duracion = spotify_act.duration.strftime("%M:%S")
 
-    # EMBED
+    # 5. Creamos el Embed Negro (0x000000)
     embed = discord.Embed(
-        title=" Escuchando ahora  <a:Check:1504584129302499399>",
+        title="Escuchando ahora en Spotify <:music:1504691247619641404>",
         color=0x000000
     )
+    
+    embed.add_field(name="Canción", value=f"**{cancion}**", inline=False)
+    embed.add_field(name="Artista(s)", value=artistas, inline=True)
+    embed.add_field(name="Álbum", value=album, inline=True)
+    embed.add_field(name="Duración", value=f"`{duracion}`", inline=True)
+    
+    embed.set_thumbnail(url=portada) # Muestra la portada del disco
+    embed.set_footer(text=f"Usuario: {target.name}", icon_url=target.display_avatar.url)
 
-    embed.description = (
-        f">  Canción: {spotify.title}\n"
-        f">  Artista: {spotify.artist}\n"
-        f">  Álbum: {spotify.album}"
-    )
-
-    # PORTADA
-    embed.set_thumbnail(
-        url=spotify.album_cover_url
-    )
-
-    # FOOTER
-    embed.set_footer(
-        text=f"{usuario.name} en Spotify™ "
-    )
-
-    await i.response.send_message(
-        embed=embed
-    )
+    # 6. Enviamos el mensaje final
+    await i.response.send_message(embed=embed)
 
 # ------------------------
 # AFK
