@@ -554,22 +554,25 @@ async def ask(
 
 @bot.event
 async def on_message(message):
-    import time
+    if message.author.bot: return # Primero ignoramos a otros bots
 
-    # -------------------------
-# AFK RETURN
-# -------------------------
+    # --- AFK RETURN ---
+    # Solo hacemos esto SI el usuario está en la lista afk_data
+    if message.author.id in afk_data:
+        import time # Es mejor ponerlo hasta arriba del archivo, pero aquí funciona
+        
+        # 1. Calculamos cuánto tiempo pasó
+        segundos_totales = int(time.time() - afk_data[message.author.id]["tiempo"])
+        m, s = divmod(segundos_totales, 60)
+        tiempo_texto = f"{m}m {s}s"
 
-# 1. Calculamos cuánto tiempo pasó
-segundos_totales = int(time.time() - afk_data[message.author.id]["tiempo"])
-m, s = divmod(segundos_totales, 60)
-tiempo_texto = f"{m}m {s}s"
+        # 2. Tu mensaje de bienvenida
+        await message.channel.send(f"> bienvenido de nuevo {message.author.name}, estuviste {tiempo_texto} inactivo...")
 
-# 2. Tu línea de la segunda imagen actualizada:
-await message.channel.send(f"> bienvenido de nuevo {message.author.name}, estuviste {tiempo_texto} inactivo...")
+        # 3. Lo borramos de la lista
+        del afk_data[message.author.id]
 
-# 3. Importante: Lo borramos de la lista para que ya no esté AFK
-del afk_data[message.author.id]
+    # ... Aquí sigue el resto de tu código (IGNORAR BOTS, etc.)
 
     # IGNORAR BOTS
     if message.author.bot:
