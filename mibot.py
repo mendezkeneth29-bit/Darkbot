@@ -441,7 +441,7 @@ async def ask(
             )
 
             embed = discord.Embed(
-                title="🖼 Imagen generada",
+                title="Imagen generada... <:Check:1504584129302499399>",
                 description=f"> Prompt: {mensaje}",
                 color=0x000000
             )
@@ -739,7 +739,6 @@ async def userinfo(
         f"> Display: {usuario.display_name}\n"
         f"> Cuenta creada: <t:{int(usuario.created_at.timestamp())}:R>\n"
         f"> Entró al server: <t:{int(usuario.joined_at.timestamp())}:R>\n"
-        f"> Roles: {roles}"
     )
 
     await i.response.send_message(embed=embed)
@@ -896,7 +895,7 @@ async def warn(
     total = len(warnings_data[gid][uid])
 
     embed = discord.Embed(
-        title="⚠ Usuario Advertido",
+        title="Usuario Advertido <:Protect:1504584589715443723>",
         color=0x000000
     )
 
@@ -944,7 +943,7 @@ async def warnings(
         )
 
     embed = discord.Embed(
-        title=f"⚠ Warnings de {usuario.name}",
+        title=f"Warnings de {usuario.name}",
         description=texto,
         color=0x000000
     )
@@ -972,7 +971,7 @@ async def lock(i: discord.Interaction):
 
     embed = discord.Embed(
         title="Canal Bloqueado",
-        description="> Nadie puede enviar mensajes.",
+        description="> Nadie puede enviar mensajes. <:Block:1504584331845435462>",
         color=0x000000
     )
 
@@ -999,350 +998,68 @@ async def unlock(i: discord.Interaction):
 
     embed = discord.Embed(
         title="Canal Desbloqueado",
-        description="> Ya pueden hablar otra vez.",
+        description="> Ya pueden hablar otra vez. <:Unblock:1504584412900233367>",
         color=0x000000
     )
 
     await i.response.send_message(embed=embed)
+    
 
 # =========================================================
-# GESTOS
+# MUSIC
 # =========================================================
 
-# GIFS
-abrazar_gifs = [
-    "https://tenor.com/es-US/view/harry-potter-hermione-granger-gif-19915872",
-    "https://tenor.com/es-US/view/mileven-mileven-season-5-mileven-hug-mileven-reunion-mike-wheeler-gif-1031149959124018240"
-]
-
-besar_gifs = [
-    "https://tenor.com/es-US/view/harry-potter-ginny-kiss-love-win-gif-4958198",
-    "https://tenor.com/es-US/view/jenna-ortega-emma-myers-wednesday-enid-serie-clip-gif-3794335437046571717"
-]
-
-bofetada_gifs = [
-    "https://media.tenor.com/r6qG4ZlT0AAAAAAC/slap-wednesday.gif",
-    "https://media.tenor.com/Nd7bS6mJ8yAAAAAC/harry-potter-slap.gif"
-]
-
-cocinar_gifs = [
-    "https://media.tenor.com/W8bK6QxXjYAAAAAC/cooking-wednesday.gif",
-    "https://media.tenor.com/U0f6dKjQ5SAAAAAC/stranger-things-cooking.gif"
-]
-
-comer_gifs = [
-    "https://media.tenor.com/L6l9K2p8wzAAAAAC/eating-wednesday.gif",
-    "https://media.tenor.com/8Xq4K6h3dKAAAAAC/harry-potter-eating.gif"
-]
-
-enojado_gifs = [
-    "https://media.tenor.com/9jK3h2P6v8AAAAAC/wednesday-angry.gif",
-    "https://media.tenor.com/J6s7K3pQ9AAAAAAC/stranger-things-angry.gif"
-]
-
-llorar_gifs = [
-    "https://media.tenor.com/cQz7K8f8V8AAAAAC/crying-will-byers.gif",
-    "https://media.tenor.com/U7f8K3nL0AAAAAAC/wednesday-cry.gif"
-]
-
-matar_gifs = [
-    "https://media.tenor.com/l2xQ4b6Q8AAAAAAC/wednesday-kill.gif",
-    "https://media.tenor.com/D7k3L9p0AAAAAAC/the-black-phone.gif"
-]
-
-alegre_gifs = [
-    "https://media.tenor.com/L0a9Q8mKAAAAAAC/wednesday-smile.gif",
-    "https://media.tenor.com/J9k3P8v0AAAAAAC/stranger-things-happy.gif"
-]
-
-bailar_gifs = [
-    "https://media.tenor.com/4K6g9P2xAAAAAAC/wednesday-dance.gif",
-    "https://media.tenor.com/Z9k3L8x0AAAAAAC/harry-potter-dance.gif"
-]
-
-# =========================================================
-# ABRAZO
-# =========================================================
-
-@bot.tree.command(name="abrazo")
-async def abrazo(
+@bot.tree.command(name="music")
+async def music(
     i: discord.Interaction,
-    usuario: discord.Member
+    usuario: discord.Member = None
 ):
 
-    embed = discord.Embed(
-        color=0x000000
-    )
+    usuario = usuario or i.user
 
-    embed.description = (
-        f"{i.user.mention} abrazó a {usuario.mention}"
-    )
+    spotify = None
 
-    embed.set_image(
-        url=random.choice(abrazar_gifs)
-    )
+    # BUSCAR ACTIVIDAD SPOTIFY
+    for activity in usuario.activities:
 
-    await i.response.send_message(embed=embed)
+        if isinstance(activity, discord.Spotify):
+            spotify = activity
+            break
 
-# =========================================================
-# BESO
-# =========================================================
+    # SI NO ESCUCHA NADA
+    if not spotify:
 
-@bot.tree.command(name="beso")
-async def beso(
-    i: discord.Interaction,
-    usuario: discord.Member
-):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} besó a {usuario.mention}"
-    )
-
-    embed.set_image(
-        url=random.choice(besar_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# BOFETADA
-# =========================================================
-
-@bot.tree.command(name="bofetada")
-async def bofetada(
-    i: discord.Interaction,
-    usuario: discord.Member
-):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} bofeteó a {usuario.mention}"
-    )
-
-    embed.set_image(
-        url=random.choice(bofetada_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# COCINAR
-# =========================================================
-
-@bot.tree.command(name="cocinar")
-async def cocinar(
-    i: discord.Interaction,
-    usuario: discord.Member
-):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} cocinó para {usuario.mention}"
-    )
-
-    embed.set_image(
-        url=random.choice(cocinar_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# COMER
-# =========================================================
-
-@bot.tree.command(name="comer")
-async def comer(i: discord.Interaction):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} está comiendo"
-    )
-
-    embed.set_image(
-        url=random.choice(comer_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# ENOJADO
-# =========================================================
-
-@bot.tree.command(name="enojado")
-async def enojado(i: discord.Interaction):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} está enojado"
-    )
-
-    embed.set_image(
-        url=random.choice(enojado_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# LLORAR
-# =========================================================
-
-@bot.tree.command(name="llorar")
-async def llorar(i: discord.Interaction):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} está llorando"
-    )
-
-    embed.set_image(
-        url=random.choice(llorar_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# MATAR
-# =========================================================
-
-@bot.tree.command(name="matar")
-async def matar(
-    i: discord.Interaction,
-    usuario: discord.Member
-):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} mató a {usuario.mention}"
-    )
-
-    embed.set_image(
-        url=random.choice(matar_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# ALEGRE
-# =========================================================
-
-@bot.tree.command(name="alegre")
-async def alegre(i: discord.Interaction):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} está alegre"
-    )
-
-    embed.set_image(
-        url=random.choice(alegre_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# BAILAR
-# =========================================================
-
-@bot.tree.command(name="bailar")
-async def bailar(i: discord.Interaction):
-
-    embed = discord.Embed(
-        color=0x000000
-    )
-
-    embed.description = (
-        f"{i.user.mention} está bailando 💃"
-    )
-
-    embed.set_image(
-        url=random.choice(bailar_gifs)
-    )
-
-    await i.response.send_message(embed=embed)
-
-# =========================================================
-# VIEW BOTON DEVOLVER
-# =========================================================
-
-class DevolverView(discord.ui.View):
-
-    def __init__(
-        self,
-        autor,
-        objetivo,
-        accion,
-        gifs,
-        texto_devolver
-    ):
-        super().__init__(timeout=None)
-
-        self.autor = autor
-        self.objetivo = objetivo
-        self.accion = accion
-        self.gifs = gifs
-        self.texto_devolver = texto_devolver
-
-    @discord.ui.button(
-        label="Devolver",
-        style=discord.ButtonStyle.secondary
-    )
-    async def devolver(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
-
-        # SOLO EL USUARIO OBJETIVO
-        if interaction.user.id != self.objetivo.id:
-
-            await interaction.response.send_message(
-                "No puedes usar este botón",
-                ephemeral=True
-            )
-            return
-
-        embed = discord.Embed(
-            color=0x000000
+        await i.response.send_message(
+            f"{usuario.mention} no está escuchando Spotify <:Plear:1504584518202556436>"
         )
 
-        embed.description = (
-    f"{self.objetivo.mention} "
-    f"devolvió {self.texto_devolver} "
-    f"a {self.autor.mention} 💜"
-)
+        return
 
-        embed.set_image(
-            url=random.choice(self.gifs)
-        )
+    # EMBED
+    embed = discord.Embed(
+        title=" Escuchando ahora  <a:Check:1504584129302499399>",
+        color=0x000000
+    )
 
-        await interaction.response.send_message(
-            embed=embed
-        )
+    embed.description = (
+        f">  Canción: {spotify.title}\n"
+        f">  Artista: {spotify.artist}\n"
+        f">  Álbum: {spotify.album}"
+    )
+
+    # PORTADA
+    embed.set_thumbnail(
+        url=spotify.album_cover_url
+    )
+
+    # FOOTER
+    embed.set_footer(
+        text=f"{usuario.name} en Spotify™ "
+    )
+
+    await i.response.send_message(
+        embed=embed
+    )
         
 # -------------------------
 # FLASK WEB
