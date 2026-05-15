@@ -137,14 +137,6 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     campo(col1_x, y2, "CUENTA CREADA", creado)
     campo(col2_x, y2, "ENTRO AL SERVER", entro)
 
-    # ROLES
-    y3 = y2 + 80
-    roles_lista = [r.name for r in usuario.roles[1:]]
-    roles_texto = ", ".join(roles_lista[:5]) if roles_lista else "Sin roles"
-    if len(roles_lista) > 5:
-        roles_texto += f" +{len(roles_lista) - 5} mas"
-    campo(col1_x, y3, "ROLES", roles_texto, ancho=652)
-
     # FOOTER
     draw.text(
         (24, H - 22),
@@ -354,200 +346,7 @@ async def delete(
     await i.response.defer(ephemeral=True)
     eliminados = await i.channel.purge(limit=cantidad)
     await i.followup.send(f"Se eliminaron {len(eliminados)} mensajes", ephemeral=True)
-
-# -------------------------
-# CONFIG WLC / BYE
-# -------------------------
-
-wlc_config = {}
-bye_config = {}
-
-def parse_text(texto, member):
-    if not texto:
-        return texto
-    return texto.replace("{user_name}", member.name) \
-                .replace("{user_mention}", member.mention) \
-                .replace("{user_id}", str(member.id)) \
-                .replace("{server_name}", member.guild.name) \
-                .replace("{user_avatar}", member.display_avatar.url)
-
-# -------------------------
-# WLC
-# -------------------------
-
-@bot.tree.command(name="wlc")
-@app_commands.checks.has_permissions(administrator=True)
-async def wlc(
-    i: discord.Interaction,
-    canal: discord.TextChannel = None,
-    titulo: str = None,
-    descripcion: str = None,
-    color: str = None,
-    autor: str = None,
-    imagen_autor: str = None,
-    imagen_banner: str = None,
-    footer: str = None,
-    imagen_footer: str = None
-):
-    canal = canal or i.channel
-
-    try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        color_final = 0x000000
-
-    wlc_config[i.guild.id] = {
-        "canal": canal.id,
-        "titulo": titulo,
-        "descripcion": descripcion,
-        "color": color_final,
-        "autor": autor,
-        "imagen_autor": imagen_autor,
-        "imagen_banner": imagen_banner,
-        "footer": footer,
-        "imagen_footer": imagen_footer
-    }
-
-    await i.response.send_message("Bienvenida activada", ephemeral=True)
-
-@bot.event
-async def on_member_join(member):
-    if member.bot:
-        return
-
-    cfg = wlc_config.get(member.guild.id)
-    if not cfg:
-        return
-
-    canal = member.guild.get_channel(cfg["canal"])
-    if not canal:
-        return
-
-    embed = discord.Embed(
-        title=parse_text(cfg.get("titulo") or "", member),
-        description=parse_text(cfg.get("descripcion") or "", member),
-        color=cfg.get("color", 0x000000)
-    )
-
-    if cfg.get("autor"):
-        embed.set_author(
-            name=parse_text(cfg["autor"], member),
-            icon_url=parse_text(cfg.get("imagen_autor") or "", member)
-        )
-
-    if cfg.get("imagen_banner"):
-        embed.set_image(url=parse_text(cfg["imagen_banner"], member))
-
-    if cfg.get("footer"):
-        embed.set_footer(
-            text=parse_text(cfg["footer"], member),
-            icon_url=parse_text(cfg.get("imagen_footer") or "", member)
-        )
-
-    await canal.send(embed=embed)
-
-# -------------------------
-# BYE
-# -------------------------
-
-@bot.tree.command(name="bye")
-@app_commands.checks.has_permissions(administrator=True)
-async def bye(
-    i: discord.Interaction,
-    canal: discord.TextChannel = None,
-    titulo: str = None,
-    descripcion: str = None,
-    color: str = None,
-    autor: str = None,
-    imagen_autor: str = None,
-    imagen_banner: str = None,
-    footer: str = None,
-    imagen_footer: str = None
-):
-    canal = canal or i.channel
-
-    try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        color_final = 0x000000
-
-    bye_config[i.guild.id] = {
-        "canal": canal.id,
-        "titulo": titulo,
-        "descripcion": descripcion,
-        "color": color_final,
-        "autor": autor,
-        "imagen_autor": imagen_autor,
-        "imagen_banner": imagen_banner,
-        "footer": footer,
-        "imagen_footer": imagen_footer
-    }
-
-    await i.response.send_message("Despedida activada", ephemeral=True)
-
-@bot.event
-async def on_member_remove(member):
-    if member.bot:
-        return
-
-    cfg = bye_config.get(member.guild.id)
-    if not cfg:
-        return
-
-    canal = member.guild.get_channel(cfg["canal"])
-    if not canal:
-        return
-
-    embed = discord.Embed(
-        title=parse_text(cfg.get("titulo") or "", member),
-        description=parse_text(cfg.get("descripcion") or "", member),
-        color=cfg.get("color", 0x000000)
-    )
-
-    if cfg.get("autor"):
-        embed.set_author(
-            name=parse_text(cfg["autor"], member),
-            icon_url=parse_text(cfg.get("imagen_autor") or "", member)
-        )
-
-    if cfg.get("imagen_banner"):
-        embed.set_image(url=parse_text(cfg["imagen_banner"], member))
-
-    if cfg.get("footer"):
-        embed.set_footer(
-            text=parse_text(cfg["footer"], member),
-            icon_url=parse_text(cfg.get("imagen_footer") or "", member)
-        )
-
-    await canal.send(embed=embed)
-
-# -------------------------
-# RESET-WLC
-# -------------------------
-
-@bot.tree.command(name="reset-wlc")
-@app_commands.checks.has_permissions(administrator=True)
-async def reset_wlc(i: discord.Interaction):
-    gid = i.guild.id
-    if gid in wlc_config:
-        del wlc_config[gid]
-        await i.response.send_message("Configuración de bienvenida eliminada", ephemeral=True)
-    else:
-        await i.response.send_message("No hay configuración de bienvenida", ephemeral=True)
-
-# -------------------------
-# RESET-BYE
-# -------------------------
-
-@bot.tree.command(name="reset-bye")
-@app_commands.checks.has_permissions(administrator=True)
-async def reset_bye(i: discord.Interaction):
-    gid = i.guild.id
-    if gid in bye_config:
-        del bye_config[gid]
-        await i.response.send_message("Configuración de despedida eliminada", ephemeral=True)
-    else:
-        await i.response.send_message("No hay configuración de despedida", ephemeral=True)
+    
 
 # -------------------------
 # ASK IA
@@ -911,7 +710,7 @@ async def spotify(
     segundos = segundos_totales % 60
     duracion = f"{minutos:02}:{segundos:02}"
 
-    embed = discord.Embed(color=0x1DB954)
+    embed = discord.Embed(color=0x000000)
     embed.description = (
         f"## Escuchando ahora\n\n"
         f"> **Canción:**\n"
@@ -953,6 +752,391 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
     )
     embed.set_footer(text="Te avisaré si te mencionan...")
     await i.response.send_message(embed=embed)
+
+# =========================================================
+# DATA
+# =========================================================
+
+wlc_config = {}
+bye_config = {}
+
+def parse_text(texto, member):
+    if not texto:
+        return texto
+    return texto.replace("{user_name}", member.name) \
+                .replace("{user_mention}", member.mention) \
+                .replace("{user_id}", str(member.id)) \
+                .replace("{server_name}", member.guild.name) \
+                .replace("{user_avatar}", member.display_avatar.url)
+
+# =========================================================
+# HELPER: construir embed de previsualización
+# =========================================================
+
+def build_preview(cfg: dict, guild) -> discord.Embed:
+    try:
+        color = int(cfg.get("color", "000000").replace("#", ""), 16)
+    except:
+        color = 0x000000
+
+    embed = discord.Embed(
+        title=cfg.get("titulo") or "",
+        description=cfg.get("descripcion") or "",
+        color=color
+    )
+
+    if cfg.get("autor"):
+        embed.set_author(
+            name=cfg["autor"],
+            icon_url=cfg.get("imagen_autor") or discord.Embed.Empty
+        )
+
+    if cfg.get("imagen_banner"):
+        embed.set_thumbnail(url=cfg["imagen_banner"])
+
+    if cfg.get("footer"):
+        embed.set_footer(
+            text=cfg["footer"],
+            icon_url=cfg.get("imagen_footer") or discord.Embed.Empty
+        )
+
+    return embed
+
+# =========================================================
+# HELPER: construir embed de control
+# =========================================================
+
+def build_control_embed(tipo: str, cfg: dict) -> discord.Embed:
+    nombre = "Bienvenida" if tipo == "wlc" else "Despedida"
+    embed = discord.Embed(
+        title=f"Configuración de {nombre}",
+        color=0x2b2d31
+    )
+
+    bots = "Si" if cfg.get("mandar_bots") else "No"
+    dm   = "Si" if cfg.get("mandar_dm")   else "No"
+
+    embed.description = (
+        f"**Primario**\n"
+        f"> Título: `{cfg.get('titulo') or 'Sin definir'}`\n"
+        f"> Descripción: `{cfg.get('descripcion') or 'Sin definir'}`\n"
+        f"> Color: `#{cfg.get('color') or '000000'}`\n\n"
+        f"**Secundario**\n"
+        f"> Autor: `{cfg.get('autor') or 'Sin definir'}`\n"
+        f"> Pie de página: `{cfg.get('footer') or 'Sin definir'}`\n\n"
+        f"**Config**\n"
+        f"> Mandar al unirse un bot: {bots}\n"
+        f"> Mandar DM al unirse: {dm}\n\n"
+        f"**Vista previa** ↓"
+    )
+    return embed
+
+# =========================================================
+# MODALS
+# =========================================================
+
+class ModalPrimario(discord.ui.Modal):
+    def __init__(self, tipo: str, cfg: dict, message: discord.Message):
+        super().__init__(title="Configuración Primaria")
+        self.tipo = tipo
+        self.cfg  = cfg
+        self.msg  = message
+
+        self.titulo = discord.ui.TextInput(
+            label="Título del embed",
+            placeholder="Ej: ¡Bienvenido a nuestro server!",
+            default=cfg.get("titulo") or "",
+            required=False
+        )
+        self.descripcion = discord.ui.TextInput(
+            label="Descripción",
+            style=discord.TextStyle.paragraph,
+            placeholder="Puedes usar {user_mention}, {user_name}, {server_name}",
+            default=cfg.get("descripcion") or "",
+            required=False
+        )
+        self.color = discord.ui.TextInput(
+            label="Color (hex)",
+            placeholder="Ej: FF5733  o  #FF5733",
+            default=cfg.get("color") or "000000",
+            max_length=7,
+            required=False
+        )
+
+        self.add_item(self.titulo)
+        self.add_item(self.descripcion)
+        self.add_item(self.color)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        self.cfg["titulo"]      = self.titulo.value.strip()
+        self.cfg["descripcion"] = self.descripcion.value.strip()
+        self.cfg["color"]       = self.color.value.strip().replace("#", "")
+
+        await interaction.response.defer()
+        await refresh_message(self.msg, self.tipo, self.cfg)
+
+
+class ModalSecundario(discord.ui.Modal):
+    def __init__(self, tipo: str, cfg: dict, message: discord.Message):
+        super().__init__(title="Configuración Secundaria")
+        self.tipo = tipo
+        self.cfg  = cfg
+        self.msg  = message
+
+        self.autor = discord.ui.TextInput(
+            label="Nombre del autor",
+            placeholder="Ej: DarkyBot",
+            default=cfg.get("autor") or "",
+            required=False
+        )
+        self.imagen_autor = discord.ui.TextInput(
+            label="URL imagen del autor",
+            placeholder="https://...",
+            default=cfg.get("imagen_autor") or "",
+            required=False
+        )
+        self.footer = discord.ui.TextInput(
+            label="Pie de página",
+            placeholder="Ej: Server oficial",
+            default=cfg.get("footer") or "",
+            required=False
+        )
+        self.imagen_footer = discord.ui.TextInput(
+            label="URL imagen pie de página",
+            placeholder="https://...",
+            default=cfg.get("imagen_footer") or "",
+            required=False
+        )
+        self.imagen_banner = discord.ui.TextInput(
+            label="URL imagen (arriba derecha / thumbnail)",
+            placeholder="https://...",
+            default=cfg.get("imagen_banner") or "",
+            required=False
+        )
+
+        self.add_item(self.autor)
+        self.add_item(self.imagen_autor)
+        self.add_item(self.footer)
+        self.add_item(self.imagen_footer)
+        self.add_item(self.imagen_banner)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        self.cfg["autor"]         = self.autor.value.strip()
+        self.cfg["imagen_autor"]  = self.imagen_autor.value.strip()
+        self.cfg["footer"]        = self.footer.value.strip()
+        self.cfg["imagen_footer"] = self.imagen_footer.value.strip()
+        self.cfg["imagen_banner"] = self.imagen_banner.value.strip()
+
+        await interaction.response.defer()
+        await refresh_message(self.msg, self.tipo, self.cfg)
+
+
+class ModalConfig(discord.ui.Modal):
+    def __init__(self, tipo: str, cfg: dict, message: discord.Message):
+        super().__init__(title="Configuración Extra")
+        self.tipo = tipo
+        self.cfg  = cfg
+        self.msg  = message
+
+        self.bots = discord.ui.TextInput(
+            label="¿Mandar embed al unirse un bot? (si/no)",
+            placeholder="si  o  no",
+            default="si" if cfg.get("mandar_bots") else "no",
+            max_length=2,
+            required=True
+        )
+        self.dm = discord.ui.TextInput(
+            label="¿Mandar embed por DM al unirse? (si/no)",
+            placeholder="si  o  no",
+            default="si" if cfg.get("mandar_dm") else "no",
+            max_length=2,
+            required=True
+        )
+
+        self.add_item(self.bots)
+        self.add_item(self.dm)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        self.cfg["mandar_bots"] = self.bots.value.strip().lower() == "si"
+        self.cfg["mandar_dm"]   = self.dm.value.strip().lower()   == "si"
+
+        await interaction.response.defer()
+        await refresh_message(self.msg, self.tipo, self.cfg)
+
+# =========================================================
+# HELPER: refrescar mensaje con nueva previsualización
+# =========================================================
+
+async def refresh_message(msg: discord.Message, tipo: str, cfg: dict):
+    control = build_control_embed(tipo, cfg)
+    preview = build_preview(cfg, msg.guild)
+    view    = ConfigView(tipo, cfg, msg)
+    await msg.edit(embeds=[control, preview], view=view)
+
+# =========================================================
+# VIEW PRINCIPAL
+# =========================================================
+
+class ConfigView(discord.ui.View):
+    def __init__(self, tipo: str, cfg: dict, message: discord.Message = None):
+        super().__init__(timeout=300)
+        self.tipo = tipo
+        self.cfg  = cfg
+        self.msg  = message  # se asigna después del primer send
+
+    @discord.ui.button(label="Primario", style=discord.ButtonStyle.primary)
+    async def btn_primario(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(
+            ModalPrimario(self.tipo, self.cfg, self.msg)
+        )
+
+    @discord.ui.button(label="Secundario", style=discord.ButtonStyle.secondary)
+    async def btn_secundario(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(
+            ModalSecundario(self.tipo, self.cfg, self.msg)
+        )
+
+    @discord.ui.button(label="Config", style=discord.ButtonStyle.secondary)
+    async def btn_config(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(
+            ModalConfig(self.tipo, self.cfg, self.msg)
+        )
+
+    @discord.ui.button(label="Guardar & Activar", style=discord.ButtonStyle.success)
+    async def btn_guardar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.tipo == "wlc":
+            wlc_config[interaction.guild.id] = self.cfg
+        else:
+            bye_config[interaction.guild.id] = self.cfg
+
+        nombre = "bienvenida" if self.tipo == "wlc" else "despedida"
+
+        for item in self.children:
+            item.disabled = True
+
+        await interaction.response.edit_message(view=self)
+        await interaction.followup.send(
+            f"Configuración de {nombre} guardada y activada.",
+            ephemeral=True
+        )
+
+# =========================================================
+# COMANDOS
+# =========================================================
+
+@bot.tree.command(
+    name="wlc",
+    description="Configura el mensaje de bienvenida"
+)
+@app_commands.checks.has_permissions(administrator=True)
+async def wlc(i: discord.Interaction):
+    cfg  = wlc_config.get(i.guild.id, {}).copy()
+    view = ConfigView("wlc", cfg)
+
+    control = build_control_embed("wlc", cfg)
+    preview = build_preview(cfg, i.guild)
+
+    await i.response.send_message(
+        embeds=[control, preview],
+        view=view,
+        ephemeral=True
+    )
+
+    # guardar referencia al mensaje para poder editarlo
+    msg = await i.original_response()
+    view.msg = msg
+    for modal_cls in [ModalPrimario, ModalSecundario, ModalConfig]:
+        pass  # la referencia ya se pasa al abrir cada modal
+
+
+@bot.tree.command(
+    name="bye",
+    description="Configura el mensaje de despedida"
+)
+@app_commands.checks.has_permissions(administrator=True)
+async def bye(i: discord.Interaction):
+    cfg  = bye_config.get(i.guild.id, {}).copy()
+    view = ConfigView("bye", cfg)
+
+    control = build_control_embed("bye", cfg)
+    preview = build_preview(cfg, i.guild)
+
+    await i.response.send_message(
+        embeds=[control, preview],
+        view=view,
+        ephemeral=True
+    )
+
+    msg = await i.original_response()
+    view.msg = msg
+
+# =========================================================
+# EVENTOS JOIN / REMOVE
+# =========================================================
+
+@bot.event
+async def on_member_join(member):
+    cfg = wlc_config.get(member.guild.id)
+    if not cfg:
+        return
+
+    if member.bot and not cfg.get("mandar_bots"):
+        return
+
+    canal_id = cfg.get("canal")
+    canal = member.guild.system_channel if not canal_id else member.guild.get_channel(canal_id)
+    if not canal:
+        return
+
+    embed = discord.Embed(
+        title=parse_text(cfg.get("titulo") or "", member),
+        description=parse_text(cfg.get("descripcion") or "", member),
+        color=int(cfg.get("color", "000000").replace("#", "") or "000000", 16)
+    )
+    if cfg.get("autor"):
+        embed.set_author(name=parse_text(cfg["autor"], member), icon_url=cfg.get("imagen_autor") or discord.Embed.Empty)
+    if cfg.get("imagen_banner"):
+        embed.set_thumbnail(url=cfg["imagen_banner"])
+    if cfg.get("footer"):
+        embed.set_footer(text=parse_text(cfg["footer"], member), icon_url=cfg.get("imagen_footer") or discord.Embed.Empty)
+
+    await canal.send(embed=embed)
+
+    # DM
+    if cfg.get("mandar_dm"):
+        try:
+            await member.send(embed=embed)
+        except:
+            pass
+
+
+@bot.event
+async def on_member_remove(member):
+    cfg = bye_config.get(member.guild.id)
+    if not cfg:
+        return
+
+    if member.bot and not cfg.get("mandar_bots"):
+        return
+
+    canal_id = cfg.get("canal")
+    canal = member.guild.system_channel if not canal_id else member.guild.get_channel(canal_id)
+    if not canal:
+        return
+
+    embed = discord.Embed(
+        title=parse_text(cfg.get("titulo") or "", member),
+        description=parse_text(cfg.get("descripcion") or "", member),
+        color=int(cfg.get("color", "000000").replace("#", "") or "000000", 16)
+    )
+    if cfg.get("autor"):
+        embed.set_author(name=parse_text(cfg["autor"], member), icon_url=cfg.get("imagen_autor") or discord.Embed.Empty)
+    if cfg.get("imagen_banner"):
+        embed.set_thumbnail(url=cfg["imagen_banner"])
+    if cfg.get("footer"):
+        embed.set_footer(text=parse_text(cfg["footer"], member), icon_url=cfg.get("imagen_footer") or discord.Embed.Empty)
+
+    await canal.send(embed=embed)
 
 # -------------------------
 # FLASK WEB
