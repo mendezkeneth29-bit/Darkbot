@@ -1,7 +1,7 @@
 discord.py
 flask
 requests
-pillow
+Pillow
 yt-dlp
 PyNaCl
 wavelink
