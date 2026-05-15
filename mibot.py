@@ -552,28 +552,26 @@ async def ask(
 # RESPONDER AUTOMATICAMENTE
 # -------------------------
 
+# -----AFK,MODEMS-----#
+
 @bot.event
 async def on_message(message):
-    if message.author.bot: return # Primero ignoramos a otros bots
+    if message.author.bot: return
 
-    # --- AFK RETURN ---
-    # Solo hacemos esto SI el usuario está en la lista afk_data
+    # 1. ESTO QUITA EL AFK CUANDO EL USUARIO ESCRIBE
     if message.author.id in afk_data:
-        import time # Es mejor ponerlo hasta arriba del archivo, pero aquí funciona
-        
-        # 1. Calculamos cuánto tiempo pasó
-        segundos_totales = int(time.time() - afk_data[message.author.id]["tiempo"])
-        m, s = divmod(segundos_totales, 60)
-        tiempo_texto = f"{m}m {s}s"
-
-        # 2. Tu mensaje de bienvenida
-        await message.channel.send(f"**bienvenido de nuevo {message.author.name}**")
-        (f"> , estuviste `{tiempo_texto}` inactivo...")
-
-        # 3. Lo borramos de la lista
+        segundos = int(time.time() - afk_data[message.author.id]["tiempo"])
+        m, s = divmod(segundos, 60)
+        await message.channel.send(f"Bienvenido {message.author.name}, estuviste {m}m {s}s fuera.")
         del afk_data[message.author.id]
 
-    # ... Aquí sigue el resto de tu código (IGNORAR BOTS, etc.)
+    # 2. ESTO AVISA SI ALGUIEN MENCIONA A UN AFK
+    for user in message.mentions:
+        if user.id in afk_data:
+            motivo_guardado = afk_data[user.id]["motivo"]
+            await message.channel.send(
+                f"{user.mention} está dormido...\n> Motivo: {motivo_guardado}"
+            )
 
     # IGNORAR BOTS
     if message.author.bot:
@@ -1111,20 +1109,6 @@ async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
     )
 
     await i.response.send_message(embed=embed)
-
-    # -------------------------
-    # AFK CHECK (MENTIONES)
-    # -------------------------
-
-for user in message.mentions:
-    if user.id in afk_data:
-        # Extraemos el motivo guardado en la libreta
-        motivo_guardado = afk_data[user.id]["motivo"]
-        
-        await message.channel.send(
-            f"**{user.mention} está dormido en este momento, vuelve más tarde...**\n"
-            f"> su motivo es: {motivo_guardado}"
-        )
         
 # -------------------------
 # FLASK WEB
