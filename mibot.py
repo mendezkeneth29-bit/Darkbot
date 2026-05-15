@@ -763,21 +763,59 @@ from discord import app_commands
 wlc_config = {}
 bye_config = {}
 
-def parse_text(texto: str, member: discord.Member) -> str:
-    if not texto:
-        return texto
+def build_preview(cfg: dict, member: discord.Member) -> discord.Embed:
+    # Manejo de color ultra seguro
+    try:
+        color_raw = str(cfg.get("color", "000000")).replace("#", "").strip()
+        color = int(color_raw, 16) if color_raw else 0x000000
+    except ValueError:
+        color = 0x000000
+
+    # Parseo de textos
+    titulo = parse_text(cfg.get("titulo") or "", member)
+    desc = parse_text(cfg.get("descripcion") or "", member)
     
-    # Asegurar valores seguros para iconos/avatars por si no están definidos
-    user_avatar_url = str(member.display_avatar.url) if member.display_avatar else ""
-    server_icon_url = str(member.guild.icon.url) if member.guild.icon else ""
+    embed = discord.Embed(title=titulo, description=desc, color=color)
+
+    # Manejo de imágenes con validación de URL
+    def is_url(url):
+        return url and str(url).startswith(("http://", "https://"))
+
+    img_autor = parse_text(cfg.get("imagen_autor"), member)
+    if cfg.get("autor"):
+        embed.set_author(
+            name=parse_text(cfg["autor"], member),
+            icon_url=img_autor if is_url(img_autor) else None
+        )
+
+    img_banner = parse_text(cfg.get("imagen_banner"), member)
+    if is_url(img_banner):
+        embed.set_thumbnail(url=img_banner)
+
+    img_footer = parse_text(cfg.get("imagen_footer"), member)
+    if cfg.get("footer"):
+        embed.set_footer(
+            text=parse_text(cfg["footer"], member),
+            icon_url=img_footer if is_url(img_footer) else None
+        )
+
+    return embed
+
+def parse_text(texto, member: discord.Member) -> str:
+    if not texto or not isinstance(texto, str):
+        return "" # Retornar string vacío en lugar de None
     
-    return texto.replace("{user_name}", member.name) \
-                .replace("{user_mention}", member.mention) \
+    # Valores seguros
+    u_avatar = str(member.display_avatar.url) if member.display_avatar else ""
+    s_icon = str(member.guild.icon.url) if member.guild.icon else ""
+    
+    return texto.replace("{user_name}", str(member.name)) \
+                .replace("{user_mention}", str(member.mention)) \
                 .replace("{user_id}", str(member.id)) \
-                .replace("{user_avatar}", user_avatar_url) \
-                .replace("{server_name}", member.guild.name) \
+                .replace("{user_avatar}", u_avatar) \
+                .replace("{server_name}", str(member.guild.name)) \
                 .replace("{server_id}", str(member.guild.id)) \
-                .replace("{server_icon}", server_icon_url) \
+                .replace("{server_icon}", s_icon) \
                 .replace("{member_count}", str(member.guild.member_count))
 
 # =========================================================
@@ -1068,6 +1106,10 @@ async def wlc(i: discord.Interaction):
     msg = await i.original_response()
     view.msg = msg
 
+except Exception as e:
+        print(f"Error en comando wlc: {e}")
+        await i.followup.send("Ocurrió un error interno al abrir el panel.", ephemeral=True)
+
 
 @bot.tree.command(
     name="bye",
@@ -1089,6 +1131,10 @@ async def bye(i: discord.Interaction):
 
     msg = await i.original_response()
     view.msg = msg
+
+except Exception as e:
+        print(f"Error en comando bye: {e}")
+        await i.followup.send("Ocurrió un error interno al abrir el panel.", ephemeral=True)
 
 # =========================================================
 # EVENTOS JOIN / REMOVE
