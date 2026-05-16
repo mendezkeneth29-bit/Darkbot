@@ -580,7 +580,7 @@ async def spotify_slash(i: discord.Interaction, usuario: discord.Member = None):
     usuario = i.guild.get_member((usuario or i.user).id)
     actividad = discord.utils.find(lambda a: isinstance(a, discord.Spotify), usuario.activities)
     if not actividad:
-        await i.followup.send(f"> **{usuario.name} no esta escuchando Spotify**",
+        await i.followup.send(f"> **{usuario.name} no esta escuchando Spotify**",)
         return
     await i.followup.send(file=await generar_spotify(usuario, actividad))
 
