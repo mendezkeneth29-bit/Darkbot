@@ -1145,8 +1145,7 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
 
     # BADGE
     draw.rounded_rectangle([(158, 54), (278, 78)], radius=11, fill=ACENTO)
-draw.text((218, 56), "Cuenta bancaria", font=fuente(13, bold=True), fill=FONDO)
-
+    draw.text((218, 56), "Cuenta bancaria", font=fuente(13, bold=True), fill=FONDO)
     # SEPARADOR
     draw.rectangle([(158, 90), (640, 91)], fill=GRIS)
 
