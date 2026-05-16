@@ -44,7 +44,7 @@ economia_data = {}
 class DarkyBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix=">dl",
+            command_prefix=">dl ",
             intents=discord.Intents.all()
         )
 
@@ -674,20 +674,115 @@ async def ranking_prefix(ctx):
     await ctx.send(file=await generar_ranking(ctx.guild, top))
 
 # =========================================================
-# WARN
+# GENERAR TARJETA WARN
+# =========================================================
+
+async def generar_warn(usuario: discord.Member, razon: str, total: int) -> discord.File:
+    W, H     = 680, 180
+    FONDO    = (14, 14, 14)
+    AMARILLO = (245, 158, 11)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AMARILLO)
+
+    # TRIANGULO
+    triangulo = [(80, 22), (138, 122), (22, 122)]
+    draw.polygon(triangulo, fill=AMARILLO)
+
+    # SIGNO !
+    draw.rounded_rectangle([(75, 44), (85, 90)], radius=5, fill=FONDO)
+    draw.ellipse([(74, 102), (86, 114)], fill=FONDO)
+
+    # NOMBRE
+    draw.text((162, 28), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
+
+    # BADGE
+    draw.rounded_rectangle([(162, 56), (252, 78)], radius=11, fill=AMARILLO)
+    draw.text((207, 62), "Advertido", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
+
+    # SEPARADOR
+    draw.rectangle([(162, 92), (645, 93)], fill=GRIS)
+
+    # RAZON
+    draw.text((162, 104), "RAZON", font=fuente(11), fill=SUBTEXTO)
+    razon_texto = razon[:50] + "..." if len(razon) > 50 else razon
+    draw.text((162, 122), razon_texto, font=fuente(15, bold=True), fill=TEXTO)
+
+    # TOTAL WARNS
+    draw.text((162, 154), f"Total de warns: {total}", font=fuente(12), fill=AMARILLO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="warn.png")
+
+# =========================================================
+# GENERAR TARJETA WARNINGS
+# =========================================================
+
+async def generar_warnings(usuario: discord.Member, warns: list) -> discord.File:
+    filas = min(len(warns), 10)
+    W     = 680
+    H     = 90 + (filas * 44)
+    FONDO    = (14, 14, 14)
+    AMARILLO = (245, 158, 11)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    OSCURO   = (21, 21, 21)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AMARILLO)
+
+    # TITULO
+    draw.text((34, 24), f"Warns de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
+    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
+
+    # FILAS
+    for n, w in enumerate(warns[:10]):
+        y = 54 + (n * 44)
+        color_fila = (26, 26, 26) if n % 2 == 0 else OSCURO
+        draw.rounded_rectangle([(34, y), (646, y + 34)], radius=8, fill=color_fila)
+
+        # NUMERO
+        draw.text((54, y + 8), f"#{n+1}", font=fuente(13, bold=True), fill=AMARILLO)
+
+        # RAZON
+        razon = w["razon"][:40] + "..." if len(w["razon"]) > 40 else w["razon"]
+        draw.text((88, y + 10), razon, font=fuente(13), fill=TEXTO)
+
+        # MODERADOR
+        mod = w["moderador"][:20] + "..." if len(w["moderador"]) > 20 else w["moderador"]
+        draw.text((634, y + 10), mod, font=fuente(11), fill=SUBTEXTO, anchor="ra")
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="warnings.png")
+
+# =========================================================
+# COMANDO WARN
 # =========================================================
 
 @bot.tree.command(name="warn")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def warn_slash(i: discord.Interaction, usuario: discord.Member, razon: str):
+    await i.response.defer()
     gid, uid = str(i.guild.id), str(usuario.id)
     if gid not in warnings_data: warnings_data[gid] = {}
     if uid not in warnings_data[gid]: warnings_data[gid][uid] = []
     warnings_data[gid][uid].append({"razon": razon, "moderador": str(i.user), "fecha": str(datetime.now())})
     total = len(warnings_data[gid][uid])
-    embed = discord.Embed(title="Usuario Advertido", color=0x000000)
-    embed.description = f"> Usuario: {usuario.mention}\n> Razon: {razon}\n> Warnings: {total}"
-    await i.response.send_message(embed=embed)
+    await i.followup.send(file=await generar_warn(usuario, razon, total))
 
 @bot.command(name="warn")
 @commands.has_permissions(manage_messages=True)
@@ -697,23 +792,20 @@ async def warn_prefix(ctx, usuario: discord.Member, *, razon: str):
     if uid not in warnings_data[gid]: warnings_data[gid][uid] = []
     warnings_data[gid][uid].append({"razon": razon, "moderador": str(ctx.author), "fecha": str(datetime.now())})
     total = len(warnings_data[gid][uid])
-    embed = discord.Embed(title="Usuario Advertido", color=0x000000)
-    embed.description = f"> Usuario: {usuario.mention}\n> Razon: {razon}\n> Warnings: {total}"
-    await ctx.send(embed=embed)
+    await ctx.send(file=await generar_warn(usuario, razon, total))
 
 # =========================================================
-# WARNINGS
+# COMANDO WARNINGS
 # =========================================================
 
 @bot.tree.command(name="warnings")
 async def warnings_slash(i: discord.Interaction, usuario: discord.Member):
+    await i.response.defer()
     gid, uid = str(i.guild.id), str(usuario.id)
     if gid not in warnings_data or uid not in warnings_data[gid]:
-        await i.response.send_message("> Ese usuario no tiene warnings", ephemeral=True)
+        await i.followup.send("> Ese usuario no tiene warnings", ephemeral=True)
         return
-    texto = "".join([f"> {n}. {w['razon']}\n> Moderador: {w['moderador']}\n\n" for n, w in enumerate(warnings_data[gid][uid], 1)])
-    embed = discord.Embed(title=f"Warnings de {usuario.name}", description=texto, color=0x000000)
-    await i.response.send_message(embed=embed)
+    await i.followup.send(file=await generar_warnings(usuario, warnings_data[gid][uid]))
 
 @bot.command(name="warnings")
 async def warnings_prefix(ctx, usuario: discord.Member):
@@ -721,21 +813,74 @@ async def warnings_prefix(ctx, usuario: discord.Member):
     if gid not in warnings_data or uid not in warnings_data[gid]:
         await ctx.send("> Ese usuario no tiene warnings")
         return
-    texto = "".join([f"> {n}. {w['razon']}\n> Moderador: {w['moderador']}\n\n" for n, w in enumerate(warnings_data[gid][uid], 1)])
-    embed = discord.Embed(title=f"Warnings de {usuario.name}", description=texto, color=0x000000)
-    await ctx.send(embed=embed)
+    await ctx.send(file=await generar_warnings(usuario, warnings_data[gid][uid]))
 
 # =========================================================
-# LOCK / UNLOCK
+# GENERAR TARJETA LOCK
+# =========================================================
+
+async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.File:
+    W, H     = 680, 170
+    FONDO    = (14, 14, 14)
+    COLOR    = (239, 68, 68) if bloqueado else (34, 197, 94)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
+
+    # CUERPO DEL CANDADO
+    cx, cy = 80, 110
+    draw.rounded_rectangle([(cx - 36, cy - 10), (cx + 36, cy + 40)], radius=8, fill=COLOR)
+
+    # ARCO DEL CANDADO
+    if bloqueado:
+        # CERRADO - arco centrado
+        draw.arc([(cx - 28, cy - 60), (cx + 28, cy + 10)], start=180, end=0, fill=COLOR, width=10)
+    else:
+        # ABIERTO - arco desplazado arriba a la derecha
+        draw.arc([(cx - 28, cy - 70), (cx + 28, cy)], start=200, end=360, fill=COLOR, width=10)
+
+    # AGUJERO DE LLAVE
+    draw.ellipse([(cx - 10, cy + 4), (cx + 10, cy + 24)], fill=FONDO)
+    draw.rounded_rectangle([(cx - 4, cy + 14), (cx + 4, cy + 30)], radius=2, fill=FONDO)
+
+    # TITULO
+    titulo = "Canal Bloqueado" if bloqueado else "Canal Desbloqueado"
+    draw.text((158, 42), titulo, font=fuente(22, bold=True), fill=TEXTO)
+
+    # SEPARADOR
+    draw.rectangle([(158, 58), (645, 59)], fill=GRIS)
+
+    # CANAL
+    draw.text((158, 74), "CANAL", font=fuente(11), fill=SUBTEXTO)
+    draw.text((158, 94), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO)
+
+    # MENSAJE
+    msg = "Nadie puede enviar mensajes." if bloqueado else "Ya pueden enviar mensajes."
+    draw.text((158, 134), msg, font=fuente(12), fill=COLOR)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="lock.png")
+
+# =========================================================
+# LOCK
 # =========================================================
 
 @bot.tree.command(name="lock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def lock_slash(i: discord.Interaction):
+    await i.response.defer()
     ow = i.channel.overwrites_for(i.guild.default_role)
     ow.send_messages = False
     await i.channel.set_permissions(i.guild.default_role, overwrite=ow)
-    await i.response.send_message(embed=discord.Embed(title="Canal Bloqueado", description="> Nadie puede enviar mensajes.", color=0x000000))
+    await i.followup.send(file=await generar_lock(i.channel, bloqueado=True))
 
 @bot.command(name="lock")
 @commands.has_permissions(manage_channels=True)
@@ -743,15 +888,20 @@ async def lock_prefix(ctx):
     ow = ctx.channel.overwrites_for(ctx.guild.default_role)
     ow.send_messages = False
     await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=ow)
-    await ctx.send(embed=discord.Embed(title="Canal Bloqueado", description="> Nadie puede enviar mensajes.", color=0x000000))
+    await ctx.send(file=await generar_lock(ctx.channel, bloqueado=True))
+
+# =========================================================
+# UNLOCK
+# =========================================================
 
 @bot.tree.command(name="unlock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def unlock_slash(i: discord.Interaction):
+    await i.response.defer()
     ow = i.channel.overwrites_for(i.guild.default_role)
     ow.send_messages = True
     await i.channel.set_permissions(i.guild.default_role, overwrite=ow)
-    await i.response.send_message(embed=discord.Embed(title="Canal Desbloqueado", description="> Ya pueden hablar otra vez.", color=0x000000))
+    await i.followup.send(file=await generar_lock(i.channel, bloqueado=False))
 
 @bot.command(name="unlock")
 @commands.has_permissions(manage_channels=True)
@@ -759,8 +909,7 @@ async def unlock_prefix(ctx):
     ow = ctx.channel.overwrites_for(ctx.guild.default_role)
     ow.send_messages = True
     await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=ow)
-    await ctx.send(embed=discord.Embed(title="Canal Desbloqueado", description="> Ya pueden hablar otra vez.", color=0x000000))
-
+    await ctx.send(file=await generar_lock(ctx.channel, bloqueado=False))
 # =========================================================
 # NUKE
 # =========================================================
