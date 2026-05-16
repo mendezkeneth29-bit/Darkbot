@@ -515,34 +515,7 @@ Responde de forma natural y casual.
 
     except Exception as e:
         await message.reply(f"Error:\n```{e}```")
-
-# =========================================================
-# BAN
-# =========================================================
-
-@bot.tree.command(name="ban")
-@app_commands.checks.has_permissions(ban_members=True)
-async def ban(
-    i: discord.Interaction,
-    usuario: discord.Member,
-    razon: str = "Sin razón"
-):
-    if usuario == i.user:
-        await i.response.send_message("> No puedes banearte a ti mismo", ephemeral=True)
-        return
-
-    try:
-        await usuario.ban(reason=razon)
-        embed = discord.Embed(title="Usuario Baneado", color=0x000000)
-        embed.description = (
-            f"> Usuario: {usuario.mention}\n"
-            f"> Razón: {razon}\n"
-            f"> Moderador: {i.user.mention}"
-        )
-        await i.response.send_message(embed=embed)
-
-    except Exception as e:
-        await i.response.send_message(f"Error:\n```{e}```", ephemeral=True)
+        
 
 # =========================================================
 # AVATAR
@@ -791,33 +764,7 @@ async def spotify(
 
     archivo = await generar_spotify(usuario, actividad)
     await i.followup.send(file=archivo)
-
-# =========================================================
-# AFK
-# =========================================================
-
-@bot.tree.command(name="afk")
-async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
-    import time
-
-    afk_data[i.user.id] = {
-        "motivo": motivo,
-        "tiempo": time.time()
-    }
-
-    embed = discord.Embed(
-        title=f"{i.user.name} está inactivo...",
-        color=0x000000
-    )
-    embed.description = (
-        f"**Motivo:**\n"
-        f"> `{motivo}`\n"
-    )
-    embed.set_footer(text="Te avisaré si te mencionan...")
-    await i.response.send_message(embed=embed)
-
-import discord
-from discord import app_commands
+    
 
 # =========================================================
 # DATA
@@ -1141,11 +1088,9 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
     draw.ellipse([(35, 35), (135, 135)], outline=ACENTO, width=2)
 
     # NOMBRE
-    draw.text((158, 26), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
+    draw.text((158, 48), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
 
-    # BADGE
-    draw.rounded_rectangle([(158, 54), (278, 78)], radius=11, fill=ACENTO)
-    draw.text((218, 56), "Cuenta bancaria", font=fuente(13, bold=True), fill=FONDO)
+    
     # SEPARADOR
     draw.rectangle([(158, 90), (640, 91)], fill=GRIS)
 
@@ -1323,6 +1268,163 @@ def run_web():
     flask_app.run(host="0.0.0.0", port=10000)
 
 threading.Thread(target=run_web).start()
+
+# =========================================================
+# GENERAR TARJETA BAN
+# =========================================================
+
+async def generar_ban(usuario: discord.Member, razon: str, moderador: discord.Member) -> discord.File:
+    W, H     = 680, 190
+    FONDO    = (14, 14, 14)
+    ROJO     = (239, 68, 68)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROJO)
+
+    # AVATAR
+    try:
+        av = await descargar_imagen(str(usuario.display_avatar.url))
+        av = avatar_circular(av, 96)
+        img.paste(av, (37, 47), av)
+    except:
+        draw.ellipse([(37, 47), (133, 143)], fill=GRIS)
+
+    # BORDE AVATAR ROJO
+    draw.ellipse([(35, 45), (135, 145)], outline=ROJO, width=2)
+
+    # X SOBRE AVATAR
+    draw.line([(50, 60), (120, 130)], fill=(*ROJO, 150), width=3)
+    draw.line([(120, 60), (50, 130)], fill=(*ROJO, 150), width=3)
+
+    # NOMBRE
+    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
+
+    # BADGE
+    draw.rounded_rectangle([(158, 68), (228, 90)], radius=11, fill=ROJO)
+    draw.text((193, 74), "Baneado", font=fuente(12, bold=True), fill=TEXTO, anchor="mt")
+
+    # SEPARADOR
+    draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
+
+    # RAZON
+    draw.text((158, 116), "RAZON", font=fuente(11), fill=SUBTEXTO)
+    razon_texto = razon[:50] + "..." if len(razon) > 50 else razon
+    draw.text((158, 134), razon_texto, font=fuente(15, bold=True), fill=TEXTO)
+
+    # MODERADOR
+    draw.text((158, 164), f"Moderador: {moderador.display_name}", font=fuente(12), fill=SUBTEXTO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="ban.png")
+
+
+# =========================================================
+# GENERAR TARJETA AFK
+# =========================================================
+
+async def generar_afk(usuario: discord.Member, motivo: str) -> discord.File:
+    W, H     = 680, 190
+    FONDO    = (14, 14, 14)
+    ACENTO   = (245, 240, 232)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ACENTO)
+
+    # AVATAR
+    try:
+        av = await descargar_imagen(str(usuario.display_avatar.url))
+        av = avatar_circular(av, 96)
+        img.paste(av, (37, 47), av)
+    except:
+        draw.ellipse([(37, 47), (133, 143)], fill=GRIS)
+
+    # BORDE AVATAR
+    draw.ellipse([(35, 45), (135, 145)], outline=ACENTO, width=2)
+
+    # ZZZ
+    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=(*ACENTO, 255))
+    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=(*ACENTO, 180))
+    draw.text((120, 46), "z", font=fuente(11), fill=(*ACENTO, 120))
+
+    # NOMBRE
+    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
+
+    # BADGE
+    draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=ACENTO)
+    draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
+
+    # SEPARADOR
+    draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
+
+    # MOTIVO
+    draw.text((158, 116), "MOTIVO", font=fuente(11), fill=SUBTEXTO)
+    motivo_texto = motivo[:50] + "..." if len(motivo) > 50 else motivo
+    draw.text((158, 134), motivo_texto, font=fuente(15, bold=True), fill=TEXTO)
+
+    # FOOTER
+    draw.text((158, 164), "Te avisare si te mencionan...", font=fuente(12), fill=SUBTEXTO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="afk.png")
+
+
+# =========================================================
+# COMANDO BAN
+# =========================================================
+
+@bot.tree.command(name="ban")
+@app_commands.checks.has_permissions(ban_members=True)
+async def ban(
+    i: discord.Interaction,
+    usuario: discord.Member,
+    razon: str = "Sin razón"
+):
+    if usuario == i.user:
+        await i.response.send_message("> No puedes banearte a ti mismo", ephemeral=True)
+        return
+
+    await i.response.defer()
+
+    try:
+        await usuario.ban(reason=razon)
+        archivo = await generar_ban(usuario, razon, i.user)
+        await i.followup.send(file=archivo)
+    except Exception as e:
+        await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
+
+
+# =========================================================
+# COMANDO AFK
+# =========================================================
+
+@bot.tree.command(name="afk")
+async def afk(i: discord.Interaction, motivo: str = "Sin motivo"):
+    await i.response.defer()
+
+    afk_data[i.user.id] = {
+        "motivo": motivo,
+        "tiempo": time.time()
+    }
+
+    usuario = i.guild.get_member(i.user.id)
+    archivo = await generar_afk(usuario, motivo)
+    await i.followup.send(file=archivo)
 
 # -------------------------
 # RUN
