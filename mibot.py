@@ -1314,13 +1314,8 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
 
-    # COLOR SEGUN PORCENTAJE
-    if porcentaje >= 80:
-        COLOR = (255, 92, 147)    # rosa fuerte
-    elif porcentaje >= 50:
-        COLOR = (255, 165, 100)   # naranja
-    else:
-        COLOR = (100, 149, 237)   # azul
+    # COLOR SIEMPRE ROSA
+    COLOR = (255, 92, 147)    # rosa fuerte
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -1381,7 +1376,6 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="ship.png")
-
 # =========================================================
 # COMANDO SHIP
 # =========================================================
