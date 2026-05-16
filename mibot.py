@@ -682,59 +682,115 @@ async def nuke(i: discord.Interaction):
 # SPOTIFY
 # =========================================================
 
-@bot.tree.command(
-    name="spotify",
-    description="Muestra la música que escucha un usuario"
-)
+# =========================================================
+# GENERAR TARJETA SPOTIFY
+# =========================================================
+
+async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -> discord.File:
+    W, H     = 680, 180
+    FONDO    = (14, 14, 14)
+    VERDE    = (29, 185, 84)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
+
+    # PORTADA DEL ALBUM
+    try:
+        portada = await descargar_imagen(actividad.album_cover_url)
+        portada = portada.resize((130, 130)).convert("RGBA")
+
+        # MASK REDONDEADA
+        mask = Image.new("L", (130, 130), 0)
+        ImageDraw.Draw(mask).rounded_rectangle([(0, 0), (130, 130)], radius=10, fill=255)
+        portada_r = Image.new("RGBA", (130, 130), (0, 0, 0, 0))
+        portada_r.paste(portada, (0, 0), mask)
+        img.paste(portada_r, (30, 25), portada_r)
+    except:
+        draw.rounded_rectangle([(30, 25), (160, 155)], radius=10, fill=GRIS)
+
+    # BORDE PORTADA
+    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=VERDE, width=2)
+
+    # USUARIO
+    draw.text((182, 28), f"{usuario.display_name} está escuchando", font=fuente(13), fill=SUBTEXTO)
+
+    # CANCION
+    cancion = actividad.title[:30] + "..." if len(actividad.title) > 30 else actividad.title
+    draw.text((182, 50), cancion, font=fuente(20, bold=True), fill=TEXTO)
+
+    # ARTISTA
+    draw.text((182, 78), actividad.artist, font=fuente(14), fill=VERDE)
+
+    # ALBUM
+    album = actividad.album[:35] + "..." if len(actividad.album) > 35 else actividad.album
+    draw.text((182, 100), album, font=fuente(12), fill=SUBTEXTO)
+
+    # SEPARADOR
+    draw.rectangle([(182, 118), (645, 119)], fill=GRIS)
+
+    # BARRA DE PROGRESO
+    ahora     = discord.utils.utcnow()
+    inicio    = actividad.start
+    duracion  = actividad.duration.total_seconds()
+    transcurrido = (ahora - inicio).total_seconds()
+    progreso  = min(transcurrido / duracion, 1.0) if duracion > 0 else 0
+
+    draw.rounded_rectangle([(182, 128), (645, 136)], radius=4, fill=GRIS)
+    fill_w = int(182 + (463 * progreso))
+    if fill_w > 182:
+        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=VERDE)
+
+    # TIEMPO
+    t_actual = int(transcurrido)
+    t_total  = int(duracion)
+    fmt = lambda s: f"{s // 60}:{s % 60:02}"
+    draw.text((182, 148), fmt(max(t_actual, 0)), font=fuente(11), fill=SUBTEXTO)
+    draw.text((645, 148), fmt(t_total), font=fuente(11), fill=SUBTEXTO, anchor="ra")
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="spotify.png")
+
+# =========================================================
+# COMANDO SPOTIFY
+# =========================================================
+
+@bot.tree.command(name="spotify", description="Muestra la música que escucha un usuario")
 async def spotify(
     i: discord.Interaction,
     usuario: discord.Member = None
 ):
+    await i.response.defer()
+
     member_id = (usuario or i.user).id
-    usuario = i.guild.get_member(member_id)
+    usuario   = i.guild.get_member(member_id)
 
     if not usuario:
-        await i.response.send_message(
-            "> **No se pudo obtener la información del usuario**.",
-            ephemeral=True
-        )
+        await i.followup.send("> ❌ No se pudo obtener el usuario.", ephemeral=True)
         return
 
-    spotify_activity = discord.utils.find(
+    actividad = discord.utils.find(
         lambda a: isinstance(a, discord.Spotify),
         usuario.activities
     )
 
-    if not spotify_activity:
-        await i.response.send_message(
-            f"**{usuario.name} no está escuchando Spotify**\n"
-            "> o su Spotify no está vinculado a su cuenta"
+    if not actividad:
+        await i.followup.send(
+            f"**{usuario.display_name} no está escuchando Spotify**\n"
+            f"> o su Spotify no está vinculado a su cuenta",
+            ephemeral=True
         )
         return
 
-    segundos_totales = int(spotify_activity.duration.total_seconds())
-    minutos = segundos_totales // 60
-    segundos = segundos_totales % 60
-    duracion = f"{minutos:02}:{segundos:02}"
-
-    embed = discord.Embed(color=0x000000)
-    embed.description = (
-        f"## Escuchando ahora\n\n"
-        f"> **Canción:**\n"
-        f"> {spotify_activity.title}\n\n"
-        f"> **Artista:**\n"
-        f"> {spotify_activity.artist}\n\n"
-        f"> **Álbum:**\n"
-        f"> {spotify_activity.album}\n\n"
-        f"> **Duración:**\n"
-        f"> `{duracion}`"
-    )
-    embed.set_thumbnail(url=spotify_activity.album_cover_url)
-    embed.set_footer(
-        text=f"{usuario.display_name} en Spotify...",
-        icon_url=usuario.display_avatar.url
-    )
-    await i.response.send_message(embed=embed)
+    archivo = await generar_spotify(usuario, actividad)
+    await i.followup.send(file=archivo)
 
 # =========================================================
 # AFK
@@ -1085,29 +1141,29 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
     draw.ellipse([(35, 35), (135, 135)], outline=ACENTO, width=2)
 
     # NOMBRE
-    draw.text((158, 28), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
+    draw.text((158, 26), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
 
     # BADGE
-    draw.rounded_rectangle([(158, 54), (268, 76)], radius=11, fill=ACENTO)
-    draw.text((213, 60), "Cuenta bancaria", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
+    draw.rounded_rectangle([(158, 54), (278, 78)], radius=11, fill=ACENTO)
+draw.text((218, 56), "Cuenta bancaria", font=fuente(13, bold=True), fill=FONDO)
 
     # SEPARADOR
     draw.rectangle([(158, 90), (640, 91)], fill=GRIS)
 
     # MONEDAS
-    draw.text((158, 106), f"🪙 {coins:,} monedas", font=fuente(22, bold=True), fill=ACENTO)
+    draw.text((158, 106), f"$ {coins:,} monedas", font=fuente(22, bold=True), fill=ACENTO)
 
     # ULTIMO DAILY
     if last_daily == 0:
-        daily_texto = "Nunca reclamaste tu daily"
+        daily_texto = "> Nunca reclamaste tu daily"
     else:
         hace = int(time.time() - last_daily)
         if hace < 3600:
-            daily_texto = f"Último daily: hace {hace // 60} minutos"
+            daily_texto = f"> Último daily: hace {hace // 60} minutos"
         elif hace < 86400:
-            daily_texto = f"Último daily: hace {hace // 3600} horas"
+            daily_texto = f"> Último daily: hace {hace // 3600} horas"
         else:
-            daily_texto = f"Último daily: hace {hace // 86400} días"
+            daily_texto = f"> Último daily: hace {hace // 86400} días"
 
     draw.text((158, 148), daily_texto, font=fuente(12), fill=SUBTEXTO)
 
