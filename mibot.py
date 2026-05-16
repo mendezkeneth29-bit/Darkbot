@@ -571,7 +571,7 @@ async def spotify_slash(i: discord.Interaction, usuario: discord.Member = None):
     actividad = discord.utils.find(lambda a: isinstance(a, discord.Spotify), usuario.activities)
     if not actividad:
         await i.followup.send(f"**{usuario.display_name} no esta escuchando Spotify**", ephemeral=True)
-                               "> o Spotify no esta vinculado a su cuenta..."
+        "> o Spotify no esta vinculado a su cuenta..."
         return
     await i.followup.send(file=await generar_spotify(usuario, actividad))
 
