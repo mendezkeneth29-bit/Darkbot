@@ -1255,75 +1255,6 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
 # COMANDO BUSQUEDA
 # =========================================================
 
-@bot.tree.command(name="buscar", description="Busca algo en DuckDuckGo")
-async def buscar_slash(i: discord.Interaction, busqueda: str):
-    await i.response.defer()
-
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        url = f"https://html.duckduckgo.com/html/?q={busqueda.replace(' ', '+')}"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as r:
-                html = await r.text()
-
-        # PARSEAR RESULTADOS
-        resultados = []
-        from html.parser import HTMLParser
-
-        class DDGParser(HTMLParser):
-            def __init__(self):
-                super().__init__()
-                self.resultados = []
-                self.current = {}
-                self.capture_title = False
-                self.capture_desc = False
-                self.capture_url = False
-
-            def handle_starttag(self, tag, attrs):
-                attrs = dict(attrs)
-                if tag == "a" and "result__a" in attrs.get("class", ""):
-                    self.capture_title = True
-                    self.current = {"titulo": "", "url": attrs.get("href", ""), "desc": ""}
-                if tag == "a" and "result__snippet" in attrs.get("class", ""):
-                    self.capture_desc = True
-                if tag == "a" and "result__url" in attrs.get("class", ""):
-                    self.capture_url = True
-
-            def handle_data(self, data):
-                if self.capture_title:
-                    self.current["titulo"] += data.strip()
-                if self.capture_desc:
-                    self.current["desc"] += data.strip()
-                if self.capture_url:
-                    self.current["url"] = data.strip()
-
-            def handle_endtag(self, tag):
-                if tag == "a" and self.capture_title:
-                    self.capture_title = False
-                    if self.current.get("titulo"):
-                        self.resultados.append(self.current)
-                        self.current = {}
-                if tag == "a" and self.capture_desc:
-                    self.capture_desc = False
-                if tag == "a" and self.capture_url:
-                    self.capture_url = False
-
-        parser = DDGParser()
-        parser.feed(html)
-        resultados = parser.resultados[:3]
-
-        if not resultados:
-            await i.followup.send("> No se encontraron resultados.", ephemeral=True)
-            return
-
-        archivo = await generar_busqueda(busqueda, resultados)
-        await i.followup.send(file=archivo)
-
-    except Exception as e:
-        await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
-
-
 from duckduckgo_search import DDGS
 
 @bot.tree.command(name="buscar", description="Busca algo en DuckDuckGo")
@@ -1372,7 +1303,6 @@ async def buscar_prefix(ctx, *, busqueda: str):
 
         except Exception as e:
             await ctx.send(f"Error:\n```{e}```")
-
 # =========================================================
 # GENERAR TARJETA SHIP
 # =========================================================
