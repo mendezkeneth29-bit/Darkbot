@@ -28,6 +28,7 @@ TOKEN = os.getenv("TOKEN")
 
 warnings_data = {}
 afk_data = {}
+mensaje_count = {}
 
 # -------------------------
 # BOT
@@ -929,14 +930,14 @@ async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed:
     draw.ellipse([(36, 38), (140, 142)], outline=ACENTO, width=2)
 
     # NOMBRE
-    draw.text((162, 38), usuario.display_name, font=fuente(21, bold=True), fill=TEXTO)
+    draw.text((162, 28), usuario.display_name, font=fuente(21, bold=True), fill=TEXTO)
 
     # BADGE NIVEL
     draw.rounded_rectangle([(162, 62), (242, 84)], radius=11, fill=ACENTO)
     draw.text((202, 68), f"Nivel {nivel}", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
 
     # XP TEXTO
-    draw.text((162, 106), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
+    draw.text((162, 107), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
 
     # BARRA XP FONDO
     draw.rounded_rectangle([(162, 118), (630, 130)], radius=6, fill=GRIS)
@@ -989,6 +990,18 @@ async def nivel_cmd(i: discord.Interaction, usuario: discord.Member = None):
 
 @bot.listen("on_message")
 async def dar_xp(message):
+
+    # MONEDAS CADA 5 MENSAJES
+    uid = str(message.author.id)
+    if uid not in mensaje_count:
+        mensaje_count[uid] = 0
+    mensaje_count[uid] += 1
+
+    if mensaje_count[uid] >= 5:
+        mensaje_count[uid] = 0
+        data = get_user_eco(str(message.guild.id), message.author.id)
+        data["coins"] += random.randint(2, 4)
+        
     if message.author.bot or not message.guild:
         return
 
@@ -1025,6 +1038,221 @@ async def dar_xp(message):
             )
         except Exception as e:
             print(f"Error nivel: {e}")
+
+# =========================================================
+# ECONOMIA - DATA
+# =========================================================
+
+economia_data = {}
+daily_cooldown = {}
+
+def get_user_eco(guild_id, user_id):
+    gid = str(guild_id)
+    uid = str(user_id)
+    if gid not in economia_data:
+        economia_data[gid] = {}
+    if uid not in economia_data[gid]:
+        economia_data[gid][uid] = {"coins": 0, "last_daily": 0}
+    return economia_data[gid][uid]
+
+# =========================================================
+# GENERAR TARJETA BALANCE
+# =========================================================
+
+async def generar_balance(usuario: discord.Member, coins: int, last_daily: float) -> discord.File:
+    W, H     = 680, 170
+    FONDO    = (14, 14, 14)
+    ACENTO   = (245, 240, 232)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ACENTO)
+
+    # AVATAR
+    try:
+        av = await descargar_imagen(str(usuario.display_avatar.url))
+        av = avatar_circular(av, 96)
+        img.paste(av, (37, 37), av)
+    except:
+        draw.ellipse([(37, 37), (133, 133)], fill=GRIS)
+
+    # BORDE AVATAR
+    draw.ellipse([(35, 35), (135, 135)], outline=ACENTO, width=2)
+
+    # NOMBRE
+    draw.text((158, 28), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
+
+    # BADGE
+    draw.rounded_rectangle([(158, 54), (268, 76)], radius=11, fill=ACENTO)
+    draw.text((213, 60), "Cuenta bancaria", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
+
+    # SEPARADOR
+    draw.rectangle([(158, 90), (640, 91)], fill=GRIS)
+
+    # MONEDAS
+    draw.text((158, 106), f"🪙 {coins:,} monedas", font=fuente(22, bold=True), fill=ACENTO)
+
+    # ULTIMO DAILY
+    if last_daily == 0:
+        daily_texto = "Nunca reclamaste tu daily"
+    else:
+        hace = int(time.time() - last_daily)
+        if hace < 3600:
+            daily_texto = f"Último daily: hace {hace // 60} minutos"
+        elif hace < 86400:
+            daily_texto = f"Último daily: hace {hace // 3600} horas"
+        else:
+            daily_texto = f"Último daily: hace {hace // 86400} días"
+
+    draw.text((158, 148), daily_texto, font=fuente(12), fill=SUBTEXTO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="balance.png")
+
+# =========================================================
+# GENERAR TARJETA RANKING
+# =========================================================
+
+async def generar_ranking(guild: discord.Guild, top: list) -> discord.File:
+    filas = len(top)
+    W     = 680
+    H     = 130 + (filas * 46)
+    FONDO    = (14, 14, 14)
+    ACENTO   = (245, 240, 232)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    OSCURO   = (21, 21, 21)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ACENTO)
+
+    # TITULO
+    draw.text((34, 30), "Ranking", font=fuente(18, bold=True), fill=TEXTO)
+    draw.text((34, 58), "Top usuarios con más monedas", font=fuente(11), fill=SUBTEXTO)
+
+    # SEPARADOR
+    draw.rectangle([(34, 72), (646, 73)], fill=GRIS)
+
+    medallas = ["🥇", "🥈", "🥉"]
+
+    for n, (uid, data) in enumerate(top):
+        member = guild.get_member(int(uid))
+        nombre = member.display_name if member else f"Usuario {uid}"
+        nombre = nombre[:20] + "..." if len(nombre) > 20 else nombre
+
+        y = 82 + (n * 46)
+
+        # FONDO FILA
+        color_fila = (26, 26, 26) if n == 0 else OSCURO
+        draw.rounded_rectangle([(34, y), (646, y + 36)], radius=8, fill=color_fila)
+
+        # MEDALLA O NUMERO
+        medalla = medallas[n] if n < 3 else f"#{n+1}"
+        draw.text((54, y + 8), medalla, font=fuente(14, bold=True), fill=ACENTO if n == 0 else SUBTEXTO)
+
+        # NOMBRE
+        draw.text((90, y + 10), nombre, font=fuente(13, bold=n == 0), fill=TEXTO)
+
+        # MONEDAS
+        coins_texto = f"🪙 {data['coins']:,}"
+        draw.text((620, y + 10), coins_texto, font=fuente(13), fill=ACENTO if n == 0 else SUBTEXTO, anchor="ra")
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="ranking.png")
+
+# =========================================================
+# COMANDO BALANCE
+# =========================================================
+
+@bot.tree.command(name="balance", description="Ve tu cuenta bancaria")
+async def balance(
+    i: discord.Interaction,
+    usuario: discord.Member = None
+):
+    await i.response.defer()
+    usuario = i.guild.get_member((usuario or i.user).id)
+    data    = get_user_eco(i.guild.id, usuario.id)
+
+    archivo = await generar_balance(
+        usuario,
+        data["coins"],
+        data["last_daily"]
+    )
+    await i.followup.send(file=archivo)
+
+# =========================================================
+# COMANDO DAILY
+# =========================================================
+
+@bot.tree.command(name="daily", description="Reclama tus monedas diarias")
+async def daily(i: discord.Interaction):
+    await i.response.defer()
+    data  = get_user_eco(i.guild.id, i.user.id)
+    ahora = time.time()
+
+    if ahora - data["last_daily"] < 86400:
+        restante  = int(86400 - (ahora - data["last_daily"]))
+        horas     = restante // 3600
+        minutos   = (restante % 3600) // 60
+        segundos  = restante % 60
+
+        embed = discord.Embed(color=0x0e0e0e)
+        embed.description = (
+            f"**Ya reclamaste tu daily**\n\n"
+            f"> Vuelve en `{horas:02}:{minutos:02}:{segundos:02}`"
+        )
+        await i.followup.send(embed=embed, ephemeral=True)
+        return
+
+    recompensa          = random.randint(100, 500)
+    data["coins"]      += recompensa
+    data["last_daily"]  = ahora
+
+    archivo = await generar_balance(
+        i.guild.get_member(i.user.id),
+        data["coins"],
+        data["last_daily"]
+    )
+
+    await i.followup.send(
+        content=f"> Recibiste **{recompensa}** monedas!",
+        file=archivo
+    )
+
+# =========================================================
+# COMANDO RANKING
+# =========================================================
+
+@bot.tree.command(name="ranking", description="Top de usuarios con más monedas")
+async def ranking(i: discord.Interaction):
+    await i.response.defer()
+
+    gid = str(i.guild.id)
+    if gid not in economia_data or not economia_data[gid]:
+        await i.followup.send("> ❌ Nadie tiene monedas todavía.", ephemeral=True)
+        return
+
+    top = sorted(
+        economia_data[gid].items(),
+        key=lambda x: x[1]["coins"],
+        reverse=True
+    )[:10]
+
+    archivo = await generar_ranking(i.guild, top)
+    await i.followup.send(file=archivo)
     
 # -------------------------
 # FLASK WEB
