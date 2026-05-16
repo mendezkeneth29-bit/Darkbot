@@ -3,4 +3,3 @@ flask
 groq
 Pillow
 aiohttp
-fonts-noto
