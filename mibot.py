@@ -73,12 +73,18 @@ def avatar_circular(img: Image.Image, size: int) -> Image.Image:
     return resultado
 
 def fuente(size: int, bold: bool = False):
-    try:
-        path = "/usr/share/fonts/truetype/dejavu/"
-        nombre = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-        return ImageFont.truetype(path + nombre, size)
-    except:
-        return ImageFont.load_default()
+    # Lista de fuentes a intentar en orden
+    opciones = [
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf" if bold else "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+    ]
+    for path in opciones:
+        try:
+            return ImageFont.truetype(path, size)
+        except:
+            continue
+    return ImageFont.load_default()
 
 # =========================================================
 # GENERAR TARJETA USERINFO
@@ -772,7 +778,7 @@ bye_canal = {}
 async def wlc(i: discord.Interaction, canal: discord.TextChannel):
     wlc_canal[i.guild.id] = canal.id
     await i.response.send_message(
-        f"Bienvenida activada en {canal.mention}...<:Check:1504584129302499399>",
+        f"> Bienvenida activada en {canal.mention}...<:Check:1504584129302499399>",
         ephemeral=True
     )
 
@@ -785,7 +791,7 @@ async def wlc(i: discord.Interaction, canal: discord.TextChannel):
 async def bye(i: discord.Interaction, canal: discord.TextChannel):
     bye_canal[i.guild.id] = canal.id
     await i.response.send_message(
-        f"Despedida activada en {canal.mention}...<:Check:1504584129302499399>",
+        f"> Despedida activada en {canal.mention}...<:Check:1504584129302499399>",
         ephemeral=True
     )
 
@@ -797,14 +803,14 @@ async def bye(i: discord.Interaction, canal: discord.TextChannel):
 @app_commands.checks.has_permissions(administrator=True)
 async def reset_wlc(i: discord.Interaction):
     wlc_canal.pop(i.guild.id, None)
-    await i.response.send_message("Bienvenida desactivada...<:Check:1504584129302499399>", ephemeral=True)
+    await i.response.send_message("> Bienvenida desactivada...<:Check:1504584129302499399>", ephemeral=True)
 
 
 @bot.tree.command(name="reset-bye", description="Desactiva la despedida")
 @app_commands.checks.has_permissions(administrator=True)
 async def reset_bye(i: discord.Interaction):
     bye_canal.pop(i.guild.id, None)
-    await i.response.send_message("Despedida desactivada...<:Check:1504584129302499399>", ephemeral=True)
+    await i.response.send_message("> Despedida desactivada...<:Check:1504584129302499399>", ephemeral=True)
 
 # =========================================================
 # EVENTO JOIN
