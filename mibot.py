@@ -937,7 +937,7 @@ async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed:
     draw.text((202, 68), f"Nivel {nivel}", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
 
     # XP TEXTO
-    draw.text((162, 107), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
+    draw.text((162, 105), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
 
     # BARRA XP FONDO
     draw.rounded_rectangle([(162, 118), (630, 130)], radius=6, fill=GRIS)
@@ -1242,7 +1242,7 @@ async def ranking(i: discord.Interaction):
 
     gid = str(i.guild.id)
     if gid not in economia_data or not economia_data[gid]:
-        await i.followup.send("> ❌ Nadie tiene monedas todavía.", ephemeral=True)
+        await i.followup.send("> Nadie tiene monedas todavía.", ephemeral=True)
         return
 
     top = sorted(
