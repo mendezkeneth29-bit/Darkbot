@@ -122,12 +122,13 @@ def get_user_eco(guild_id, user_id):
 # =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
-    W, H = 700, 234
-    FONDO       = (30, 31, 34)
+    W, H        = 700, 260
+    FONDO       = (14, 14, 14)
     TEXTO       = (255, 255, 255)
-    SUBTEXTO    = (180, 180, 196)
-    CAMPO_FONDO = (43, 45, 49)
-    GRIS        = (58, 61, 68)
+    SUBTEXTO    = (160, 163, 172)
+    CAMPO_FONDO = (24, 25, 28)
+    CAMPO_BORDE = (40, 42, 48)
+    GRIS        = (40, 42, 48)
 
     # COLOR DEL ROL
     color = usuario.color
@@ -139,41 +140,63 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    # BARRA LATERAL
-    draw.rectangle([(0, 0), (6, H)], fill=COLOR)
+    # GRADIENTE SUPERIOR SIMULADO (rectangulos con opacidad decreciente)
+    for i_grad in range(60):
+        alpha = int(80 * (1 - i_grad / 60))
+        overlay = Image.new("RGBA", (W, 1), (*COLOR, alpha))
+        img.paste(overlay, (0, i_grad), overlay)
 
-    # AVATAR
+    # BARRA LATERAL
+    draw.rectangle([(0, 0), (5, H)], fill=COLOR)
+
+    # AVATAR con sombra
+    av_x, av_y = 28, 20
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
-        av = avatar_circular(av, 76)
-        img.paste(av, (36, 8), av)
+        av = avatar_circular(av, 90)
+        # sombra
+        sombra = Image.new("RGBA", (94, 94), (0, 0, 0, 0))
+        ImageDraw.Draw(sombra).ellipse([(2, 2), (92, 92)], fill=(0, 0, 0, 80))
+        img.paste(sombra, (av_x - 2, av_y + 2), sombra)
+        img.paste(av, (av_x, av_y), av)
     except:
-        draw.ellipse([(36, 8), (112, 84)], fill=CAMPO_FONDO)
+        draw.ellipse([(av_x, av_y), (av_x + 90, av_y + 90)], fill=CAMPO_FONDO)
 
     # BORDE AVATAR
-    draw.ellipse([(34, 6), (114, 86)], outline=COLOR, width=2)
+    draw.ellipse([(av_x - 3, av_y - 3), (av_x + 93, av_y + 93)], outline=COLOR, width=3)
+
+    # BADGE ONLINE (circulo verde abajo derecha del avatar)
+    draw.ellipse([(av_x + 66, av_y + 66), (av_x + 84, av_y + 84)], fill=FONDO)
+    draw.ellipse([(av_x + 68, av_y + 68), (av_x + 82, av_y + 82)], fill=(35, 165, 90))
 
     # NOMBRE
-    draw.text((128, 18), usuario.display_name, font=fuente(22, bold=True), fill=TEXTO)
-    draw.text((128, 46), f"@{usuario.name}", font=fuente(13), fill=SUBTEXTO)
+    draw.text((136, 32), usuario.display_name, font=fuente(24, bold=True), fill=TEXTO)
 
-    # LINEA
-    draw.rectangle([(24, 96), (676, 97)], fill=GRIS)
+    # USERNAME con @
+    draw.text((136, 62), f"@{usuario.name}", font=fuente(13), fill=SUBTEXTO)
 
-    def campo(x, y, titulo, valor, ancho=320):
-        draw.rounded_rectangle([(x, y), (x + ancho, y + 56)], radius=8, fill=CAMPO_FONDO)
-        draw.text((x + 12, y + 10), titulo, font=fuente(11), fill=SUBTEXTO)
-        draw.text((x + 12, y + 30), valor, font=fuente(15, bold=True), fill=TEXTO)
+    # SEPARADOR CON COLOR
+    draw.rectangle([(24, 124), (W - 24, 125)], fill=COLOR)
+
+    # FUNCION CAMPO
+    def campo(x, y, titulo, valor, ancho=310, icono=None):
+        # fondo con borde sutil
+        draw.rounded_rectangle([(x, y), (x + ancho, y + 62)], radius=10, fill=CAMPO_FONDO)
+        draw.rounded_rectangle([(x, y), (x + ancho, y + 62)], radius=10, outline=CAMPO_BORDE, width=1)
+        # linea color izquierda
+        draw.rounded_rectangle([(x, y + 8), (x + 3, y + 54)], radius=2, fill=COLOR)
+        draw.text((x + 14, y + 10), titulo, font=fuente(11), fill=SUBTEXTO)
+        draw.text((x + 14, y + 32), valor, font=fuente(15, bold=True), fill=TEXTO)
 
     # FILA 1
-    campo(24,  108, "USUARIO",         f"@{usuario.display_name}")
-    campo(356, 108, "ID",              str(usuario.id))
+    campo(24,  136, "USUARIO",         f"@{usuario.display_name}")
+    campo(350, 136, "ID",              str(usuario.id))
 
     # FILA 2
     creado = usuario.created_at.strftime("%d/%m/%Y")
     entro  = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
-    campo(24,  174, "CUENTA CREADA",   creado)
-    campo(356, 174, "ENTRO AL SERVER", entro)
+    campo(24,  210, "CUENTA CREADA",   creado)
+    campo(350, 210, "ENTRO AL SERVER", entro)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
