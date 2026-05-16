@@ -835,35 +835,40 @@ async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.F
     draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
 
     # CUERPO DEL CANDADO
-    cx, cy = 80, 110
-    draw.rounded_rectangle([(cx - 36, cy - 10), (cx + 36, cy + 40)], radius=8, fill=COLOR)
+    cx, cy = 80, 115
+    draw.rounded_rectangle([(cx - 34, cy - 8), (cx + 34, cy + 38)], radius=8, fill=COLOR)
 
-    # ARCO DEL CANDADO
+    # ARCO - dibujado como rectángulo hueco encima
+    arco_x1 = cx - 22
+    arco_x2 = cx + 22
+    arco_y1 = cy - 50
+    arco_y2 = cy + 10
+
     if bloqueado:
-        # CERRADO - arco centrado
-        draw.arc([(cx - 28, cy - 60), (cx + 28, cy + 10)], start=180, end=0, fill=COLOR, width=10)
+        # CERRADO - arco completo centrado
+        draw.arc([(arco_x1, arco_y1), (arco_x2, arco_y2)], start=180, end=0, fill=COLOR, width=10)
     else:
-        # ABIERTO - arco desplazado arriba a la derecha
-        draw.arc([(cx - 28, cy - 70), (cx + 28, cy)], start=200, end=360, fill=COLOR, width=10)
+        # ABIERTO - arco hacia arriba derecha sin cerrar
+        draw.arc([(arco_x1 + 10, arco_y1 - 10), (arco_x2 + 30, arco_y2 + 10)], start=180, end=320, fill=COLOR, width=10)
 
     # AGUJERO DE LLAVE
-    draw.ellipse([(cx - 10, cy + 4), (cx + 10, cy + 24)], fill=FONDO)
-    draw.rounded_rectangle([(cx - 4, cy + 14), (cx + 4, cy + 30)], radius=2, fill=FONDO)
+    draw.ellipse([(cx - 9, cy + 5), (cx + 9, cy + 23)], fill=FONDO)
+    draw.rounded_rectangle([(cx - 4, cy + 16), (cx + 4, cy + 30)], radius=2, fill=FONDO)
 
     # TITULO
     titulo = "Canal Bloqueado" if bloqueado else "Canal Desbloqueado"
     draw.text((158, 42), titulo, font=fuente(22, bold=True), fill=TEXTO)
 
     # SEPARADOR
-    draw.rectangle([(158, 58), (645, 59)], fill=GRIS)
+    draw.rectangle([(158, 68), (645, 69)], fill=GRIS)
 
     # CANAL
-    draw.text((158, 74), "CANAL", font=fuente(11), fill=SUBTEXTO)
-    draw.text((158, 94), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO)
+    draw.text((158, 82), "CANAL", font=fuente(11), fill=SUBTEXTO)
+    draw.text((158, 100), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO)
 
     # MENSAJE
     msg = "Nadie puede enviar mensajes." if bloqueado else "Ya pueden enviar mensajes."
-    draw.text((158, 134), msg, font=fuente(12), fill=COLOR)
+    draw.text((158, 140), msg, font=fuente(12), fill=COLOR)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -1190,6 +1195,197 @@ async def dar_xp(message):
             await canal.send(content=message.author.mention, file=await generar_nivel(message.author, data["level"], data["xp"], xp_para_nivel(data["level"])))
         except Exception as e:
             print(f"Error nivel: {e}")
+
+# =========================================================
+# GENERAR TARJETA BUSQUEDA
+# =========================================================
+
+async def generar_busqueda(query: str, resultados: list) -> discord.File:
+    filas = min(len(resultados), 3)
+    W     = 680
+    H     = 100 + (filas * 80)
+    FONDO    = (14, 14, 14)
+    ACENTO   = (245, 240, 232)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    OSCURO   = (21, 21, 21)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ACENTO)
+
+    # HEADER
+    draw.rounded_rectangle([(24, 16), (656, 72)], radius=10, fill=(26, 26, 26))
+    draw.text((40, 22), "Busqueda", font=fuente(11), fill=SUBTEXTO)
+    query_texto = query[:55] + "..." if len(query) > 55 else query
+    draw.text((40, 40), query_texto, font=fuente(15, bold=True), fill=TEXTO)
+
+    # SEPARADOR
+    draw.rectangle([(24, 86), (656, 87)], fill=GRIS)
+
+    # RESULTADOS
+    for n, r in enumerate(resultados[:3]):
+        y = 96 + (n * 80)
+        color_fila = (26, 26, 26) if n % 2 == 0 else OSCURO
+        draw.rounded_rectangle([(24, y), (656, y + 64)], radius=8, fill=color_fila)
+
+        # URL
+        url = r.get("url", "")[:60] + "..." if len(r.get("url", "")) > 60 else r.get("url", "")
+        draw.text((40, y + 10), url, font=fuente(11), fill=ACENTO)
+
+        # TITULO
+        titulo = r.get("titulo", "")[:50] + "..." if len(r.get("titulo", "")) > 50 else r.get("titulo", "")
+        draw.text((40, y + 28), titulo, font=fuente(14, bold=True), fill=TEXTO)
+
+        # DESCRIPCION
+        desc = r.get("desc", "")[:70] + "..." if len(r.get("desc", "")) > 70 else r.get("desc", "")
+        draw.text((40, y + 48), desc, font=fuente(12), fill=SUBTEXTO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="busqueda.png")
+
+# =========================================================
+# COMANDO BUSQUEDA
+# =========================================================
+
+@bot.tree.command(name="buscar", description="Busca algo en DuckDuckGo")
+async def buscar_slash(i: discord.Interaction, busqueda: str):
+    await i.response.defer()
+
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        url = f"https://html.duckduckgo.com/html/?q={busqueda.replace(' ', '+')}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as r:
+                html = await r.text()
+
+        # PARSEAR RESULTADOS
+        resultados = []
+        from html.parser import HTMLParser
+
+        class DDGParser(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.resultados = []
+                self.current = {}
+                self.capture_title = False
+                self.capture_desc = False
+                self.capture_url = False
+
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == "a" and "result__a" in attrs.get("class", ""):
+                    self.capture_title = True
+                    self.current = {"titulo": "", "url": attrs.get("href", ""), "desc": ""}
+                if tag == "a" and "result__snippet" in attrs.get("class", ""):
+                    self.capture_desc = True
+                if tag == "a" and "result__url" in attrs.get("class", ""):
+                    self.capture_url = True
+
+            def handle_data(self, data):
+                if self.capture_title:
+                    self.current["titulo"] += data.strip()
+                if self.capture_desc:
+                    self.current["desc"] += data.strip()
+                if self.capture_url:
+                    self.current["url"] = data.strip()
+
+            def handle_endtag(self, tag):
+                if tag == "a" and self.capture_title:
+                    self.capture_title = False
+                    if self.current.get("titulo"):
+                        self.resultados.append(self.current)
+                        self.current = {}
+                if tag == "a" and self.capture_desc:
+                    self.capture_desc = False
+                if tag == "a" and self.capture_url:
+                    self.capture_url = False
+
+        parser = DDGParser()
+        parser.feed(html)
+        resultados = parser.resultados[:3]
+
+        if not resultados:
+            await i.followup.send("> No se encontraron resultados.", ephemeral=True)
+            return
+
+        archivo = await generar_busqueda(busqueda, resultados)
+        await i.followup.send(file=archivo)
+
+    except Exception as e:
+        await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
+
+
+@bot.command(name="buscar")
+async def buscar_prefix(ctx, *, busqueda: str):
+    async with ctx.typing():
+        try:
+            headers = {"User-Agent": "Mozilla/5.0"}
+            url = f"https://html.duckduckgo.com/html/?q={busqueda.replace(' ', '+')}"
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as r:
+                    html = await r.text()
+
+            from html.parser import HTMLParser
+
+            class DDGParser(HTMLParser):
+                def __init__(self):
+                    super().__init__()
+                    self.resultados = []
+                    self.current = {}
+                    self.capture_title = False
+                    self.capture_desc = False
+                    self.capture_url = False
+
+                def handle_starttag(self, tag, attrs):
+                    attrs = dict(attrs)
+                    if tag == "a" and "result__a" in attrs.get("class", ""):
+                        self.capture_title = True
+                        self.current = {"titulo": "", "url": attrs.get("href", ""), "desc": ""}
+                    if tag == "a" and "result__snippet" in attrs.get("class", ""):
+                        self.capture_desc = True
+                    if tag == "a" and "result__url" in attrs.get("class", ""):
+                        self.capture_url = True
+
+                def handle_data(self, data):
+                    if self.capture_title:
+                        self.current["titulo"] += data.strip()
+                    if self.capture_desc:
+                        self.current["desc"] += data.strip()
+                    if self.capture_url:
+                        self.current["url"] = data.strip()
+
+                def handle_endtag(self, tag):
+                    if tag == "a" and self.capture_title:
+                        self.capture_title = False
+                        if self.current.get("titulo"):
+                            self.resultados.append(self.current)
+                            self.current = {}
+                    if tag == "a" and self.capture_desc:
+                        self.capture_desc = False
+                    if tag == "a" and self.capture_url:
+                        self.capture_url = False
+
+            parser = DDGParser()
+            parser.feed(html)
+            resultados = parser.resultados[:3]
+
+            if not resultados:
+                await ctx.send("> No se encontraron resultados.")
+                return
+
+            archivo = await generar_busqueda(busqueda, resultados)
+            await ctx.send(file=archivo)
+
+        except Exception as e:
+            await ctx.send(f"Error:\n```{e}```")
 
 # -------------------------
 # FLASK WEB
