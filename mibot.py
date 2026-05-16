@@ -122,48 +122,58 @@ def get_user_eco(guild_id, user_id):
 # =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
-    W, H = 700, 260
-    FONDO = (30, 31, 34)
-    TEXTO = (255, 255, 255)
-    SUBTEXTO = (180, 180, 190)
-    CAMPO_FONDO = (40, 43, 48)
+    W, H = 700, 234
+    FONDO       = (30, 31, 34)
+    TEXTO       = (255, 255, 255)
+    SUBTEXTO    = (180, 180, 196)
+    CAMPO_FONDO = (43, 45, 49)
+    GRIS        = (58, 61, 68)
 
-    img = Image.new("RGBA", (W, H), FONDO)
+    # COLOR DEL ROL
+    color = usuario.color
+    r = color.r if color.value else 124
+    g = color.g if color.value else 111
+    b = color.b if color.value else 224
+    COLOR = (r, g, b)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    color = usuario.color
-    r = color.r if color.value else 88
-    g = color.g if color.value else 101
-    b = color.b if color.value else 242
-    draw.rectangle([(0, 0), (6, H)], fill=(r, g, b))
+    # BARRA LATERAL
+    draw.rectangle([(0, 0), (6, H)], fill=COLOR)
 
-    avatar_img = await descargar_imagen(str(usuario.display_avatar.url))
-    avatar_img = avatar_circular(avatar_img, 90)
-    img.paste(avatar_img, (24, 20), avatar_img)
+    # AVATAR
+    try:
+        av = await descargar_imagen(str(usuario.display_avatar.url))
+        av = avatar_circular(av, 76)
+        img.paste(av, (36, 8), av)
+    except:
+        draw.ellipse([(36, 8), (112, 84)], fill=CAMPO_FONDO)
 
-    draw.text((128, 22), usuario.display_name, font=fuente(26, bold=True), fill=TEXTO)
-    draw.text((128, 56), f"@{usuario.name}", font=fuente(16), fill=SUBTEXTO)
-    draw.rectangle([(24, 126), (W - 24, 128)], fill=(60, 63, 70))
+    # BORDE AVATAR
+    draw.ellipse([(34, 6), (114, 86)], outline=COLOR, width=2)
 
-    col1_x = 24
-    col2_x = 370
-    y = 148
+    # NOMBRE
+    draw.text((128, 18), usuario.display_name, font=fuente(22, bold=True), fill=TEXTO)
+    draw.text((128, 46), f"@{usuario.name}", font=fuente(13), fill=SUBTEXTO)
+
+    # LINEA
+    draw.rectangle([(24, 96), (676, 97)], fill=GRIS)
 
     def campo(x, y, titulo, valor, ancho=320):
-        draw.rounded_rectangle([(x, y), (x + ancho, y + 64)], radius=8, fill=CAMPO_FONDO)
-        draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
-        draw.text((x + 12, y + 30), valor, font=fuente(17, bold=True), fill=TEXTO)
+        draw.rounded_rectangle([(x, y), (x + ancho, y + 56)], radius=8, fill=CAMPO_FONDO)
+        draw.text((x + 12, y + 10), titulo, font=fuente(11), fill=SUBTEXTO)
+        draw.text((x + 12, y + 30), valor, font=fuente(15, bold=True), fill=TEXTO)
 
-    campo(col1_x, y, "USUARIO", f"@{usuario.display_name}")
-    campo(col2_x, y, "ID", str(usuario.id))
+    # FILA 1
+    campo(24,  108, "USUARIO",         f"@{usuario.display_name}")
+    campo(356, 108, "ID",              str(usuario.id))
 
-    y2 = y + 80
+    # FILA 2
     creado = usuario.created_at.strftime("%d/%m/%Y")
-    entro = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
-    campo(col1_x, y2, "CUENTA CREADA", creado)
-    campo(col2_x, y2, "ENTRO AL SERVER", entro)
-
-    draw.text((24, H - 22), f"Solicitado por {usuario.display_name}", font=fuente(12), fill=SUBTEXTO)
+    entro  = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
+    campo(24,  174, "CUENTA CREADA",   creado)
+    campo(356, 174, "ENTRO AL SERVER", entro)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -570,8 +580,7 @@ async def spotify_slash(i: discord.Interaction, usuario: discord.Member = None):
     usuario = i.guild.get_member((usuario or i.user).id)
     actividad = discord.utils.find(lambda a: isinstance(a, discord.Spotify), usuario.activities)
     if not actividad:
-        await i.followup.send(f"**{usuario.display_name} no esta escuchando Spotify**",
-        "> o Spotify no esta vinculado a su cuenta...")
+        await i.followup.send(f"> **{usuario.name} no esta escuchando Spotify**",
         return
     await i.followup.send(file=await generar_spotify(usuario, actividad))
 
@@ -835,40 +844,33 @@ async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.F
     draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
 
     # CUERPO DEL CANDADO
-    cx, cy = 80, 115
-    draw.rounded_rectangle([(cx - 34, cy - 8), (cx + 34, cy + 38)], radius=8, fill=COLOR)
-
-    # ARCO - dibujado como rectángulo hueco encima
-    arco_x1 = cx - 22
-    arco_x2 = cx + 22
-    arco_y1 = cy - 50
-    arco_y2 = cy + 10
+    draw.rounded_rectangle([(44, 88), (116, 144)], radius=8, fill=COLOR)
 
     if bloqueado:
-        # CERRADO - arco completo centrado
-        draw.arc([(arco_x1, arco_y1), (arco_x2, arco_y2)], start=180, end=0, fill=COLOR, width=10)
+        # ARCO CERRADO - semicírculo perfecto
+        draw.arc([(56, 42), (104, 98)], start=180, end=0, fill=COLOR, width=10)
     else:
-        # ABIERTO - arco hacia arriba derecha sin cerrar
-        draw.arc([(arco_x1 + 10, arco_y1 - 10), (arco_x2 + 30, arco_y2 + 10)], start=180, end=320, fill=COLOR, width=10)
+        # ARCO ABIERTO - desplazado arriba sin cerrar
+        draw.arc([(68, 30), (116, 86)], start=180, end=360, fill=COLOR, width=10)
 
-    # AGUJERO DE LLAVE
-    draw.ellipse([(cx - 9, cy + 5), (cx + 9, cy + 23)], fill=FONDO)
-    draw.rounded_rectangle([(cx - 4, cy + 16), (cx + 4, cy + 30)], radius=2, fill=FONDO)
+    # AGUJERO LLAVE
+    draw.ellipse([(71, 103), (89, 121)], fill=FONDO)
+    draw.rounded_rectangle([(76, 112), (84, 126)], radius=3, fill=FONDO)
 
     # TITULO
     titulo = "Canal Bloqueado" if bloqueado else "Canal Desbloqueado"
-    draw.text((158, 42), titulo, font=fuente(22, bold=True), fill=TEXTO)
+    draw.text((144, 32), titulo, font=fuente(22, bold=True), fill=TEXTO)
 
     # SEPARADOR
-    draw.rectangle([(158, 68), (645, 69)], fill=GRIS)
+    draw.rectangle([(144, 62), (654, 63)], fill=GRIS)
 
     # CANAL
-    draw.text((158, 82), "CANAL", font=fuente(11), fill=SUBTEXTO)
-    draw.text((158, 100), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO)
+    draw.text((144, 76), "CANAL", font=fuente(12), fill=SUBTEXTO)
+    draw.text((144, 96), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO)
 
     # MENSAJE
     msg = "Nadie puede enviar mensajes." if bloqueado else "Ya pueden enviar mensajes."
-    draw.text((158, 140), msg, font=fuente(12), fill=COLOR)
+    draw.text((144, 136), msg, font=fuente(13), fill=COLOR)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -1322,60 +1324,44 @@ async def buscar_slash(i: discord.Interaction, busqueda: str):
         await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
 
 
+from duckduckgo_search import DDGS
+
+@bot.tree.command(name="buscar", description="Busca algo en DuckDuckGo")
+async def buscar_slash(i: discord.Interaction, busqueda: str):
+    await i.response.defer()
+    try:
+        resultados = []
+        with DDGS() as ddgs:
+            for r in ddgs.text(busqueda, max_results=3):
+                resultados.append({
+                    "titulo": r.get("title", "Sin titulo"),
+                    "url":    r.get("href",  ""),
+                    "desc":   r.get("body",  "Sin descripcion")
+                })
+
+        if not resultados:
+            await i.followup.send("> No se encontraron resultados.", ephemeral=True)
+            return
+
+        archivo = await generar_busqueda(busqueda, resultados)
+        await i.followup.send(file=archivo)
+
+    except Exception as e:
+        await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
+
+
 @bot.command(name="buscar")
 async def buscar_prefix(ctx, *, busqueda: str):
     async with ctx.typing():
         try:
-            headers = {"User-Agent": "Mozilla/5.0"}
-            url = f"https://html.duckduckgo.com/html/?q={busqueda.replace(' ', '+')}"
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers) as r:
-                    html = await r.text()
-
-            from html.parser import HTMLParser
-
-            class DDGParser(HTMLParser):
-                def __init__(self):
-                    super().__init__()
-                    self.resultados = []
-                    self.current = {}
-                    self.capture_title = False
-                    self.capture_desc = False
-                    self.capture_url = False
-
-                def handle_starttag(self, tag, attrs):
-                    attrs = dict(attrs)
-                    if tag == "a" and "result__a" in attrs.get("class", ""):
-                        self.capture_title = True
-                        self.current = {"titulo": "", "url": attrs.get("href", ""), "desc": ""}
-                    if tag == "a" and "result__snippet" in attrs.get("class", ""):
-                        self.capture_desc = True
-                    if tag == "a" and "result__url" in attrs.get("class", ""):
-                        self.capture_url = True
-
-                def handle_data(self, data):
-                    if self.capture_title:
-                        self.current["titulo"] += data.strip()
-                    if self.capture_desc:
-                        self.current["desc"] += data.strip()
-                    if self.capture_url:
-                        self.current["url"] = data.strip()
-
-                def handle_endtag(self, tag):
-                    if tag == "a" and self.capture_title:
-                        self.capture_title = False
-                        if self.current.get("titulo"):
-                            self.resultados.append(self.current)
-                            self.current = {}
-                    if tag == "a" and self.capture_desc:
-                        self.capture_desc = False
-                    if tag == "a" and self.capture_url:
-                        self.capture_url = False
-
-            parser = DDGParser()
-            parser.feed(html)
-            resultados = parser.resultados[:3]
+            resultados = []
+            with DDGS() as ddgs:
+                for r in ddgs.text(busqueda, max_results=3):
+                    resultados.append({
+                        "titulo": r.get("title", "Sin titulo"),
+                        "url":    r.get("href",  ""),
+                        "desc":   r.get("body",  "Sin descripcion")
+                    })
 
             if not resultados:
                 await ctx.send("> No se encontraron resultados.")
@@ -1386,6 +1372,113 @@ async def buscar_prefix(ctx, *, busqueda: str):
 
         except Exception as e:
             await ctx.send(f"Error:\n```{e}```")
+
+# =========================================================
+# GENERAR TARJETA SHIP
+# =========================================================
+
+async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porcentaje: int) -> discord.File:
+    W, H     = 680, 200
+    FONDO    = (14, 14, 14)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    # COLOR SEGUN PORCENTAJE
+    if porcentaje >= 80:
+        COLOR = (255, 92, 147)    # rosa fuerte
+    elif porcentaje >= 50:
+        COLOR = (255, 165, 100)   # naranja
+    else:
+        COLOR = (100, 149, 237)   # azul
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
+
+    # AVATAR USUARIO 1
+    try:
+        av1 = await descargar_imagen(str(usuario1.display_avatar.url))
+        av1 = avatar_circular(av1, 110)
+        img.paste(av1, (30, 45), av1)
+    except:
+        draw.ellipse([(30, 45), (140, 155)], fill=GRIS)
+    draw.ellipse([(28, 43), (142, 157)], outline=COLOR, width=2)
+
+    # AVATAR USUARIO 2
+    try:
+        av2 = await descargar_imagen(str(usuario2.display_avatar.url))
+        av2 = avatar_circular(av2, 110)
+        img.paste(av2, (540, 45), av2)
+    except:
+        draw.ellipse([(540, 45), (650, 155)], fill=GRIS)
+    draw.ellipse([(538, 43), (652, 157)], outline=COLOR, width=2)
+
+    # NOMBRES
+    nombre1 = usuario1.display_name[:14] + "..." if len(usuario1.display_name) > 14 else usuario1.display_name
+    nombre2 = usuario2.display_name[:14] + "..." if len(usuario2.display_name) > 14 else usuario2.display_name
+    draw.text((85, 162), nombre1, font=fuente(13, bold=True), fill=TEXTO, anchor="mt")
+    draw.text((595, 162), nombre2, font=fuente(13, bold=True), fill=TEXTO, anchor="mt")
+
+    # BARRA CORAZON CENTRAL
+    draw.rounded_rectangle([(160, 82), (520, 118)], radius=18, fill=GRIS)
+    fill_w = int(160 + (360 * porcentaje / 100))
+    if fill_w > 160:
+        draw.rounded_rectangle([(160, 82), (fill_w, 118)], radius=18, fill=COLOR)
+
+    # PORCENTAJE
+    draw.text((340, 100), f"{porcentaje}%", font=fuente(20, bold=True), fill=TEXTO, anchor="mm")
+
+    # FRASE
+    if porcentaje >= 90:
+        frase = "Almas gemelas de otra dimension"
+    elif porcentaje >= 75:
+        frase = "El amor es inevitable entre estos dos"
+    elif porcentaje >= 60:
+        frase = "Hay chispa, pero falta avivarlo"
+    elif porcentaje >= 40:
+        frase = "Podria funcionar... o no"
+    elif porcentaje >= 20:
+        frase = "Mejor como amigos"
+    else:
+        frase = "Incompatibles al maximo nivel"
+
+    draw.text((340, 140), frase, font=fuente(12), fill=SUBTEXTO, anchor="mt")
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="ship.png")
+
+# =========================================================
+# COMANDO SHIP
+# =========================================================
+
+@bot.tree.command(name="ship", description="Calcula la compatibilidad entre dos usuarios")
+async def ship_slash(i: discord.Interaction, usuario1: discord.Member, usuario2: discord.Member):
+    await i.response.defer()
+
+    # PORCENTAJE CONSISTENTE BASADO EN IDS
+    seed = (usuario1.id + usuario2.id) % 101
+    random.seed(seed)
+    porcentaje = random.randint(0, 100)
+    random.seed()
+
+    archivo = await generar_ship(usuario1, usuario2, porcentaje)
+    await i.followup.send(file=archivo)
+
+
+@bot.command(name="ship")
+async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
+    seed = (usuario1.id + usuario2.id) % 101
+    random.seed(seed)
+    porcentaje = random.randint(0, 100)
+    random.seed()
+
+    archivo = await generar_ship(usuario1, usuario2, porcentaje)
+    await ctx.send(file=archivo)
 
 # -------------------------
 # FLASK WEB
