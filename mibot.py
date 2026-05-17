@@ -601,7 +601,7 @@ async def spotify_prefix(ctx, usuario: discord.Member = None):
         await ctx.send(f"**{usuario.display_name} no esta escuchando Spotify**")
         return
     await ctx.send(file=await generar_spotify(usuario, actividad))
-
+    
 # =========================================================
 # NIVEL
 # =========================================================
