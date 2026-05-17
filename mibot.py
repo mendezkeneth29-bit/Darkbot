@@ -965,88 +965,6 @@ async def delete_prefix(ctx, cantidad: int):
     await ctx.send(f"Se eliminaron {len(eliminados) - 1} mensajes", delete_after=3)
 
 # =========================================================
-# EMBED
-# =========================================================
-
-@bot.tree.command(
-    name="embed",
-    description="Crear un embed personalizado"
-)
-@app_commands.checks.has_permissions(
-    administrator=True
-)
-async def embed(
-    i: discord.Interaction,
-
-    titulo: str = None,
-    descripcion: str = None,
-    color: str = None,
-
-    autor: str = None,
-    imagen_autor: str = None,
-
-    imagen_principal: str = None,
-    thumbnail: str = None,
-
-    footer: str = None,
-    imagen_footer: str = None
-):
-
-    # COLOR
-    try:
-
-        color_final = int(
-            color.replace("#", ""),
-            16
-        ) if color else 0x000000
-
-    except:
-
-        color_final = 0x000000
-
-    # EMBED
-    em = discord.Embed(
-        title=titulo or "",
-        description=descripcion or "",
-        color=color_final
-    )
-
-    # AUTOR
-    if autor:
-
-        em.set_author(
-            name=autor,
-            icon_url=imagen_autor
-            if imagen_autor else None
-        )
-
-    # IMAGEN PRINCIPAL
-    if imagen_principal:
-
-        em.set_image(
-            url=imagen_principal
-        )
-
-    # THUMBNAIL
-    if thumbnail:
-
-        em.set_thumbnail(
-            url=thumbnail
-        )
-
-    # FOOTER
-    if footer:
-
-        em.set_footer(
-            text=footer,
-            icon_url=imagen_footer
-            if imagen_footer else None
-        )
-
-    await i.response.send_message(
-        embed=em
-    )
-# =========================================================
 # SET NIVELES / WLC / BYE
 # =========================================================
 
@@ -1390,53 +1308,7 @@ async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
     await ctx.send(file=archivo)
 
 # =========================================================
-# CONFIGURACIÓN INICIAL DEL BOT
-# =========================================================
-
-intents = discord.Intents.default()
-intents.message_content = True  # Necesario para los comandos con prefijo
-
-# Puedes cambiar el prefijo "!" por el que uses en tu bot
-bot = commands.Bot(command_prefix=">dl ", intents=intents)
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
-
-# =========================================================
-# FUNCIONES AUXILIARES PARA PROCESAR IMÁGENES (PILLOW)
-# =========================================================
-
-async def descargar_imagen(url: str) -> Image.Image:
-    """Descarga de forma asíncrona el avatar del usuario."""
-    if not url:
-        raise ValueError("La URL del avatar está vacía.")
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                bytes_img = await resp.read()
-                return Image.open(io.BytesIO(bytes_img)).convert("RGBA")
-            raise Exception(f"No se pudo descargar el avatar. Status: {resp.status}")
-
-def avatar_circular(img_avatar: Image.Image, size: int) -> Image.Image:
-    """Recorta el avatar descargado en un círculo perfecto."""
-    img_avatar = img_avatar.resize((size, size), Image.Resampling.LANCZOS)
-    mascara = Image.new("L", (size, size), 0)
-    draw = ImageDraw.Draw(mascara)
-    draw.ellipse((0, 0, size, size), fill=255)
-    
-    resultado = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    resultado.paste(img_avatar, (0, 0), mask=mascara)
-    return resultado
-
-def fuente(size: int, bold: bool = False) -> ImageFont.ImageFont:
-    """Intenta cargar Arial o una fuente por defecto si no existe en el sistema."""
-    try:
-        # Render corre en Linux, por lo que usualmente no tiene fuentes de Windows.
-        # Si tienes un archivo .ttf en tu carpeta, pon su nombre aquí, ej: "font.ttf"
-        return ImageFont.truetype("arial.ttf", size)
-    except IOError:
-        return ImageFont.load_default()
-
-# =========================================================
-# GENERAR TARJETA TIKTOK (PILLOW)
+# GENERAR TARJETA TIKTOK
 # =========================================================
 
 async def generar_tiktok(datos: dict) -> discord.File:
@@ -1467,7 +1339,7 @@ async def generar_tiktok(datos: dict) -> discord.File:
     draw.ellipse([(22, 48), (126, 152)], outline=ROSA, width=2)
     draw.ellipse([(19, 45), (129, 155)], outline=CIAN, width=1)
 
-    # NOMBRE Y USERNAME
+    # NOMBRE
     draw.text((144, 52), datos["nickname"], font=fuente(20, bold=True), fill=TEXTO)
     draw.text((144, 78), f"@{datos['username']}", font=fuente(13), fill=SUBTEXTO)
 
@@ -1500,22 +1372,10 @@ async def generar_tiktok(datos: dict) -> discord.File:
     return discord.File(buf, filename="tiktok.png")
 
 # =========================================================
-# COMANDO TIKTOK (SLASH Y PREFIJO)
+# COMANDO TIKTOK
 # =========================================================
 
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
-
-# Función interna compartida para formatear números de la API (Ej: 1500 -> 1.5K)
-def fmt_tiktok_stats(n):
-    try:
-        n = int(n)
-        if n >= 1_000_000:
-            return f"{n/1_000_000:.1f}M"
-        elif n >= 1_000:
-            return f"{n/1_000:.1f}K"
-        return str(n)
-    except:
-        return "0"
 
 @bot.tree.command(name="tiktok", description="Ver info de un perfil de TikTok")
 async def tiktok_slash(i: discord.Interaction, usuario: str):
@@ -1539,14 +1399,22 @@ async def tiktok_slash(i: discord.Interaction, usuario: str):
             await i.followup.send("> No se encontró ese usuario.", ephemeral=True)
             return
 
+        def fmt(n):
+            n = int(n)
+            if n >= 1_000_000:
+                return f"{n/1_000_000:.1f}M"
+            elif n >= 1_000:
+                return f"{n/1_000:.1f}K"
+            return str(n)
+
         datos = {
             "nickname":  user.get("nickname", usuario),
             "username":  user.get("uniqueId", usuario),
             "avatar":    user.get("avatarLarger", ""),
-            "followers": fmt_tiktok_stats(stats.get("followerCount", 0)),
-            "following": fmt_tiktok_stats(stats.get("followingCount", 0)),
-            "likes":     fmt_tiktok_stats(stats.get("heartCount", 0)),
-            "videos":    fmt_tiktok_stats(stats.get("videoCount", 0)),
+            "followers": fmt(stats.get("followerCount", 0)),
+            "following": fmt(stats.get("followingCount", 0)),
+            "likes":     fmt(stats.get("heartCount", 0)),
+            "videos":    fmt(stats.get("videoCount", 0)),
             "verified":  user.get("verified", False)
         }
 
@@ -1579,14 +1447,22 @@ async def tiktok_prefix(ctx, *, usuario: str):
                 await ctx.send("> No se encontró ese usuario.")
                 return
 
+            def fmt(n):
+                n = int(n)
+                if n >= 1_000_000:
+                    return f"{n/1_000_000:.1f}M"
+                elif n >= 1_000:
+                    return f"{n/1_000:.1f}K"
+                return str(n)
+
             datos = {
                 "nickname":  user.get("nickname", usuario),
                 "username":  user.get("uniqueId", usuario),
                 "avatar":    user.get("avatarLarger", ""),
-                "followers": fmt_tiktok_stats(stats.get("followerCount", 0)),
-                "following": fmt_tiktok_stats(stats.get("followingCount", 0)),
-                "likes":     fmt_tiktok_stats(stats.get("heartCount", 0)),
-                "videos":    fmt_tiktok_stats(stats.get("videoCount", 0)),
+                "followers": fmt(stats.get("followerCount", 0)),
+                "following": fmt(stats.get("followingCount", 0)),
+                "likes":     fmt(stats.get("heartCount", 0)),
+                "videos":    fmt(stats.get("videoCount", 0)),
                 "verified":  user.get("verified", False)
             }
 
@@ -1595,10 +1471,11 @@ async def tiktok_prefix(ctx, *, usuario: str):
 
         except Exception as e:
             await ctx.send(f"Error:\n```{e}```")
-        if ctx.interaction:
-            await ctx.interaction.followup.send(msg_err, ephemeral=True)
-        else:
-            await ctx.send(msg_err)
+
+async with aiohttp.ClientSession() as session:
+    async with session.get(url, headers=headers, params=params) as r:
+        data = await r.json()
+        print(data)  # <-- agrega esto temporalmente
 
 # ---------------------------
 # ROBLOX
