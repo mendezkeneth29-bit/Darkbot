@@ -1347,7 +1347,7 @@ async def ejecutar_busqueda(busqueda: str):
     return resultados, None
 
 
-@bot.tree.command(name="Google", description="Busca en la web sin filtros y con imágenes")
+@bot.tree.command(name="buscar", description="Busca en la web sin filtros y con imágenes")
 async def buscar_slash(i: discord.Interaction, busqueda: str):
     await i.response.defer()
     try:
