@@ -1,6 +1,7 @@
 import discord
 import os
 import asyncio
+import requests
 import random
 import io
 import time
@@ -12,7 +13,9 @@ from discord.ext import commands
 from discord import app_commands
 from flask import Flask
 from duckduckgo_search import DDGS
+from bs4 import BeautifulSoup
 import threading
+import urllib.parse
 
 # -------------------------
 # CLIENTES
@@ -1314,12 +1317,6 @@ class BusquedaView(discord.ui.View):
             style=discord.ButtonStyle.link,
             emoji="<:Check:1504584129302499399>"
         ))
-
-# =========================================================
-# NUEVO MOTOR INMUNE A CAÍDAS (DUCKDUCKGO HTML SCRAPER)
-# =========================================================
-import aiohttp
-import urllib.parse
 
 # =========================================================
 # MOTOR INMUNE A CAÍDAS CORREGIDO (DUCKDUCKGO HTML)
