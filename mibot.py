@@ -122,7 +122,7 @@ def get_user_eco(guild_id, user_id):
 # =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
-    W, H = 700, 260
+    W, H = 700, 340
     FONDO = (30, 31, 34)
     TEXTO = (255, 255, 255)
     SUBTEXTO = (180, 180, 190)
@@ -131,18 +131,23 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     img = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
+    # BARRA IZQUIERDA DE COLOR
     color = usuario.color
     r = color.r if color.value else 88
     g = color.g if color.value else 101
     b = color.b if color.value else 242
     draw.rectangle([(0, 0), (6, H)], fill=(r, g, b))
 
+    # AVATAR
     avatar_img = await descargar_imagen(str(usuario.display_avatar.url))
     avatar_img = avatar_circular(avatar_img, 90)
     img.paste(avatar_img, (24, 20), avatar_img)
 
+    # NOMBRE
     draw.text((128, 22), usuario.display_name, font=fuente(26, bold=True), fill=TEXTO)
     draw.text((128, 56), f"@{usuario.name}", font=fuente(16), fill=SUBTEXTO)
+
+    # LÍNEA SEPARADORA
     draw.rectangle([(24, 126), (W - 24, 128)], fill=(60, 63, 70))
 
     col1_x = 24
@@ -150,20 +155,32 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     y = 148
 
     def campo(x, y, titulo, valor, ancho=320):
-        draw.rounded_rectangle([(x, y), (x + ancho, y + 64)], radius=8, fill=CAMPO_FONDO)
+        draw.rounded_rectangle(
+            [(x, y), (x + ancho, y + 64)],
+            radius=8,
+            fill=CAMPO_FONDO
+        )
         draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
         draw.text((x + 12, y + 30), valor, font=fuente(17, bold=True), fill=TEXTO)
 
+    # FILA 1
     campo(col1_x, y, "USUARIO", f"@{usuario.display_name}")
     campo(col2_x, y, "ID", str(usuario.id))
 
+    # FILA 2
     y2 = y + 80
     creado = usuario.created_at.strftime("%d/%m/%Y")
     entro = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
     campo(col1_x, y2, "CUENTA CREADA", creado)
     campo(col2_x, y2, "ENTRO AL SERVER", entro)
 
-    draw.text((24, H - 22), f"Solicitado por {usuario.display_name}", font=fuente(12), fill=SUBTEXTO)
+    # FOOTER
+    draw.text(
+        (24, H - 22),
+        f"Solicitado por {usuario.display_name}",
+        font=fuente(12),
+        fill=SUBTEXTO
+    )
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
