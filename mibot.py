@@ -1311,6 +1311,8 @@ async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
 # GENERAR TARJETA SPOTIFY SEARCH
 # =========================================================
 
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+
 async def generar_spotify_search(tracks: list, query: str) -> discord.File:
     filas = min(len(tracks), 4)
     W     = 680
