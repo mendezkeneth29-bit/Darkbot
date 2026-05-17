@@ -1210,9 +1210,9 @@ async def dar_xp(message):
 # =========================================================
 
 async def generar_busqueda(query: str, resultados: list) -> discord.File:
-    filas = min(len(resultados), 3)
-    W     = 680
-    H     = 100 + (filas * 80)
+    filas = min(len(resultados), 4)
+    W     = 800
+    H     = 130 + (filas * 90)
     FONDO    = (14, 14, 14)
     ACENTO   = (245, 240, 232)
     TEXTO    = (255, 255, 255)
@@ -1227,31 +1227,37 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
     draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ACENTO)
 
     # HEADER
-    draw.rounded_rectangle([(24, 16), (656, 72)], radius=10, fill=(26, 26, 26))
-    draw.text((40, 22), "Busqueda", font=fuente(11), fill=SUBTEXTO)
-    query_texto = query[:55] + "..." if len(query) > 55 else query
-    draw.text((40, 40), query_texto, font=fuente(15, bold=True), fill=TEXTO)
+    draw.rounded_rectangle([(24, 16), (W - 24, 80)], radius=12, fill=(24, 24, 24))
+    draw.rounded_rectangle([(24, 16), (W - 24, 80)], radius=12, outline=GRIS, width=1)
+    draw.text((42, 26), "Busqueda", font=fuente(11), fill=SUBTEXTO)
+    query_texto = query[:65] + "..." if len(query) > 65 else query
+    draw.text((42, 46), query_texto, font=fuente(17, bold=True), fill=TEXTO)
 
     # SEPARADOR
-    draw.rectangle([(24, 86), (656, 87)], fill=GRIS)
+    draw.rectangle([(24, 94), (W - 24, 95)], fill=GRIS)
 
     # RESULTADOS
-    for n, r in enumerate(resultados[:3]):
-        y = 96 + (n * 80)
-        color_fila = (26, 26, 26) if n % 2 == 0 else OSCURO
-        draw.rounded_rectangle([(24, y), (656, y + 64)], radius=8, fill=color_fila)
+    for n, r in enumerate(resultados[:4]):
+        y = 104 + (n * 90)
+        color_fila = (22, 22, 22) if n % 2 == 0 else OSCURO
+
+        draw.rounded_rectangle([(24, y), (W - 24, y + 78)], radius=10, fill=color_fila)
+        draw.rounded_rectangle([(24, y), (W - 24, y + 78)], radius=10, outline=GRIS, width=1)
+
+        # ACENTO IZQUIERDO
+        draw.rounded_rectangle([(24, y + 8), (27, y + 70)], radius=2, fill=ACENTO)
 
         # URL
-        url = r.get("url", "")[:60] + "..." if len(r.get("url", "")) > 60 else r.get("url", "")
-        draw.text((40, y + 10), url, font=fuente(11), fill=ACENTO)
+        url = r.get("url", "")[:70] + "..." if len(r.get("url", "")) > 70 else r.get("url", "")
+        draw.text((42, y + 10), url, font=fuente(11), fill=ACENTO)
 
         # TITULO
-        titulo = r.get("titulo", "")[:50] + "..." if len(r.get("titulo", "")) > 50 else r.get("titulo", "")
-        draw.text((40, y + 28), titulo, font=fuente(14, bold=True), fill=TEXTO)
+        titulo = r.get("titulo", "")[:55] + "..." if len(r.get("titulo", "")) > 55 else r.get("titulo", "")
+        draw.text((42, y + 28), titulo, font=fuente(15, bold=True), fill=TEXTO)
 
         # DESCRIPCION
-        desc = r.get("desc", "")[:70] + "..." if len(r.get("desc", "")) > 70 else r.get("desc", "")
-        draw.text((40, y + 48), desc, font=fuente(12), fill=SUBTEXTO)
+        desc = r.get("desc", "")[:90] + "..." if len(r.get("desc", "")) > 90 else r.get("desc", "")
+        draw.text((42, y + 52), desc, font=fuente(12), fill=SUBTEXTO)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -1259,30 +1265,53 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
     return discord.File(buf, filename="busqueda.png")
 
 # =========================================================
-# COMANDO BUSQUEDA
+# BOTON IR A BUSQUEDA
 # =========================================================
 
-from duckduckgo_search import DDGS
+class BusquedaView(discord.ui.View):
+    def __init__(self, query: str):
+        super().__init__(timeout=None)
+        url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
+        self.add_item(discord.ui.Button(
+            label="Ver en Google",
+            url=url,
+            style=discord.ButtonStyle.link,
+            emoji="🔍"
+        ))
 
-@bot.tree.command(name="buscar", description="Busca algo en DuckDuckGo")
+# =========================================================
+# COMANDO BUSCAR
+# =========================================================
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_CX      = os.getenv("GOOGLE_CX")
+
+@bot.tree.command(name="buscar", description="Busca algo en Google")
 async def buscar_slash(i: discord.Interaction, busqueda: str):
     await i.response.defer()
     try:
-        resultados = []
-        with DDGS() as ddgs:
-            for r in ddgs.text(busqueda, max_results=3):
-                resultados.append({
-                    "titulo": r.get("title", "Sin titulo"),
-                    "url":    r.get("href",  ""),
-                    "desc":   r.get("body",  "Sin descripcion")
-                })
+        url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={GOOGLE_CX}&q={busqueda.replace(' ', '+')}&num=4"
 
-        if not resultados:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as r:
+                data = await r.json()
+
+        items = data.get("items", [])
+        if not items:
             await i.followup.send("> No se encontraron resultados.", ephemeral=True)
             return
 
+        resultados = []
+        for item in items[:4]:
+            resultados.append({
+                "titulo": item.get("title", "Sin titulo"),
+                "url":    item.get("displayLink", ""),
+                "desc":   item.get("snippet", "Sin descripcion").replace("\n", " ")
+            })
+
         archivo = await generar_busqueda(busqueda, resultados)
-        await i.followup.send(file=archivo)
+        view    = BusquedaView(busqueda)
+        await i.followup.send(file=archivo, view=view)
 
     except Exception as e:
         await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
@@ -1292,24 +1321,32 @@ async def buscar_slash(i: discord.Interaction, busqueda: str):
 async def buscar_prefix(ctx, *, busqueda: str):
     async with ctx.typing():
         try:
-            resultados = []
-            with DDGS() as ddgs:
-                for r in ddgs.text(busqueda, max_results=3):
-                    resultados.append({
-                        "titulo": r.get("title", "Sin titulo"),
-                        "url":    r.get("href",  ""),
-                        "desc":   r.get("body",  "Sin descripcion")
-                    })
+            url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={GOOGLE_CX}&q={busqueda.replace(' ', '+')}&num=4"
 
-            if not resultados:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as r:
+                    data = await r.json()
+
+            items = data.get("items", [])
+            if not items:
                 await ctx.send("> No se encontraron resultados.")
                 return
 
+            resultados = []
+            for item in items[:4]:
+                resultados.append({
+                    "titulo": item.get("title", "Sin titulo"),
+                    "url":    item.get("displayLink", ""),
+                    "desc":   item.get("snippet", "Sin descripcion").replace("\n", " ")
+                })
+
             archivo = await generar_busqueda(busqueda, resultados)
-            await ctx.send(file=archivo)
+            view    = BusquedaView(busqueda)
+            await ctx.send(file=archivo, view=view)
 
         except Exception as e:
             await ctx.send(f"Error:\n```{e}```")
+            
 # =========================================================
 # GENERAR TARJETA SHIP
 # =========================================================
