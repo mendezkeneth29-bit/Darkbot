@@ -1242,7 +1242,7 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
     # HEADER
     draw.rounded_rectangle([(24, 16), (W - 24, 80)], radius=12, fill=(24, 24, 24))
     draw.rounded_rectangle([(24, 16), (W - 24, 80)], radius=12, outline=GRIS, width=1)
-    draw.text((42, 26), "Búsqueda Web Global", font=fuente(11), fill=SUBTEXTO)
+    draw.text((42, 26), "Búsqueda Web Directa", font=fuente(11), fill=SUBTEXTO)
     query_texto = query[:65] + "..." if len(query) > 65 else query
     draw.text((42, 46), query_texto, font=fuente(17, bold=True), fill=TEXTO)
 
@@ -1260,7 +1260,7 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
         # ACENTO IZQUIERDO
         draw.rounded_rectangle([(24, y + 8), (27, y + 70)], radius=2, fill=ACENTO)
 
-        # PROCESAR MINIATURA REAL DE GOOGLE
+        # PROCESAR MINIATURA REAL
         url_img = r.get("imagen", "")
         tiene_imagen = False
         
@@ -1302,7 +1302,7 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
     return discord.File(buf, filename="busqueda.png")
 
 # =========================================================
-# BOTON DINÁMICO
+# BOTON DE INTERACCIÓN
 # =========================================================
 class BusquedaView(discord.ui.View):
     def __init__(self, query: str):
@@ -1316,58 +1316,73 @@ class BusquedaView(discord.ui.View):
         ))
 
 # =========================================================
-# LÓGICA DE SERP / GOOGLE (SIN MANDAR TOKENS NI RIESGO DE 403)
+# NUEVO MOTOR INMUNE A CAÍDAS (DUCKDUCKGO HTML SCRAPER)
 # =========================================================
-async def ejecutar_busqueda_global(busqueda: str):
+async def ejecutar_busqueda_estable(busqueda: str):
     try:
-        # Usamos una instancia pública y abierta de SearXNG (Fácil y directa)
-        url = "https://search.ononoki.org/search"
-        params = {
-            "q": busqueda,
-            "format": "json",
-            "safesearch": "0",  # Sin filtros
-            "categories": "general"
+        # Usamos la versión clásica HTML de DuckDuckGo (No tiene JavaScript, no bloquea)
+        url = "https://html.duckduckgo.com/html/"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0"
         }
+        data_post = {"q": busqueda}
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params, timeout=5) as r:
+            async with session.post(url, headers=headers, data=data_post, timeout=6) as r:
                 if r.status != 200:
-                    return None, "El motor de búsqueda está saturado. Intenta de nuevo."
-                data = await r.json()
+                    return None, f"Error de conexión con la red (Status: {r.status})"
+                html = await r.text()
 
-        items = data.get("results", [])
-        if not items:
+        soup = BeautifulSoup(html, "html.parser")
+        results_divs = soup.find_all("div", class_="result")
+
+        if not results_divs:
             return [], None
 
         resultados = []
-        for item in items[:4]:
-            # Extraemos la imagen real que el buscador indexó de esa página web
-            img_url = ""
-            if item.get("img_src"):
-                img_url = item.get("img_src")
-            elif item.get("thumbnail"):
-                img_url = item.get("thumbnail")
+        for div in results_divs[:4]:
+            # Extraer Título y Enlace real
+            a_tag = div.find("a", class_="result__url")
+            if not a_tag:
+                continue
+            
+            titulo = div.find("a", class_="result__snippet").text.strip() if div.find("a", class_="result__snippet") else a_tag.text.strip()
+            raw_url = a_tag["href"]
+            
+            # Limpiar redirecciones de enlaces internas de DuckDuckGo si es necesario
+            parsed_url = raw_url
+            if "uddg=" in raw_url:
+                parsed_url = urllib.parse.unquote(raw_url.split("uddg=")[1].split("&")[0])
+
+            # Extraer Descripción
+            snippet_tag = div.find("a", class_="result__snippet")
+            desc = snippet_tag.text.strip() if snippet_tag else "Sin descripción disponible."
+
+            # Extraer favicon real del dominio de la página web para usar como miniatura
+            # Esto es súper estable y hace que la tarjeta siempre tenga una foto real asociada al sitio
+            domain = urllib.parse.urlparse(parsed_url).netloc
+            img_url = f"https://icons.duckduckgo.com/ip3/{domain}.ico"
 
             resultados.append({
-                "titulo": item.get("title", "Sin título"),
-                "url":    item.get("url", ""),
-                "desc":   item.get("content", "Sin descripción").replace("\n", " "),
-                "imagen": img_url  # <-- Imagen 100% real de la página
+                "titulo": titulo,
+                "url":    parsed_url,
+                "desc":   desc.replace("\n", " "),
+                "imagen": img_url
             })
             
         return resultados, None
 
     except Exception as e:
-        return None, f"Error en el motor: {str(e)}"
+        return None, f"Error interno del bot: {str(e)}"
 
 # =========================================================
 # COMANDOS DISCORD (SLASH Y PREFIX)
 # =========================================================
-@bot.tree.command(name="buscar", description="Busca en la web sin filtros y con imágenes reales")
+@bot.tree.command(name="buscar", description="Busca en la web sin caídas y con miniaturas")
 async def buscar_slash(i: discord.Interaction, busqueda: str):
     await i.response.defer()
     try:
-        resultados, error = await ejecutar_busqueda_global(busqueda)
+        resultados, error = await ejecutar_busqueda_estable(busqueda)
         
         if error:
             await i.followup.send(f"> {error}", ephemeral=True)
@@ -1388,7 +1403,7 @@ async def buscar_slash(i: discord.Interaction, busqueda: str):
 async def buscar_prefix(ctx, *, busqueda: str):
     async with ctx.typing():
         try:
-            resultados, error = await ejecutar_busqueda_global(busqueda)
+            resultados, error = await ejecutar_busqueda_estable(busqueda)
             
             if error:
                 await ctx.send(f"> {error}")
@@ -1477,6 +1492,7 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="ship.png")
+    
 # =========================================================
 # COMANDO SHIP
 # =========================================================
