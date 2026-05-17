@@ -1419,7 +1419,7 @@ def fuente(size: int, bold: bool = False) -> ImageFont.ImageFont:
         return ImageFont.load_default()
 
 # =========================================================
-# GENERAR TARJETA GRÁFICA TIKTOK
+# GENERAR TARJETA TIKTOK (PILLOW)
 # =========================================================
 
 async def generar_tiktok(datos: dict) -> discord.File:
@@ -1438,28 +1438,26 @@ async def generar_tiktok(datos: dict) -> discord.File:
     draw.rectangle([(0, 0), (6, H // 2)], fill=ROSA)
     draw.rectangle([(0, H // 2), (6, H)], fill=CIAN)
 
-    # PROCESAR AVATAR
+    # AVATAR
     try:
         av = await descargar_imagen(datos["avatar"])
         av = avatar_circular(av, 100)
         img.paste(av, (24, 50), av)
-    except Exception as e:
-        # Si falla la descarga, dibuja un círculo gris por defecto
-        print(f"Error procesando avatar: {e}")
+    except:
         draw.ellipse([(24, 50), (124, 150)], fill=GRIS)
 
     # BORDE AVATAR TIKTOK
     draw.ellipse([(22, 48), (126, 152)], outline=ROSA, width=2)
     draw.ellipse([(19, 45), (129, 155)], outline=CIAN, width=1)
 
-    # TEXTOS PRINCIPALES
+    # NOMBRE Y USERNAME
     draw.text((144, 52), datos["nickname"], font=fuente(20, bold=True), fill=TEXTO)
     draw.text((144, 78), f"@{datos['username']}", font=fuente(13), fill=SUBTEXTO)
 
-    # LÍNEA SEPARADORA
+    # SEPARADOR
     draw.rectangle([(144, 106), (645, 107)], fill=GRIS)
 
-    # ESTADÍSTICAS EN 3 COLUMNAS
+    # STATS EN 3 COLUMNAS
     stats = [
         ("Seguidores", datos["followers"]),
         ("Siguiendo", datos["following"]),
@@ -1472,30 +1470,39 @@ async def generar_tiktok(datos: dict) -> discord.File:
         draw.text((x, 118), label, font=fuente(11), fill=SUBTEXTO)
         draw.text((x, 136), str(valor), font=fuente(17, bold=True), fill=TEXTO)
 
-    # DATOS INFERIORES
+    # VIDEOS
     draw.text((144, 168), f"Videos: {datos['videos']}", font=fuente(12), fill=SUBTEXTO)
 
+    # VERIFICADO
     if datos.get("verified"):
         draw.text((400, 168), "Cuenta verificada", font=fuente(12), fill=CIAN)
 
-    # GUARDAR IMAGEN EN MEMORIA
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="tiktok.png")
 
 # =========================================================
-# COMANDO HÍBRIDO TIKTOK
+# COMANDO TIKTOK (SLASH Y PREFIJO)
 # =========================================================
 
-@bot.hybrid_command(name="tiktok", description="Ver info de un perfil de TikTok")
-async def tiktok_comando(ctx: commands.Context, *, usuario: str):
-    # Indica que el bot está procesando la solicitud
-    if ctx.interaction:
-        await ctx.interaction.response.defer()
-    else:
-        await ctx.typing()
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 
+# Función interna compartida para formatear números de la API (Ej: 1500 -> 1.5K)
+def fmt_tiktok_stats(n):
+    try:
+        n = int(n)
+        if n >= 1_000_000:
+            return f"{n/1_000_000:.1f}M"
+        elif n >= 1_000:
+            return f"{n/1_000:.1f}K"
+        return str(n)
+    except:
+        return "0"
+
+@bot.tree.command(name="tiktok", description="Ver info de un perfil de TikTok")
+async def tiktok_slash(i: discord.Interaction, usuario: str):
+    await i.response.defer()
     try:
         url = "https://scraptik.p.rapidapi.com/get-user"
         headers = {
@@ -1506,59 +1513,71 @@ async def tiktok_comando(ctx: commands.Context, *, usuario: str):
 
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, params=params) as r:
-                if r.status != 200:
-                    mensaje_error = f"> Error con la API externa (Status: {r.status}). Verifique su API Key."
-                    return await ctx.interaction.followup.send(mensaje_error) if ctx.interaction else await ctx.send(mensaje_error)
-                
                 data = await r.json()
 
         user = data.get("user_info", {}).get("user", {})
         stats = data.get("user_info", {}).get("stats", {})
 
-        # Si el usuario de TikTok no existe o la API no devolvió datos correctos
         if not user:
-            msg = "> No se encontró ese usuario."
-            if ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
+            await i.followup.send("> No se encontró ese usuario.", ephemeral=True)
             return
 
-        # Formateador de números (Ej: 1500 -> 1.5K)
-        def fmt(n):
-            try:
-                n = int(n)
-                if n >= 1_000_000:
-                    return f"{n/1_000_000:.1f}M"
-                elif n >= 1_000:
-                    return f"{n/1_000:.1f}K"
-                return str(n)
-            except (ValueError, TypeError):
-                return "0"
-
-        # Estructurar los datos limpios para pasarlos a la tarjeta gráfica
         datos = {
             "nickname":  user.get("nickname", usuario),
             "username":  user.get("uniqueId", usuario),
             "avatar":    user.get("avatarLarger", ""),
-            "followers": fmt(stats.get("followerCount", 0)),
-            "following": fmt(stats.get("followingCount", 0)),
-            "likes":     fmt(stats.get("heartCount", 0)),
-            "videos":    fmt(stats.get("videoCount", 0)),
+            "followers": fmt_tiktok_stats(stats.get("followerCount", 0)),
+            "following": fmt_tiktok_stats(stats.get("followingCount", 0)),
+            "likes":     fmt_tiktok_stats(stats.get("heartCount", 0)),
+            "videos":    fmt_tiktok_stats(stats.get("videoCount", 0)),
             "verified":  user.get("verified", False)
         }
 
-        # Generar archivo gráfico final
         archivo = await generar_tiktok(datos)
-        
-        # Enviar respuesta según el tipo de invocación
-        if ctx.interaction:
-            await ctx.interaction.followup.send(file=archivo)
-        else:
-            await ctx.send(file=archivo)
+        await i.followup.send(file=archivo)
 
     except Exception as e:
-        msg_err = f"Error interno en el bot:\n```{e}```"
+        await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
+
+
+@bot.command(name="tiktok")
+async def tiktok_prefix(ctx, *, usuario: str):
+    async with ctx.typing():
+        try:
+            url = "https://scraptik.p.rapidapi.com/get-user"
+            headers = {
+                "X-RapidAPI-Key":  RAPIDAPI_KEY,
+                "X-RapidAPI-Host": "scraptik.p.rapidapi.com"
+            }
+            params = {"username": usuario.replace("@", "")}
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, params=params) as r:
+                    data = await r.json()
+
+            user  = data.get("user_info", {}).get("user", {})
+            stats = data.get("user_info", {}).get("stats", {})
+
+            if not user:
+                await ctx.send("> No se encontró ese usuario.")
+                return
+
+            datos = {
+                "nickname":  user.get("nickname", usuario),
+                "username":  user.get("uniqueId", usuario),
+                "avatar":    user.get("avatarLarger", ""),
+                "followers": fmt_tiktok_stats(stats.get("followerCount", 0)),
+                "following": fmt_tiktok_stats(stats.get("followingCount", 0)),
+                "likes":     fmt_tiktok_stats(stats.get("heartCount", 0)),
+                "videos":    fmt_tiktok_stats(stats.get("videoCount", 0)),
+                "verified":  user.get("verified", False)
+            }
+
+            archivo = await generar_tiktok(datos)
+            await ctx.send(file=archivo)
+
+        except Exception as e:
+            await ctx.send(f"Error:\n```{e}```")
         if ctx.interaction:
             await ctx.interaction.followup.send(msg_err, ephemeral=True)
         else:
