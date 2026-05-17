@@ -968,11 +968,9 @@ async def delete_prefix(ctx, cantidad: int):
 # EMBED CREATE
 # =========================================================
 
-@bot.hybrid_command(
-    name="embed", 
-    description="Crea un embed totalmente personalizado"
-)
-async def crear_embed(
+@bot.tree.command(name="embed", description="Crea un embed totalmente personalizado")
+async def respuesta_groq_gen(interaction: discord.Interaction, mensaje: str):
+    
     ctx: commands.Context,
     titulo: typing.Optional[str] = None,
     descripcion: typing.Optional[str] = None,
