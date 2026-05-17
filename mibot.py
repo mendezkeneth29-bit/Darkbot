@@ -264,7 +264,7 @@ async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed:
     draw.text((162, 28), usuario.display_name, font=fuente(21, bold=True), fill=TEXTO)
     draw.rounded_rectangle([(162, 62), (242, 84)], radius=11, fill=ACENTO)
     draw.text((202, 68), f"Nivel {nivel}", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
-    draw.text((162, 103), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
+    draw.text((162, 100), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
     draw.rounded_rectangle([(162, 118), (630, 130)], radius=6, fill=GRIS)
 
     progreso = min(xp / xp_needed, 1.0)
