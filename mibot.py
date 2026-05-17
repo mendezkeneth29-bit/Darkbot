@@ -1,9 +1,6 @@
 import discord
 import os
 import io
-import re
-import logging
-import urllib.parse
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import asyncio
@@ -16,7 +13,6 @@ from discord.ext import commands
 from discord import app_commands
 from flask import Flask
 from duckduckgo_search import DDGS
-from bs4 import BeautifulSoup
 import threading
 
 # -------------------------
