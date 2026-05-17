@@ -1494,34 +1494,80 @@ async def tiktok_prefix(ctx, *, usuario: str):
 # ROBLOX
 # ---------------------------
 
+import aiohttp
+import discord
+from discord.ext import commands
+from datetime import datetime
+
 @bot.hybrid_command(
     name="roblox", 
-    description="Mira el roblox de alguien"
+    description="Mira el perfil de roblox de alguien"
 )
 async def roblox(ctx: commands.Context, usuario: str):
-    # Variables de marcador (reemplazar con tu lógica de la API de Roblox)
-    roblox_user = usuario
-    cuenta_creada = "01/01/2020"
-    cantidad_amigos = "150"
-    perfil_link = f"https://www.roblox.com/users/profile?username={usuario}"
-    avatar_url = "https://images.rbxcdn.com/default_avatar.png"
+    # Asegura que el bot no se quede congelado esperando la respuesta de Roblox
+    await ctx.defer() if ctx.interaction else None
 
-    # Embed sin título y color negro (#010101)
+    async with aiohttp.ClientSession() as session:
+        # 1. Obtener el ID del usuario y su nombre real
+        data_user = {"usernames": [usuario], "excludeBannedUsers": False}
+        async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
+            if resp.status != 200:
+                return await ctx.send("> Error al conectar con la API de Roblox.")
+            
+            res_user = await resp.json()
+            if not res_user["data"]:
+                return await ctx.send(f"> El usuario **{usuario}** no existe en Roblox.")
+            
+            user_info = res_user["data"][0]
+            user_id = user_info["id"]
+            roblox_user = user_info["displayName"] # Nombre visible
+
+        # 2. Obtener fecha de creación (y si está baneado)
+        async with session.get(f"https://users.roblox.com/v1/users/{user_id}") as resp:
+            res_details = await resp.json()
+            # Formateamos la fecha (Ej: 25 Jan 2018)
+            fecha_iso = res_details["created"].split("T")[0]
+            fecha_obj = datetime.strptime(fecha_iso, "%Y-%m-%d")
+            cuenta_creada = fecha_obj.strftime("%d/%m/%Y")
+
+        # 3. Obtener cantidad de amigos
+        async with session.get(f"https://friends.roblox.com/v1/users/{user_id}/friends/count") as resp:
+            res_friends = await resp.json()
+            cantidad_amigos = res_friends.get("count", 0)
+
+        # 4. Obtener el avatar completo (Cuerpo entero, tamaño grande 720x720)
+        avatar_url = "https://images.rbxcdn.com/default_avatar.png" # Por si falla
+        async with session.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as resp:
+            if resp.status == 200:
+                res_thumb = await resp.json()
+                if res_thumb["data"]:
+                    avatar_url = res_thumb["data"][0]["imageUrl"]
+
+    # Link al perfil real
+    perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
+
+    # Creamos el Embed exactamente como lo querías
     embed = discord.Embed(
         description=(
             f"> **User:** {roblox_user}\n"
+            "> "
             f"> **Creada:** {cuenta_creada}\n"
+            "> "
             f"> **Amigos:** {cantidad_amigos}\n"
+            "> "
             f"> **Link:** [Visitar Perfil]({perfil_link})"
         ),
         color=discord.Color.from_str("#010101")
     )
     
-    # Imagen grande abajo
+    # Coloca el render del cuerpo completo abajo
     embed.set_image(url=avatar_url)
 
-    await ctx.send(embed=embed)
-
+    # Si fue comando slash usa reply, si fue prefijo usa send de forma automática
+    if ctx.interaction:
+        await ctx.interaction.followup.send(embed=embed)
+    else:
+        await ctx.send(embed=embed)
 # -------------------------
 # FLASK WEB
 # -------------------------
