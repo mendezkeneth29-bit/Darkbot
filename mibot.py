@@ -2079,6 +2079,171 @@ async def tiktok_stats(ctx: commands.Context, username: str):
     
     await ctx.send(embed=embed)
 
+# =========================================================
+# GENERAR TARJETA TIKTOK
+# =========================================================
+
+async def generar_tiktok(datos: dict) -> discord.File:
+    W, H     = 680, 200
+    FONDO    = (14, 14, 14)
+    ROSA     = (255, 0, 80)
+    CIAN     = (0, 242, 234)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL DEGRADADO TIKTOK (rosa y cian)
+    draw.rectangle([(0, 0), (6, H // 2)], fill=ROSA)
+    draw.rectangle([(0, H // 2), (6, H)], fill=CIAN)
+
+    # AVATAR
+    try:
+        av = await descargar_imagen(datos["avatar"])
+        av = avatar_circular(av, 100)
+        img.paste(av, (24, 50), av)
+    except:
+        draw.ellipse([(24, 50), (124, 150)], fill=GRIS)
+
+    # BORDE AVATAR TIKTOK
+    draw.ellipse([(22, 48), (126, 152)], outline=ROSA, width=2)
+    draw.ellipse([(19, 45), (129, 155)], outline=CIAN, width=1)
+
+    # NOMBRE
+    draw.text((144, 52), datos["nickname"], font=fuente(20, bold=True), fill=TEXTO)
+    draw.text((144, 78), f"@{datos['username']}", font=fuente(13), fill=SUBTEXTO)
+
+    # SEPARADOR
+    draw.rectangle([(144, 106), (645, 107)], fill=GRIS)
+
+    # STATS EN 3 COLUMNAS
+    stats = [
+        ("Seguidores", datos["followers"]),
+        ("Siguiendo", datos["following"]),
+        ("Likes",     datos["likes"]),
+    ]
+
+    col_x = [144, 310, 476]
+    for n, (label, valor) in enumerate(stats):
+        x = col_x[n]
+        draw.text((x, 118), label, font=fuente(11), fill=SUBTEXTO)
+        draw.text((x, 136), str(valor), font=fuente(17, bold=True), fill=TEXTO)
+
+    # VIDEOS
+    draw.text((144, 168), f"Videos: {datos['videos']}", font=fuente(12), fill=SUBTEXTO)
+
+    # VERIFICADO
+    if datos.get("verified"):
+        draw.text((400, 168), "Cuenta verificada", font=fuente(12), fill=CIAN)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="tiktok.png")
+
+# =========================================================
+# COMANDO TIKTOK
+# =========================================================
+
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+
+@bot.tree.command(name="tiktok", description="Ver info de un perfil de TikTok")
+async def tiktok_slash(i: discord.Interaction, usuario: str):
+    await i.response.defer()
+    try:
+        url = "https://scraptik.p.rapidapi.com/get-user"
+        headers = {
+            "X-RapidAPI-Key":  RAPIDAPI_KEY,
+            "X-RapidAPI-Host": "scraptik.p.rapidapi.com"
+        }
+        params = {"username": usuario.replace("@", "")}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as r:
+                data = await r.json()
+
+        user = data.get("user_info", {}).get("user", {})
+        stats = data.get("user_info", {}).get("stats", {})
+
+        if not user:
+            await i.followup.send("> No se encontró ese usuario.", ephemeral=True)
+            return
+
+        def fmt(n):
+            n = int(n)
+            if n >= 1_000_000:
+                return f"{n/1_000_000:.1f}M"
+            elif n >= 1_000:
+                return f"{n/1_000:.1f}K"
+            return str(n)
+
+        datos = {
+            "nickname":  user.get("nickname", usuario),
+            "username":  user.get("uniqueId", usuario),
+            "avatar":    user.get("avatarLarger", ""),
+            "followers": fmt(stats.get("followerCount", 0)),
+            "following": fmt(stats.get("followingCount", 0)),
+            "likes":     fmt(stats.get("heartCount", 0)),
+            "videos":    fmt(stats.get("videoCount", 0)),
+            "verified":  user.get("verified", False)
+        }
+
+        archivo = await generar_tiktok(datos)
+        await i.followup.send(file=archivo)
+
+    except Exception as e:
+        await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
+
+
+@bot.command(name="tiktok")
+async def tiktok_prefix(ctx, *, usuario: str):
+    async with ctx.typing():
+        try:
+            url = "https://scraptik.p.rapidapi.com/get-user"
+            headers = {
+                "X-RapidAPI-Key":  RAPIDAPI_KEY,
+                "X-RapidAPI-Host": "scraptik.p.rapidapi.com"
+            }
+            params = {"username": usuario.replace("@", "")}
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, params=params) as r:
+                    data = await r.json()
+
+            user  = data.get("user_info", {}).get("user", {})
+            stats = data.get("user_info", {}).get("stats", {})
+
+            if not user:
+                await ctx.send("> No se encontró ese usuario.")
+                return
+
+            def fmt(n):
+                n = int(n)
+                if n >= 1_000_000:
+                    return f"{n/1_000_000:.1f}M"
+                elif n >= 1_000:
+                    return f"{n/1_000:.1f}K"
+                return str(n)
+
+            datos = {
+                "nickname":  user.get("nickname", usuario),
+                "username":  user.get("uniqueId", usuario),
+                "avatar":    user.get("avatarLarger", ""),
+                "followers": fmt(stats.get("followerCount", 0)),
+                "following": fmt(stats.get("followingCount", 0)),
+                "likes":     fmt(stats.get("heartCount", 0)),
+                "videos":    fmt(stats.get("videoCount", 0)),
+                "verified":  user.get("verified", False)
+            }
+
+            archivo = await generar_tiktok(datos)
+            await ctx.send(file=archivo)
+
+        except Exception as e:
+            await ctx.send(f"Error:\n```{e}```")
+
 # -------------------------
 # FLASK WEB
 # -------------------------
