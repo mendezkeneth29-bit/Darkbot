@@ -1564,22 +1564,6 @@ async def tiktok_comando(ctx: commands.Context, *, usuario: str):
         else:
             await ctx.send(msg_err)
 
-# =========================================================
-# EVENTO DE INICIO DEL BOT & TOKEN
-# =========================================================
-
-@bot.event
-async def on_ready():
-    # Sincroniza los comandos slash automáticamente al encender
-    await bot.tree.sync()
-    print(f"> Bot encendido con éxito como {bot.user}")
-
-# Asegúrate de colocar tu variable DISCORD_TOKEN en las Variables de Entorno de Render
-TOKEN = os.getenv("DISCORD_TOKEN")
-if TOKEN:
-    bot.run(TOKEN)
-else:
-    print("> ERROR: No se encontró la variable DISCORD_TOKEN en el sistema.")
 # ---------------------------
 # ROBLOX
 # ---------------------------
