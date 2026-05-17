@@ -487,7 +487,7 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="spotify.png")
-
+    
 # =========================================================
 # USERINFO
 # =========================================================
