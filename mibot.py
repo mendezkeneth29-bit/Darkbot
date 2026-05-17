@@ -956,7 +956,7 @@ async def nuke_prefix(ctx):
 async def delete_slash(i: discord.Interaction, cantidad: app_commands.Range[int, 1, 1000]):
     await i.response.defer(ephemeral=True)
     eliminados = await i.channel.purge(limit=cantidad)
-    await i.followup.send(f"Se eliminaron {len(eliminados)} mensajes", ephemeral=True)
+    await i.followup.send(f"> Se eliminaron {len(eliminados)} mensajes", ephemeral=True)
 
 @bot.command(name="delete")
 @commands.has_permissions(manage_messages=True)
@@ -968,19 +968,66 @@ async def delete_prefix(ctx, cantidad: int):
 # EMBED CREATE
 # =========================================================
 
-@bot.tree.command(name="embed-create")
-@app_commands.checks.has_permissions(administrator=True)
-async def embed_create_slash(i: discord.Interaction, canal: discord.TextChannel = None, titulo: str = None, descripcion: str = None, color: str = None, footer: str = None):
-    canal = canal or i.channel
-    try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        color_final = 0x000000
-    embed = discord.Embed(title=titulo or "", description=descripcion or "", color=color_final)
-    if footer:
-        embed.set_footer(text=footer)
-    await canal.send(embed=embed)
-    await i.response.send_message(f"Embed enviado en {canal.mention}", ephemeral=True)
+@bot.hybrid_command(
+    name="embed", 
+    description="Crea un embed totalmente personalizado"
+)
+async def crear_embed(
+    ctx: commands.Context,
+    titulo: typing.Optional[str] = None,
+    descripcion: typing.Optional[str] = None,
+    color: typing.Optional[str] = None, # Formato Hexadecimal, ej: #FF0000 o #010101
+    autor: typing.Optional[str] = None,
+    imagen_autor: typing.Optional[str] = None,
+    imagen_principal: typing.Optional[str] = None,
+    imagen_derecha: typing.Optional[str] = None, # Thumbnail
+    pie_de_pagina: typing.Optional[str] = None,
+    imagen_pie: typing.Optional[str] = None
+):
+    # Verificación por si el usuario ejecuta el comando sin enviar ningún dato
+    if not any([titulo, descripcion, color, autor, imagen_autor, imagen_principal, imagen_derecha, pie_de_pagina, imagen_pie]):
+        return await ctx.send("> Debes rellenar al menos una de las opciones para crear un embed.", ephemeral=True)
+
+    # 1. Configurar Color (Si no pone, se usa el gris por defecto de Discord)
+    embed_color = discord.Color.default()
+    if color:
+        try:
+            embed_color = discord.Color.from_str(color)
+        except ValueError:
+            return await ctx.send("> El formato de color no es válido. Usa un código Hex (Ej: `#FF0000` o `#010101`).", ephemeral=True)
+
+    # 2. Inicializar Embed con Título, Descripción y Color
+    embed = discord.Embed(
+        title=titulo,
+        description=descripcion,
+        color=embed_color
+    )
+
+    # 3. Configurar Autor e Imagen de Autor
+    if autor:
+        # Si pone autor pero no imagen, solo se aplica el texto
+        embed.set_author(name=autor, icon_url=imagen_autor)
+    elif imagen_autor:
+        # Si puso url de imagen de autor pero olvidó el texto, Discord exige texto para mostrar el icono
+        embed.set_author(name="Autor", icon_url=imagen_autor)
+
+    # 4. Configurar Imagen de arriba a la derecha (Thumbnail)
+    if imagen_derecha:
+        embed.set_thumbnail(url=imagen_derecha)
+
+    # 5. Configurar Imagen Principal (Abajo en grande)
+    if imagen_principal:
+        embed.set_image(url=imagen_principal)
+
+    # 6. Configurar Pie de página (Footer) e Imagen de pie de página
+    if pie_de_pagina:
+        embed.set_footer(text=pie_de_pagina, icon_url=imagen_pie)
+    elif imagen_pie:
+        # Discord exige texto en el footer para poder renderizar su icono
+        embed.set_footer(text=" ", icon_url=imagen_pie)
+
+    # Enviar el embed terminado
+    await ctx.send(embed=embed)
 
 # =========================================================
 # SET NIVELES / WLC / BYE
@@ -1390,14 +1437,19 @@ async def generar_tiktok(datos: dict) -> discord.File:
     return discord.File(buf, filename="tiktok.png")
 
 # =========================================================
-# COMANDO TIKTOK
+# COMANDO HÍBRIDO TIKTOK (Prefijo y Barra)
 # =========================================================
 
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 
-@bot.tree.command(name="tiktok", description="Ver info de un perfil de TikTok")
-async def tiktok_slash(i: discord.Interaction, usuario: str):
-    await i.response.defer()
+@bot.hybrid_command(name="tiktok", description="Ver info de un perfil de TikTok")
+async def tiktok_comando(ctx: commands.Context, *, usuario: str):
+    # En slash commands hace defer, en prefijo activa el "escribiendo..."
+    if ctx.interaction:
+        await ctx.interaction.response.defer()
+    else:
+        await ctx.typing()
+
     try:
         url = "https://scraptik.p.rapidapi.com/get-user"
         headers = {
@@ -1414,7 +1466,10 @@ async def tiktok_slash(i: discord.Interaction, usuario: str):
         stats = data.get("user_info", {}).get("stats", {})
 
         if not user:
-            await i.followup.send("> No se encontró ese usuario.", ephemeral=True)
+            if ctx.interaction:
+                await ctx.interaction.followup.send("> No se encontró ese usuario.", ephemeral=True)
+            else:
+                await ctx.send("> No se encontró ese usuario.")
             return
 
         def fmt(n):
@@ -1437,57 +1492,17 @@ async def tiktok_slash(i: discord.Interaction, usuario: str):
         }
 
         archivo = await generar_tiktok(datos)
-        await i.followup.send(file=archivo)
-
-    except Exception as e:
-        await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
-
-
-@bot.command(name="tiktok")
-async def tiktok_prefix(ctx, *, usuario: str):
-    async with ctx.typing():
-        try:
-            url = "https://scraptik.p.rapidapi.com/get-user"
-            headers = {
-                "X-RapidAPI-Key":  RAPIDAPI_KEY,
-                "X-RapidAPI-Host": "scraptik.p.rapidapi.com"
-            }
-            params = {"username": usuario.replace("@", "")}
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, params=params) as r:
-                    data = await r.json()
-
-            user  = data.get("user_info", {}).get("user", {})
-            stats = data.get("user_info", {}).get("stats", {})
-
-            if not user:
-                await ctx.send("> No se encontró ese usuario.")
-                return
-
-            def fmt(n):
-                n = int(n)
-                if n >= 1_000_000:
-                    return f"{n/1_000_000:.1f}M"
-                elif n >= 1_000:
-                    return f"{n/1_000:.1f}K"
-                return str(n)
-
-            datos = {
-                "nickname":  user.get("nickname", usuario),
-                "username":  user.get("uniqueId", usuario),
-                "avatar":    user.get("avatarLarger", ""),
-                "followers": fmt(stats.get("followerCount", 0)),
-                "following": fmt(stats.get("followingCount", 0)),
-                "likes":     fmt(stats.get("heartCount", 0)),
-                "videos":    fmt(stats.get("videoCount", 0)),
-                "verified":  user.get("verified", False)
-            }
-
-            archivo = await generar_tiktok(datos)
+        
+        # Envía la respuesta correctamente según el tipo de invocación
+        if ctx.interaction:
+            await ctx.interaction.followup.send(file=archivo)
+        else:
             await ctx.send(file=archivo)
 
-        except Exception as e:
+    except Exception as e:
+        if ctx.interaction:
+            await ctx.interaction.followup.send(f"Error:\n```{e}```", ephemeral=True)
+        else:
             await ctx.send(f"Error:\n```{e}```")
 
 # ---------------------------
@@ -1550,11 +1565,8 @@ async def roblox(ctx: commands.Context, usuario: str):
     embed = discord.Embed(
         description=(
             f"> **User:** {roblox_user}\n"
-            "> "
             f"> **Creada:** {cuenta_creada}\n"
-            "> "
             f"> **Amigos:** {cantidad_amigos}\n"
-            "> "
             f"> **Link:** [Visitar Perfil]({perfil_link})"
         ),
         color=discord.Color.from_str("#010101")
