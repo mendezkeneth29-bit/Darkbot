@@ -1206,9 +1206,8 @@ async def dar_xp(message):
             print(f"Error nivel: {e}")
 
 # =========================================================
-# GENERAR TARJETA BUSQUEDA
+# GENERAR TARJETA BUSQUEDA (CON IMÁGENES DE RESULTADO)
 # =========================================================
-
 async def generar_busqueda(query: str, resultados: list) -> discord.File:
     filas = min(len(resultados), 4)
     W     = 800
@@ -1229,7 +1228,7 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
     # HEADER
     draw.rounded_rectangle([(24, 16), (W - 24, 80)], radius=12, fill=(24, 24, 24))
     draw.rounded_rectangle([(24, 16), (W - 24, 80)], radius=12, outline=GRIS, width=1)
-    draw.text((42, 26), "Busqueda", font=fuente(11), fill=SUBTEXTO)
+    draw.text((42, 26), "Búsqueda libre", font=fuente(11), fill=SUBTEXTO)
     query_texto = query[:65] + "..." if len(query) > 65 else query
     draw.text((42, 46), query_texto, font=fuente(17, bold=True), fill=TEXTO)
 
@@ -1247,16 +1246,45 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
         # ACENTO IZQUIERDO
         draw.rounded_rectangle([(24, y + 8), (27, y + 70)], radius=2, fill=ACENTO)
 
+        # PROCESAR MINIATURA (SI EXISTE)
+        url_img = r.get("imagen", "")
+        tiene_imagen = False
+        
+        if url_img:
+            try:
+                # Descargamos la miniatura de forma rápida
+                res = requests.get(url_img, timeout=1.5)
+                if res.status_code == 200:
+                    mini = Image.open(io.BytesIO(res.content)).convert("RGBA")
+                    # Redimensionamos a un cuadrado perfecto para la fila
+                    mini = mini.resize((70, 70))
+                    
+                    # Crear una máscara redonda opcional para esquinas suaves en la miniatura
+                    mascara = Image.new("L", (70, 70), 0)
+                    draw_mask = ImageDraw.Draw(mascara)
+                    draw_mask.rounded_rectangle([(0, 0), (70, 70)], radius=8, fill=255)
+                    
+                    # Pegamos la imagen a la derecha de la fila (W - 105)
+                    img.paste(mini, (W - 105, y + 4), mascara)
+                    tiene_imagen = True
+            except:
+                pass # Si falla, continúa dibujando el texto normalmente
+
+        # Ajustamos el límite del texto si hay una imagen recortando espacio a la derecha
+        limite_url = 55 if tiene_imagen else 70
+        limite_titulo = 45 if tiene_imagen else 55
+        limite_desc = 75 if tiene_imagen else 90
+
         # URL
-        url = r.get("url", "")[:70] + "..." if len(r.get("url", "")) > 70 else r.get("url", "")
+        url = r.get("url", "")[:limite_url] + "..." if len(r.get("url", "")) > limite_url else r.get("url", "")
         draw.text((42, y + 10), url, font=fuente(11), fill=ACENTO)
 
         # TITULO
-        titulo = r.get("titulo", "")[:55] + "..." if len(r.get("titulo", "")) > 55 else r.get("titulo", "")
+        titulo = r.get("titulo", "")[:limite_titulo] + "..." if len(r.get("titulo", "")) > limite_titulo else r.get("titulo", "")
         draw.text((42, y + 28), titulo, font=fuente(15, bold=True), fill=TEXTO)
 
         # DESCRIPCION
-        desc = r.get("desc", "")[:90] + "..." if len(r.get("desc", "")) > 90 else r.get("desc", "")
+        desc = r.get("desc", "")[:limite_desc] + "..." if len(r.get("desc", "")) > limite_desc else r.get("desc", "")
         draw.text((42, y + 52), desc, font=fuente(12), fill=SUBTEXTO)
 
     buf = io.BytesIO()
@@ -1267,7 +1295,6 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
 # =========================================================
 # BOTON IR A BUSQUEDA
 # =========================================================
-
 class BusquedaView(discord.ui.View):
     def __init__(self, query: str):
         super().__init__(timeout=None)
@@ -1280,34 +1307,58 @@ class BusquedaView(discord.ui.View):
         ))
 
 # =========================================================
-# COMANDO BUSCAR
+# COMANDO BUSCAR (SLASH Y PREFIX)
 # =========================================================
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-GOOGLE_CX      = os.getenv("GOOGLE_CX")
+async def ejecutar_busqueda(busqueda: str):
+    """Función interna que comparte la lógica de peticiones para ambos comandos"""
+    url = "https://api.qwant.com/v3/search/web"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    params = {
+        "q": busqueda,
+        "count": 4,
+        "locale": "es_ES",
+        "t": "web"
+    }
 
-@bot.tree.command(name="buscar", description="Busca algo en Google")
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers, params=params) as r:
+            if r.status != 200:
+                return None, f"Error de conexión con el motor (Status: {r.status})"
+            data = await r.json()
+
+    items = data.get("data", {}).get("result", {}).get("items", [])
+    if not items:
+        return [], None
+
+    resultados = []
+    for item in items:
+        # Extraemos la imagen asignada por Qwant si es que existe en los metadatos
+        imagen_url = item.get("media", [{}])[0].get("thumbnail", "") if item.get("media") else ""
+        
+        resultados.append({
+            "titulo": item.get("title", "Sin titulo"),
+            "url":    item.get("url", ""),
+            "desc":   item.get("desc", "Sin descripcion").replace("\n", " "),
+            "imagen": imagen_url
+        })
+    return resultados, None
+
+
+@bot.tree.command(name="Spotify", description="Busca en la web sin filtros y con imágenes")
 async def buscar_slash(i: discord.Interaction, busqueda: str):
     await i.response.defer()
     try:
-        url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={GOOGLE_CX}&q={busqueda.replace(' ', '+')}&num=4"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as r:
-                data = await r.json()
-
-        items = data.get("items", [])
-        if not items:
+        resultados, error = await ejecutar_busqueda(busqueda)
+        
+        if error:
+            await i.followup.send(f"> {error}", ephemeral=True)
+            return
+        if not resultados:
             await i.followup.send("> No se encontraron resultados.", ephemeral=True)
             return
-
-        resultados = []
-        for item in items[:4]:
-            resultados.append({
-                "titulo": item.get("title", "Sin titulo"),
-                "url":    item.get("displayLink", ""),
-                "desc":   item.get("snippet", "Sin descripcion").replace("\n", " ")
-            })
 
         archivo = await generar_busqueda(busqueda, resultados)
         view    = BusquedaView(busqueda)
@@ -1321,24 +1372,14 @@ async def buscar_slash(i: discord.Interaction, busqueda: str):
 async def buscar_prefix(ctx, *, busqueda: str):
     async with ctx.typing():
         try:
-            url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={GOOGLE_CX}&q={busqueda.replace(' ', '+')}&num=4"
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as r:
-                    data = await r.json()
-
-            items = data.get("items", [])
-            if not items:
+            resultados, error = await ejecutar_busqueda(busqueda)
+            
+            if error:
+                await ctx.send(f"> {error}")
+                return
+            if not resultados:
                 await ctx.send("> No se encontraron resultados.")
                 return
-
-            resultados = []
-            for item in items[:4]:
-                resultados.append({
-                    "titulo": item.get("title", "Sin titulo"),
-                    "url":    item.get("displayLink", ""),
-                    "desc":   item.get("snippet", "Sin descripcion").replace("\n", " ")
-                })
 
             archivo = await generar_busqueda(busqueda, resultados)
             view    = BusquedaView(busqueda)
