@@ -11,6 +11,7 @@ from groq import AsyncGroq
 from discord.ext import commands
 from discord import app_commands
 from flask import Flask
+from duckduckgo_search import DDGS
 import threading
 
 # -------------------------
@@ -1206,6 +1207,19 @@ async def dar_xp(message):
             print(f"Error nivel: {e}")
 
 # =========================================================
+# CONFIGURACIÓN INICIAL DEL BOT
+# =========================================================
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix=">dl ", intents=intents)
+
+def fuente(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+    try:
+        return ImageFont.truetype("arial.ttf" if not bold else "arialbd.ttf", size)
+    except:
+        return ImageFont.load_default()
+
+# =========================================================
 # GENERAR TARJETA BUSQUEDA (CON IMÁGENES DE RESULTADO)
 # =========================================================
 async def generar_busqueda(query: str, resultados: list) -> discord.File:
@@ -1252,25 +1266,21 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
         
         if url_img:
             try:
-                # Descargamos la miniatura de forma rápida
-                res = requests.get(url_img, timeout=1.5)
+                # Descargamos la miniatura de forma rápida sin bloquear el flujo principal
+                res = requests.get(url_img, headers={"User-Agent": "Mozilla/5.0"}, timeout=1.5)
                 if res.status_code == 200:
                     mini = Image.open(io.BytesIO(res.content)).convert("RGBA")
-                    # Redimensionamos a un cuadrado perfecto para la fila
                     mini = mini.resize((70, 70))
                     
-                    # Crear una máscara redonda opcional para esquinas suaves en la miniatura
                     mascara = Image.new("L", (70, 70), 0)
                     draw_mask = ImageDraw.Draw(mascara)
                     draw_mask.rounded_rectangle([(0, 0), (70, 70)], radius=8, fill=255)
                     
-                    # Pegamos la imagen a la derecha de la fila (W - 105)
                     img.paste(mini, (W - 105, y + 4), mascara)
                     tiene_imagen = True
             except:
-                pass # Si falla, continúa dibujando el texto normalmente
+                pass
 
-        # Ajustamos el límite del texto si hay una imagen recortando espacio a la derecha
         limite_url = 55 if tiene_imagen else 70
         limite_titulo = 45 if tiene_imagen else 55
         limite_desc = 75 if tiene_imagen else 90
@@ -1303,50 +1313,48 @@ class BusquedaView(discord.ui.View):
             label="Ver en Google",
             url=url,
             style=discord.ButtonStyle.link,
-            emoji="🔍"
+            emoji="<:Check:1504584129302499399>"
         ))
 
 # =========================================================
-# COMANDO BUSCAR (SLASH Y PREFIX)
+# LÓGICA DE BÚSQUEDA LIBRE (DUCKDUCKGO CON IMÁGENES)
 # =========================================================
-
 async def ejecutar_busqueda(busqueda: str):
-    """Función interna que comparte la lógica de peticiones para ambos comandos"""
-    url = "https://api.qwant.com/v3/search/web"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    params = {
-        "q": busqueda,
-        "count": 4,
-        "locale": "es_ES",
-        "t": "web"
-    }
+    """Ejecuta la búsqueda de texto e imágenes combinadas evitando bloqueos 403"""
+    try:
+        # Ejecutamos la búsqueda en un hilo separado para no congelar el bot de Discord
+        def buscar_ddg():
+            resultados_combinados = []
+            with DDGS() as ddgs:
+                # Buscamos webs y de forma paralela sus imágenes asociadas
+                text_results = [r for r in ddgs.text(busqueda, max_results=4, safesearch="off")]
+                image_results = [r for r in ddgs.images(busqueda, max_results=4, safesearch="off")]
+                
+                for n, item in enumerate(text_results):
+                    # Intentamos emparejar cada resultado de texto con una imagen de la lista
+                    img_url = ""
+                    if n < len(image_results):
+                        img_url = image_results[n].get("thumbnail", "")
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers, params=params) as r:
-            if r.status != 200:
-                return None, f"Error de conexión con el motor (Status: {r.status})"
-            data = await r.json()
+                    resultados_combinados.append({
+                        "titulo": item.get("title", "Sin titulo"),
+                        "url":    item.get("href", ""),
+                        "desc":   item.get("body", "Sin descripcion").replace("\n", " "),
+                        "imagen": img_url
+                    })
+            return resultados_combinados
 
-    items = data.get("data", {}).get("result", {}).get("items", [])
-    if not items:
-        return [], None
+        # Convertimos la función síncrona de la librería a asíncrona
+        loop = asyncio.get_event_loop()
+        resultados = await loop.run_in_executor(None, buscar_ddg)
+        return resultados, None
 
-    resultados = []
-    for item in items:
-        # Extraemos la imagen asignada por Qwant si es que existe en los metadatos
-        imagen_url = item.get("media", [{}])[0].get("thumbnail", "") if item.get("media") else ""
-        
-        resultados.append({
-            "titulo": item.get("title", "Sin titulo"),
-            "url":    item.get("url", ""),
-            "desc":   item.get("desc", "Sin descripcion").replace("\n", " "),
-            "imagen": imagen_url
-        })
-    return resultados, None
+    except Exception as e:
+        return None, f"Error en el motor de búsqueda: {str(e)}"
 
-
+# =========================================================
+# COMANDOS DISCORD
+# =========================================================
 @bot.tree.command(name="buscar", description="Busca en la web sin filtros y con imágenes")
 async def buscar_slash(i: discord.Interaction, busqueda: str):
     await i.response.defer()
@@ -1366,7 +1374,6 @@ async def buscar_slash(i: discord.Interaction, busqueda: str):
 
     except Exception as e:
         await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
-
 
 @bot.command(name="buscar")
 async def buscar_prefix(ctx, *, busqueda: str):
