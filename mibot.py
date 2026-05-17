@@ -1472,11 +1472,6 @@ async def tiktok_prefix(ctx, *, usuario: str):
         except Exception as e:
             await ctx.send(f"Error:\n```{e}```")
 
-async with aiohttp.ClientSession() as session:
-    async with session.get(url, headers=headers, params=params) as r:
-        data = await r.json()
-        print(data)  # <-- agrega esto temporalmente
-
 # ---------------------------
 # ROBLOX
 # ---------------------------
