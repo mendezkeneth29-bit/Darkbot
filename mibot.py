@@ -1,11 +1,15 @@
 import discord
 import os
+import io
+import re
+import logging
+import urllib.parse
+from datetime import datetime
+from typing import List, Dict, Optional, Tuple
 import asyncio
 import random
-import io
 import time
 import aiohttp
-from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from groq import AsyncGroq
 from discord.ext import commands
@@ -14,7 +18,6 @@ from flask import Flask
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 import threading
-import urllib.parse
 
 # -------------------------
 # CLIENTES
@@ -1523,15 +1526,16 @@ class SearchView(discord.ui.View):
     @discord.ui.button(label="Actualizar", style=discord.ButtonStyle.primary, emoji="<:retry:1505394236906799165>")
     async def refresh_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
-        await interaction.followup.send("> Refrescando búsqueda...", ephemeral=True)
         
         results = await search_engine.search_with_fallback(self.query)
         if results:
             card = await card_generator.create_search_card(self.query, results)
             new_view = SearchView(self.query)
-            await interaction.edit_original_response(file=card, view=new_view)
+            # Corregido: para editar interacciones con archivos adjuntos usando attachments=[card]
+            await interaction.edit_original_response(attachments=[card], view=new_view)
         else:
-           await ctx.send('> No se encontraron resultados.')
+            # Corregido: usando followups de interacción en lugar del objeto inexistente 'ctx'
+            await interaction.followup.send('> No se encontraron resultados.', ephemeral=True)
 
 @bot.hybrid_command(name="buscar", description="Busca información en la web")
 @app_commands.describe(query="Lo que quieres buscar", safe="Modo de búsqueda segura")
@@ -1606,7 +1610,8 @@ async def on_command_error(ctx: commands.Context, error: commands.CommandError):
     
     embed = discord.Embed(
         title="Error",
-        description=f"```{str(error)}```",
+        description=f"```{str(error)}
+```",
         color=discord.Color.red()
     )
     await ctx.send(embed=embed, delete_after=10)
