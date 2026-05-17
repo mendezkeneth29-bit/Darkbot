@@ -1318,12 +1318,24 @@ class BusquedaView(discord.ui.View):
 # =========================================================
 # NUEVO MOTOR INMUNE A CAÍDAS (DUCKDUCKGO HTML SCRAPER)
 # =========================================================
+import aiohttp
+import urllib.parse
+
+# =========================================================
+# MOTOR INMUNE A CAÍDAS CORREGIDO (DUCKDUCKGO HTML)
+# =========================================================
 async def ejecutar_busqueda_estable(busqueda: str):
     try:
-        # Usamos la versión clásica HTML de DuckDuckGo (No tiene JavaScript, no bloquea)
+        # Forzamos la importación aquí mismo para evitar el 'not defined'
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return None, "Error: Falta instalar la librería. Ejecuta 'pip install beautifulsoup4' en la consola."
+
+    try:
+        # Usamos la versión HTML limpia de DuckDuckGo
         url = "https://html.duckduckgo.com/html/"
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         data_post = {"q": busqueda}
 
@@ -1334,46 +1346,56 @@ async def ejecutar_busqueda_estable(busqueda: str):
                 html = await r.text()
 
         soup = BeautifulSoup(html, "html.parser")
+        
+        # Buscamos los contenedores reales de los resultados en la versión HTML
         results_divs = soup.find_all("div", class_="result")
 
         if not results_divs:
-            return [], None
+            # Si la estructura cambia ligeramente, usamos el plan B de clases básicas
+            results_divs = soup.find_all("td", class_="result-snippet")
+            if not results_divs:
+                return [], None
 
         resultados = []
         for div in results_divs[:4]:
-            # Extraer Título y Enlace real
-            a_tag = div.find("a", class_="result__url")
-            if not a_tag:
+            # Buscamos el título y el enlace
+            a_tag = div.find("a", class_="result__url") or div.find_parent("tr").find("a") if div.name == "td" else div.find("a")
+            if not a_tag or not a_tag.get("href"):
                 continue
-            
-            titulo = div.find("a", class_="result__snippet").text.strip() if div.find("a", class_="result__snippet") else a_tag.text.strip()
+                
             raw_url = a_tag["href"]
-            
-            # Limpiar redirecciones de enlaces internas de DuckDuckGo si es necesario
+            titulo = a_tag.text.strip()
+
+            # Limpiamos los enlaces internos que mete DuckDuckGo
             parsed_url = raw_url
             if "uddg=" in raw_url:
-                parsed_url = urllib.parse.unquote(raw_url.split("uddg=")[1].split("&")[0])
+                try:
+                    parsed_url = urllib.parse.unquote(raw_url.split("uddg=")[1].split("&")[0])
+                except:
+                    pass
 
-            # Extraer Descripción
-            snippet_tag = div.find("a", class_="result__snippet")
+            # Extraemos la descripción de la web
+            snippet_tag = div.find("a", class_="result__snippet") or div
             desc = snippet_tag.text.strip() if snippet_tag else "Sin descripción disponible."
+            # Limpiamos el texto para que no repita el título si usamos el plan B
+            if desc.startswith(titulo):
+                desc = desc[len(titulo):].strip()
 
-            # Extraer favicon real del dominio de la página web para usar como miniatura
-            # Esto es súper estable y hace que la tarjeta siempre tenga una foto real asociada al sitio
+            # Extraemos el favicon real de la web para usarlo de miniatura en tu tarjeta
             domain = urllib.parse.urlparse(parsed_url).netloc
-            img_url = f"https://icons.duckduckgo.com/ip3/{domain}.ico"
+            img_url = f"https://icons.duckduckgo.com/ip3/{domain}.ico" if domain else ""
 
             resultados.append({
-                "titulo": titulo,
+                "titulo": titulo[:60],
                 "url":    parsed_url,
-                "desc":   desc.replace("\n", " "),
+                "desc":   desc.replace("\n", " ")[:120],
                 "imagen": img_url
             })
             
         return resultados, None
 
     except Exception as e:
-        return None, f"Error interno del bot: {str(e)}"
+        return None, f"Error interno en el raspador: {str(e)}"
 
 # =========================================================
 # COMANDOS DISCORD (SLASH Y PREFIX)
