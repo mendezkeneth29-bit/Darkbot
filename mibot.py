@@ -1373,7 +1373,53 @@ async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
     await ctx.send(file=archivo)
 
 # =========================================================
-# GENERAR TARJETA TIKTOK
+# CONFIGURACIÓN INICIAL DEL BOT
+# =========================================================
+
+intents = discord.Intents.default()
+intents.message_content = True  # Necesario para los comandos con prefijo
+
+# Puedes cambiar el prefijo "!" por el que uses en tu bot
+bot = commands.Bot(command_prefix=">dl ", intents=intents)
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+
+# =========================================================
+# FUNCIONES AUXILIARES PARA PROCESAR IMÁGENES (PILLOW)
+# =========================================================
+
+async def descargar_imagen(url: str) -> Image.Image:
+    """Descarga de forma asíncrona el avatar del usuario."""
+    if not url:
+        raise ValueError("La URL del avatar está vacía.")
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                bytes_img = await resp.read()
+                return Image.open(io.BytesIO(bytes_img)).convert("RGBA")
+            raise Exception(f"No se pudo descargar el avatar. Status: {resp.status}")
+
+def avatar_circular(img_avatar: Image.Image, size: int) -> Image.Image:
+    """Recorta el avatar descargado en un círculo perfecto."""
+    img_avatar = img_avatar.resize((size, size), Image.Resampling.LANCZOS)
+    mascara = Image.new("L", (size, size), 0)
+    draw = ImageDraw.Draw(mascara)
+    draw.ellipse((0, 0, size, size), fill=255)
+    
+    resultado = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    resultado.paste(img_avatar, (0, 0), mask=mascara)
+    return resultado
+
+def fuente(size: int, bold: bool = False) -> ImageFont.ImageFont:
+    """Intenta cargar Arial o una fuente por defecto si no existe en el sistema."""
+    try:
+        # Render corre en Linux, por lo que usualmente no tiene fuentes de Windows.
+        # Si tienes un archivo .ttf en tu carpeta, pon su nombre aquí, ej: "font.ttf"
+        return ImageFont.truetype("arial.ttf", size)
+    except IOError:
+        return ImageFont.load_default()
+
+# =========================================================
+# GENERAR TARJETA GRÁFICA TIKTOK
 # =========================================================
 
 async def generar_tiktok(datos: dict) -> discord.File:
@@ -1392,26 +1438,28 @@ async def generar_tiktok(datos: dict) -> discord.File:
     draw.rectangle([(0, 0), (6, H // 2)], fill=ROSA)
     draw.rectangle([(0, H // 2), (6, H)], fill=CIAN)
 
-    # AVATAR
+    # PROCESAR AVATAR
     try:
         av = await descargar_imagen(datos["avatar"])
         av = avatar_circular(av, 100)
         img.paste(av, (24, 50), av)
-    except:
+    except Exception as e:
+        # Si falla la descarga, dibuja un círculo gris por defecto
+        print(f"Error procesando avatar: {e}")
         draw.ellipse([(24, 50), (124, 150)], fill=GRIS)
 
     # BORDE AVATAR TIKTOK
     draw.ellipse([(22, 48), (126, 152)], outline=ROSA, width=2)
     draw.ellipse([(19, 45), (129, 155)], outline=CIAN, width=1)
 
-    # NOMBRE
+    # TEXTOS PRINCIPALES
     draw.text((144, 52), datos["nickname"], font=fuente(20, bold=True), fill=TEXTO)
     draw.text((144, 78), f"@{datos['username']}", font=fuente(13), fill=SUBTEXTO)
 
-    # SEPARADOR
+    # LÍNEA SEPARADORA
     draw.rectangle([(144, 106), (645, 107)], fill=GRIS)
 
-    # STATS EN 3 COLUMNAS
+    # ESTADÍSTICAS EN 3 COLUMNAS
     stats = [
         ("Seguidores", datos["followers"]),
         ("Siguiendo", datos["following"]),
@@ -1424,27 +1472,25 @@ async def generar_tiktok(datos: dict) -> discord.File:
         draw.text((x, 118), label, font=fuente(11), fill=SUBTEXTO)
         draw.text((x, 136), str(valor), font=fuente(17, bold=True), fill=TEXTO)
 
-    # VIDEOS
+    # DATOS INFERIORES
     draw.text((144, 168), f"Videos: {datos['videos']}", font=fuente(12), fill=SUBTEXTO)
 
-    # VERIFICADO
     if datos.get("verified"):
         draw.text((400, 168), "Cuenta verificada", font=fuente(12), fill=CIAN)
 
+    # GUARDAR IMAGEN EN MEMORIA
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="tiktok.png")
 
 # =========================================================
-# COMANDO HÍBRIDO TIKTOK (Prefijo y Barra)
+# COMANDO HÍBRIDO TIKTOK
 # =========================================================
-
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 
 @bot.hybrid_command(name="tiktok", description="Ver info de un perfil de TikTok")
 async def tiktok_comando(ctx: commands.Context, *, usuario: str):
-    # En slash commands hace defer, en prefijo activa el "escribiendo..."
+    # Indica que el bot está procesando la solicitud
     if ctx.interaction:
         await ctx.interaction.response.defer()
     else:
@@ -1460,26 +1506,37 @@ async def tiktok_comando(ctx: commands.Context, *, usuario: str):
 
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, params=params) as r:
+                if r.status != 200:
+                    mensaje_error = f"> Error con la API externa (Status: {r.status}). Verifique su API Key."
+                    return await ctx.interaction.followup.send(mensaje_error) if ctx.interaction else await ctx.send(mensaje_error)
+                
                 data = await r.json()
 
         user = data.get("user_info", {}).get("user", {})
         stats = data.get("user_info", {}).get("stats", {})
 
+        # Si el usuario de TikTok no existe o la API no devolvió datos correctos
         if not user:
+            msg = "> No se encontró ese usuario."
             if ctx.interaction:
-                await ctx.interaction.followup.send("> No se encontró ese usuario.", ephemeral=True)
+                await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
-                await ctx.send("> No se encontró ese usuario.")
+                await ctx.send(msg)
             return
 
+        # Formateador de números (Ej: 1500 -> 1.5K)
         def fmt(n):
-            n = int(n)
-            if n >= 1_000_000:
-                return f"{n/1_000_000:.1f}M"
-            elif n >= 1_000:
-                return f"{n/1_000:.1f}K"
-            return str(n)
+            try:
+                n = int(n)
+                if n >= 1_000_000:
+                    return f"{n/1_000_000:.1f}M"
+                elif n >= 1_000:
+                    return f"{n/1_000:.1f}K"
+                return str(n)
+            except (ValueError, TypeError):
+                return "0"
 
+        # Estructurar los datos limpios para pasarlos a la tarjeta gráfica
         datos = {
             "nickname":  user.get("nickname", usuario),
             "username":  user.get("uniqueId", usuario),
@@ -1491,20 +1548,38 @@ async def tiktok_comando(ctx: commands.Context, *, usuario: str):
             "verified":  user.get("verified", False)
         }
 
+        # Generar archivo gráfico final
         archivo = await generar_tiktok(datos)
         
-        # Envía la respuesta correctamente según el tipo de invocación
+        # Enviar respuesta según el tipo de invocación
         if ctx.interaction:
             await ctx.interaction.followup.send(file=archivo)
         else:
             await ctx.send(file=archivo)
 
     except Exception as e:
+        msg_err = f"Error interno en el bot:\n```{e}```"
         if ctx.interaction:
-            await ctx.interaction.followup.send(f"Error:\n```{e}```", ephemeral=True)
+            await ctx.interaction.followup.send(msg_err, ephemeral=True)
         else:
-            await ctx.send(f"Error:\n```{e}```")
+            await ctx.send(msg_err)
 
+# =========================================================
+# EVENTO DE INICIO DEL BOT & TOKEN
+# =========================================================
+
+@bot.event
+async def on_ready():
+    # Sincroniza los comandos slash automáticamente al encender
+    await bot.tree.sync()
+    print(f"> Bot encendido con éxito como {bot.user}")
+
+# Asegúrate de colocar tu variable DISCORD_TOKEN en las Variables de Entorno de Render
+TOKEN = os.getenv("DISCORD_TOKEN")
+if TOKEN:
+    bot.run(TOKEN)
+else:
+    print("> ERROR: No se encontró la variable DISCORD_TOKEN en el sistema.")
 # ---------------------------
 # ROBLOX
 # ---------------------------
