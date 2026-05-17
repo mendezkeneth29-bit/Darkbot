@@ -1531,7 +1531,7 @@ class SearchView(discord.ui.View):
             new_view = SearchView(self.query)
             await interaction.edit_original_response(file=card, view=new_view)
         else:
-            await interaction.followup.send(> "No se encontraron resultados.", ephemeral=True)
+           await ctx.send('> No se encontraron resultados.')
 
 @bot.hybrid_command(name="buscar", description="Busca información en la web")
 @app_commands.describe(query="Lo que quieres buscar", safe="Modo de búsqueda segura")
