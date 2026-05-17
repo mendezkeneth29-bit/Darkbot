@@ -1375,42 +1375,40 @@ async def generar_tiktok(datos: dict) -> discord.File:
 # COMANDO TIKTOK
 # =========================================================
 
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
-
 @bot.tree.command(name="tiktok", description="Ver info de un perfil de TikTok")
 async def tiktok_slash(i: discord.Interaction, usuario: str):
     await i.response.defer()
     try:
-        url = "https://scraptik.p.rapidapi.com/get-user"
+        username = usuario.replace("@", "")
+        url = f"https://www.tiktok.com/@{username}"
         headers = {
             "X-RapidAPI-Key":  RAPIDAPI_KEY,
-            "X-RapidAPI-Host": "scraptik.p.rapidapi.com"
+            "X-RapidAPI-Host": "tiktok-api23.p.rapidapi.com"
         }
-        params = {"username": usuario.replace("@", "")}
+        api_url = "https://tiktok-api23.p.rapidapi.com/api/user/info"
+        params  = {"uniqueId": username}
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as r:
+            async with session.get(api_url, headers=headers, params=params) as r:
                 data = await r.json()
 
-        user = data.get("user_info", {}).get("user", {})
-        stats = data.get("user_info", {}).get("stats", {})
+        user  = data.get("userInfo", {}).get("user", {})
+        stats = data.get("userInfo", {}).get("stats", {})
 
         if not user:
-            await i.followup.send("> No se encontró ese usuario.", ephemeral=True)
+            await i.followup.send("> No se encontro ese usuario.", ephemeral=True)
             return
 
         def fmt(n):
             n = int(n)
-            if n >= 1_000_000:
-                return f"{n/1_000_000:.1f}M"
-            elif n >= 1_000:
-                return f"{n/1_000:.1f}K"
+            if n >= 1_000_000: return f"{n/1_000_000:.1f}M"
+            elif n >= 1_000:   return f"{n/1_000:.1f}K"
             return str(n)
 
         datos = {
-            "nickname":  user.get("nickname", usuario),
-            "username":  user.get("uniqueId", usuario),
-            "avatar":    user.get("avatarLarger", ""),
+            "nickname": user.get("nickname", username),
+            "username": user.get("uniqueId", username),
+            "avatar":   user.get("avatarLarger", ""),
             "followers": fmt(stats.get("followerCount", 0)),
             "following": fmt(stats.get("followingCount", 0)),
             "likes":     fmt(stats.get("heartCount", 0)),
@@ -1418,8 +1416,15 @@ async def tiktok_slash(i: discord.Interaction, usuario: str):
             "verified":  user.get("verified", False)
         }
 
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(
+            label="Ver en TikTok",
+            url=f"https://www.tiktok.com/@{datos['username']}",
+            style=discord.ButtonStyle.link
+        ))
+
         archivo = await generar_tiktok(datos)
-        await i.followup.send(file=archivo)
+        await i.followup.send(file=archivo, view=view)
 
     except Exception as e:
         await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
@@ -1429,36 +1434,35 @@ async def tiktok_slash(i: discord.Interaction, usuario: str):
 async def tiktok_prefix(ctx, *, usuario: str):
     async with ctx.typing():
         try:
-            url = "https://scraptik.p.rapidapi.com/get-user"
-            headers = {
+            username = usuario.replace("@", "")
+            headers  = {
                 "X-RapidAPI-Key":  RAPIDAPI_KEY,
-                "X-RapidAPI-Host": "scraptik.p.rapidapi.com"
+                "X-RapidAPI-Host": "tiktok-api23.p.rapidapi.com"
             }
-            params = {"username": usuario.replace("@", "")}
+            api_url = "https://tiktok-api23.p.rapidapi.com/api/user/info"
+            params  = {"uniqueId": username}
 
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, params=params) as r:
+                async with session.get(api_url, headers=headers, params=params) as r:
                     data = await r.json()
 
-            user  = data.get("user_info", {}).get("user", {})
-            stats = data.get("user_info", {}).get("stats", {})
+            user  = data.get("userInfo", {}).get("user", {})
+            stats = data.get("userInfo", {}).get("stats", {})
 
             if not user:
-                await ctx.send("> No se encontró ese usuario.")
+                await ctx.send("> No se encontro ese usuario.")
                 return
 
             def fmt(n):
                 n = int(n)
-                if n >= 1_000_000:
-                    return f"{n/1_000_000:.1f}M"
-                elif n >= 1_000:
-                    return f"{n/1_000:.1f}K"
+                if n >= 1_000_000: return f"{n/1_000_000:.1f}M"
+                elif n >= 1_000:   return f"{n/1_000:.1f}K"
                 return str(n)
 
             datos = {
-                "nickname":  user.get("nickname", usuario),
-                "username":  user.get("uniqueId", usuario),
-                "avatar":    user.get("avatarLarger", ""),
+                "nickname": user.get("nickname", username),
+                "username": user.get("uniqueId", username),
+                "avatar":   user.get("avatarLarger", ""),
                 "followers": fmt(stats.get("followerCount", 0)),
                 "following": fmt(stats.get("followingCount", 0)),
                 "likes":     fmt(stats.get("heartCount", 0)),
@@ -1466,8 +1470,15 @@ async def tiktok_prefix(ctx, *, usuario: str):
                 "verified":  user.get("verified", False)
             }
 
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(
+                label="Ver en TikTok",
+                url=f"https://www.tiktok.com/@{datos['username']}",
+                style=discord.ButtonStyle.link
+            ))
+
             archivo = await generar_tiktok(datos)
-            await ctx.send(file=archivo)
+            await ctx.send(file=archivo, view=view)
 
         except Exception as e:
             await ctx.send(f"Error:\n```{e}```")
