@@ -2029,7 +2029,7 @@ async def tiktok_profile(ctx: commands.Context, username: str):
         
         # Embed adicional con información
         embed = discord.Embed(
-            title=f"🎵 {user_info['nickname']}",
+            title=f"{user_info['nickname']}",
             url=f"https://www.tiktok.com/@{user_info['username']}",
             color=discord.Color.from_rgb(37, 211, 102)
         )
@@ -2061,11 +2061,11 @@ async def tiktok_stats(ctx: commands.Context, username: str):
     user_info = await scraper.get_user_info(username)
     
     if not user_info:
-        await ctx.send(f" Usuario **{username}** no encontrado")
+        await ctx.send(f">  Usuario **{username}** no encontrado")
         return
     
     embed = discord.Embed(
-        title=f" Estadísticas de @{user_info['username']}",
+        title=f"Estadísticas de @{user_info['username']}",
         color=discord.Color.from_rgb(254, 44, 85)
     )
     embed.set_thumbnail(url=user_info['avatar'])
@@ -2075,7 +2075,7 @@ async def tiktok_stats(ctx: commands.Context, username: str):
     embed.add_field(name=" Siguiendo", value=card_generator.format_number(user_info['following']), inline=True)
     
     if user_info['verified']:
-        embed.set_footer(text="✓ Cuenta verificada")
+        embed.set_footer(text="Cuenta verificada... ✓")
     
     await ctx.send(embed=embed)
 
