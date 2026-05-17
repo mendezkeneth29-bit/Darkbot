@@ -1220,7 +1220,7 @@ def fuente(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
         return ImageFont.load_default()
 
 # =========================================================
-# GENERAR TARJETA BUSQUEDA (CON IMÁGENES DE RESULTADO)
+# GENERAR TARJETA BUSQUEDA (CON TUS IMÁGENES REALES)
 # =========================================================
 async def generar_busqueda(query: str, resultados: list) -> discord.File:
     filas = min(len(resultados), 4)
@@ -1242,7 +1242,7 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
     # HEADER
     draw.rounded_rectangle([(24, 16), (W - 24, 80)], radius=12, fill=(24, 24, 24))
     draw.rounded_rectangle([(24, 16), (W - 24, 80)], radius=12, outline=GRIS, width=1)
-    draw.text((42, 26), "Búsqueda libre", font=fuente(11), fill=SUBTEXTO)
+    draw.text((42, 26), "Búsqueda Web Global", font=fuente(11), fill=SUBTEXTO)
     query_texto = query[:65] + "..." if len(query) > 65 else query
     draw.text((42, 46), query_texto, font=fuente(17, bold=True), fill=TEXTO)
 
@@ -1260,13 +1260,12 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
         # ACENTO IZQUIERDO
         draw.rounded_rectangle([(24, y + 8), (27, y + 70)], radius=2, fill=ACENTO)
 
-        # PROCESAR MINIATURA (SI EXISTE)
+        # PROCESAR MINIATURA REAL DE GOOGLE
         url_img = r.get("imagen", "")
         tiene_imagen = False
         
         if url_img:
             try:
-                # Descargamos la miniatura de forma rápida sin bloquear el flujo principal
                 res = requests.get(url_img, headers={"User-Agent": "Mozilla/5.0"}, timeout=1.5)
                 if res.status_code == 200:
                     mini = Image.open(io.BytesIO(res.content)).convert("RGBA")
@@ -1303,7 +1302,7 @@ async def generar_busqueda(query: str, resultados: list) -> discord.File:
     return discord.File(buf, filename="busqueda.png")
 
 # =========================================================
-# BOTON IR A BUSQUEDA
+# BOTON DINÁMICO
 # =========================================================
 class BusquedaView(discord.ui.View):
     def __init__(self, query: str):
@@ -1317,49 +1316,58 @@ class BusquedaView(discord.ui.View):
         ))
 
 # =========================================================
-# LÓGICA DE BÚSQUEDA LIBRE (DUCKDUCKGO CON IMÁGENES)
+# LÓGICA DE SERP / GOOGLE (SIN MANDAR TOKENS NI RIESGO DE 403)
 # =========================================================
-async def ejecutar_busqueda(busqueda: str):
-    """Ejecuta la búsqueda de texto e imágenes combinadas evitando bloqueos 403"""
+async def ejecutar_busqueda_global(busqueda: str):
     try:
-        # Ejecutamos la búsqueda en un hilo separado para no congelar el bot de Discord
-        def buscar_ddg():
-            resultados_combinados = []
-            with DDGS() as ddgs:
-                # Buscamos webs y de forma paralela sus imágenes asociadas
-                text_results = [r for r in ddgs.text(busqueda, max_results=4, safesearch="off")]
-                image_results = [r for r in ddgs.images(busqueda, max_results=4, safesearch="off")]
-                
-                for n, item in enumerate(text_results):
-                    # Intentamos emparejar cada resultado de texto con una imagen de la lista
-                    img_url = ""
-                    if n < len(image_results):
-                        img_url = image_results[n].get("thumbnail", "")
+        # Usamos una instancia pública y abierta de SearXNG (Fácil y directa)
+        url = "https://search.ononoki.org/search"
+        params = {
+            "q": busqueda,
+            "format": "json",
+            "safesearch": "0",  # Sin filtros
+            "categories": "general"
+        }
 
-                    resultados_combinados.append({
-                        "titulo": item.get("title", "Sin titulo"),
-                        "url":    item.get("href", ""),
-                        "desc":   item.get("body", "Sin descripcion").replace("\n", " "),
-                        "imagen": img_url
-                    })
-            return resultados_combinados
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, timeout=5) as r:
+                if r.status != 200:
+                    return None, "El motor de búsqueda está saturado. Intenta de nuevo."
+                data = await r.json()
 
-        # Convertimos la función síncrona de la librería a asíncrona
-        loop = asyncio.get_event_loop()
-        resultados = await loop.run_in_executor(None, buscar_ddg)
+        items = data.get("results", [])
+        if not items:
+            return [], None
+
+        resultados = []
+        for item in items[:4]:
+            # Extraemos la imagen real que el buscador indexó de esa página web
+            img_url = ""
+            if item.get("img_src"):
+                img_url = item.get("img_src")
+            elif item.get("thumbnail"):
+                img_url = item.get("thumbnail")
+
+            resultados.append({
+                "titulo": item.get("title", "Sin título"),
+                "url":    item.get("url", ""),
+                "desc":   item.get("content", "Sin descripción").replace("\n", " "),
+                "imagen": img_url  # <-- Imagen 100% real de la página
+            })
+            
         return resultados, None
 
     except Exception as e:
-        return None, f"Error en el motor de búsqueda: {str(e)}"
+        return None, f"Error en el motor: {str(e)}"
 
 # =========================================================
-# COMANDOS DISCORD
+# COMANDOS DISCORD (SLASH Y PREFIX)
 # =========================================================
-@bot.tree.command(name="buscar", description="Busca en la web sin filtros y con imágenes")
+@bot.tree.command(name="buscar", description="Busca en la web sin filtros y con imágenes reales")
 async def buscar_slash(i: discord.Interaction, busqueda: str):
     await i.response.defer()
     try:
-        resultados, error = await ejecutar_busqueda(busqueda)
+        resultados, error = await ejecutar_busqueda_global(busqueda)
         
         if error:
             await i.followup.send(f"> {error}", ephemeral=True)
@@ -1375,11 +1383,12 @@ async def buscar_slash(i: discord.Interaction, busqueda: str):
     except Exception as e:
         await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
 
+
 @bot.command(name="buscar")
 async def buscar_prefix(ctx, *, busqueda: str):
     async with ctx.typing():
         try:
-            resultados, error = await ejecutar_busqueda(busqueda)
+            resultados, error = await ejecutar_busqueda_global(busqueda)
             
             if error:
                 await ctx.send(f"> {error}")
