@@ -1308,181 +1308,184 @@ async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
     await ctx.send(file=archivo)
 
 # =========================================================
-# GENERAR TARJETA TIKTOK
+# GENERAR TARJETA SPOTIFY SEARCH
 # =========================================================
 
-async def generar_tiktok(datos: dict) -> discord.File:
-    W, H     = 680, 200
+async def generar_spotify_search(tracks: list, query: str) -> discord.File:
+    filas = min(len(tracks), 4)
+    W     = 680
+    H     = 110 + (filas * 80)
     FONDO    = (14, 14, 14)
-    ROSA     = (255, 0, 80)
-    CIAN     = (0, 242, 234)
+    VERDE    = (29, 185, 84)
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
+    OSCURO   = (21, 21, 21)
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    # BARRA LATERAL DEGRADADO TIKTOK (rosa y cian)
-    draw.rectangle([(0, 0), (6, H // 2)], fill=ROSA)
-    draw.rectangle([(0, H // 2), (6, H)], fill=CIAN)
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
 
-    # AVATAR
-    try:
-        av = await descargar_imagen(datos["avatar"])
-        av = avatar_circular(av, 100)
-        img.paste(av, (24, 50), av)
-    except:
-        draw.ellipse([(24, 50), (124, 150)], fill=GRIS)
-
-    # BORDE AVATAR TIKTOK
-    draw.ellipse([(22, 48), (126, 152)], outline=ROSA, width=2)
-    draw.ellipse([(19, 45), (129, 155)], outline=CIAN, width=1)
-
-    # NOMBRE
-    draw.text((144, 52), datos["nickname"], font=fuente(20, bold=True), fill=TEXTO)
-    draw.text((144, 78), f"@{datos['username']}", font=fuente(13), fill=SUBTEXTO)
+    # HEADER
+    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, fill=(20, 20, 20))
+    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS, width=1)
+    draw.text((42, 24), "Spotify Search", font=fuente(11), fill=SUBTEXTO)
+    query_texto = query[:55] + "..." if len(query) > 55 else query
+    draw.text((42, 42), query_texto, font=fuente(15, bold=True), fill=TEXTO)
 
     # SEPARADOR
-    draw.rectangle([(144, 106), (645, 107)], fill=GRIS)
+    draw.rectangle([(24, 86), (656, 87)], fill=GRIS)
 
-    # STATS EN 3 COLUMNAS
-    stats = [
-        ("Seguidores", datos["followers"]),
-        ("Siguiendo", datos["following"]),
-        ("Likes",     datos["likes"]),
-    ]
+    # RESULTADOS
+    for n, track in enumerate(tracks[:4]):
+        y = 96 + (n * 80)
+        color_fila = (22, 22, 22) if n % 2 == 0 else OSCURO
 
-    col_x = [144, 310, 476]
-    for n, (label, valor) in enumerate(stats):
-        x = col_x[n]
-        draw.text((x, 118), label, font=fuente(11), fill=SUBTEXTO)
-        draw.text((x, 136), str(valor), font=fuente(17, bold=True), fill=TEXTO)
+        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, fill=color_fila)
+        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, outline=GRIS, width=1)
 
-    # VIDEOS
-    draw.text((144, 168), f"Videos: {datos['videos']}", font=fuente(12), fill=SUBTEXTO)
+        # PORTADA MINI
+        try:
+            cover = await descargar_imagen(track["cover"])
+            cover = cover.resize((52, 52)).convert("RGBA")
+            mask = Image.new("L", (52, 52), 0)
+            ImageDraw.Draw(mask).rounded_rectangle([(0, 0), (52, 52)], radius=6, fill=255)
+            cover_r = Image.new("RGBA", (52, 52), (0, 0, 0, 0))
+            cover_r.paste(cover, (0, 0), mask)
+            img.paste(cover_r, (36, y + 8), cover_r)
+        except:
+            draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS)
 
-    # VERIFICADO
-    if datos.get("verified"):
-        draw.text((400, 168), "Cuenta verificada", font=fuente(12), fill=CIAN)
+        # NUMERO
+        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=VERDE)
+
+        # NOMBRE CANCION
+        nombre = track["nombre"][:38] + "..." if len(track["nombre"]) > 38 else track["nombre"]
+        draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO)
+
+        # ARTISTA
+        artista = track["artista"][:45] + "..." if len(track["artista"]) > 45 else track["artista"]
+        draw.text((118, y + 30), artista, font=fuente(12), fill=VERDE)
+
+        # DURACION
+        duracion = track.get("duracion", "")
+        draw.text((634, y + 28), duracion, font=fuente(11), fill=SUBTEXTO, anchor="ra")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
-    return discord.File(buf, filename="tiktok.png")
+    return discord.File(buf, filename="spotify_search.png")
 
 # =========================================================
-# COMANDO TIKTOK
+# HELPERS SPOTIFY SEARCH
 # =========================================================
 
-@bot.tree.command(name="tiktok", description="Ver info de un perfil de TikTok")
-async def tiktok_slash(i: discord.Interaction, usuario: str):
+async def buscar_spotify(query: str) -> list:
+    url = "https://spotify23.p.rapidapi.com/search/"
+    headers = {
+        "X-RapidAPI-Key":  RAPIDAPI_KEY,
+        "X-RapidAPI-Host": "spotify23.p.rapidapi.com"
+    }
+    params = {
+        "q":      query,
+        "type":   "tracks",
+        "limit":  "4",
+        "offset": "0"
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers, params=params) as r:
+            data = await r.json()
+
+    tracks = []
+    items = data.get("tracks", {}).get("items", [])
+
+    for item in items[:4]:
+        track = item.get("data", {})
+        nombre  = track.get("name", "Sin nombre")
+        artista = ", ".join([a.get("profile", {}).get("name", "") for a in track.get("artists", {}).get("items", [])])
+        cover   = ""
+        covers  = track.get("albumOfTrack", {}).get("coverArt", {}).get("sources", [])
+        if covers:
+            cover = covers[0].get("url", "")
+
+        # DURACION
+        ms      = track.get("duration", {}).get("totalMilliseconds", 0)
+        seg     = ms // 1000
+        duracion = f"{seg // 60}:{seg % 60:02}"
+
+        # URL
+        track_uri = track.get("uri", "")
+        track_id  = track_uri.split(":")[-1] if track_uri else ""
+        track_url = f"https://open.spotify.com/track/{track_id}" if track_id else "https://open.spotify.com"
+
+        tracks.append({
+            "nombre":   nombre,
+            "artista":  artista,
+            "cover":    cover,
+            "duracion": duracion,
+            "url":      track_url
+        })
+
+    return tracks
+
+# =========================================================
+# VISTA CON BOTONES DE CADA CANCION
+# =========================================================
+
+class SpotifySearchView(discord.ui.View):
+    def __init__(self, tracks: list):
+        super().__init__(timeout=None)
+        for n, track in enumerate(tracks[:4]):
+            nombre = track["nombre"][:40] + "..." if len(track["nombre"]) > 40 else track["nombre"]
+            self.add_item(discord.ui.Button(
+                label=f"{n+1}. {nombre}",
+                url=track["url"],
+                style=discord.ButtonStyle.link,
+                emoji="<:music:1504691247619641404>"
+            ))
+
+# =========================================================
+# COMANDO SPOTIFY SEARCH
+# =========================================================
+
+@bot.tree.command(name="spotify-search", description="Busca una cancion en Spotify")
+async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
     await i.response.defer()
     try:
-        username = usuario.replace("@", "")
-        url = f"https://www.tiktok.com/@{username}"
-        headers = {
-            "X-RapidAPI-Key":  RAPIDAPI_KEY,
-            "X-RapidAPI-Host": "tiktok-api23.p.rapidapi.com"
-        }
-        api_url = "https://tiktok-api23.p.rapidapi.com/api/user/info"
-        params  = {"uniqueId": username}
+        tracks = await buscar_spotify(cancion)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(api_url, headers=headers, params=params) as r:
-                data = await r.json()
-
-        user  = data.get("userInfo", {}).get("user", {})
-        stats = data.get("userInfo", {}).get("stats", {})
-
-        if not user:
-            await i.followup.send("> No se encontro ese usuario.", ephemeral=True)
+        if not tracks:
+            await i.followup.send("> No se encontraron resultados.", ephemeral=True)
             return
 
-        def fmt(n):
-            n = int(n)
-            if n >= 1_000_000: return f"{n/1_000_000:.1f}M"
-            elif n >= 1_000:   return f"{n/1_000:.1f}K"
-            return str(n)
-
-        datos = {
-            "nickname": user.get("nickname", username),
-            "username": user.get("uniqueId", username),
-            "avatar":   user.get("avatarLarger", ""),
-            "followers": fmt(stats.get("followerCount", 0)),
-            "following": fmt(stats.get("followingCount", 0)),
-            "likes":     fmt(stats.get("heartCount", 0)),
-            "videos":    fmt(stats.get("videoCount", 0)),
-            "verified":  user.get("verified", False)
-        }
-
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(
-            label="Ver en TikTok",
-            url=f"https://www.tiktok.com/@{datos['username']}",
-            style=discord.ButtonStyle.link
-        ))
-
-        archivo = await generar_tiktok(datos)
+        archivo = await generar_spotify_search(tracks, cancion)
+        view    = SpotifySearchView(tracks)
         await i.followup.send(file=archivo, view=view)
 
     except Exception as e:
         await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
 
 
-@bot.command(name="tiktok")
-async def tiktok_prefix(ctx, *, usuario: str):
+@bot.command(name="spotify-search")
+async def spotify_buscar_prefix(ctx, *, cancion: str):
     async with ctx.typing():
         try:
-            username = usuario.replace("@", "")
-            headers  = {
-                "X-RapidAPI-Key":  RAPIDAPI_KEY,
-                "X-RapidAPI-Host": "tiktok-api23.p.rapidapi.com"
-            }
-            api_url = "https://tiktok-api23.p.rapidapi.com/api/user/info"
-            params  = {"uniqueId": username}
+            tracks = await buscar_spotify(cancion)
 
-            async with aiohttp.ClientSession() as session:
-                async with session.get(api_url, headers=headers, params=params) as r:
-                    data = await r.json()
-
-            user  = data.get("userInfo", {}).get("user", {})
-            stats = data.get("userInfo", {}).get("stats", {})
-
-            if not user:
-                await ctx.send("> No se encontro ese usuario.")
+            if not tracks:
+                await ctx.send("> No se encontraron resultados.")
                 return
 
-            def fmt(n):
-                n = int(n)
-                if n >= 1_000_000: return f"{n/1_000_000:.1f}M"
-                elif n >= 1_000:   return f"{n/1_000:.1f}K"
-                return str(n)
-
-            datos = {
-                "nickname": user.get("nickname", username),
-                "username": user.get("uniqueId", username),
-                "avatar":   user.get("avatarLarger", ""),
-                "followers": fmt(stats.get("followerCount", 0)),
-                "following": fmt(stats.get("followingCount", 0)),
-                "likes":     fmt(stats.get("heartCount", 0)),
-                "videos":    fmt(stats.get("videoCount", 0)),
-                "verified":  user.get("verified", False)
-            }
-
-            view = discord.ui.View()
-            view.add_item(discord.ui.Button(
-                label="Ver en TikTok",
-                url=f"https://www.tiktok.com/@{datos['username']}",
-                style=discord.ButtonStyle.link
-            ))
-
-            archivo = await generar_tiktok(datos)
+            archivo = await generar_spotify_search(tracks, cancion)
+            view    = SpotifySearchView(tracks)
             await ctx.send(file=archivo, view=view)
 
         except Exception as e:
             await ctx.send(f"Error:\n```{e}```")
-
+            
 # ---------------------------
 # ROBLOX
 # ---------------------------
