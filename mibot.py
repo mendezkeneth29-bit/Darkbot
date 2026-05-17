@@ -1489,6 +1489,49 @@ async def tiktok_prefix(ctx, *, usuario: str):
 
         except Exception as e:
             await ctx.send(f"Error:\n```{e}```")
+
+# ---------------------------
+# ROBLOX
+# ---------------------------
+
+    @app_commands.command(
+        name="roblox", 
+        description="Mira el perfil de roblox de alguien"
+    )
+    @app_commands.describe(usuario="El nombre del usuario de Roblox")
+    async def roblox_profile(self, interaction: discord.Interaction, usuario: str):
+        # NOTA: Aquí deberás conectar tu lógica con la API de Roblox 
+        # para obtener estos datos reales usando el nombre que ingresen.
+        # Por ahora te dejo los campos listos como los pediste.
+        
+        roblox_user = usuario
+        cuenta_creada = "01/01/2020"  # Reemplazar con dato real
+        cantidad_amigos = "150"       # Reemplazar con dato real
+        perfil_link = f"https://www.roblox.com/users/profile?username={usuario}"
+        avatar_url = "https://images.rbxcdn.com/default_avatar.png" # Reemplazar con la imagen del avatar real
+
+        # Creamos el Embed sin título
+        # Usamos 0x010101 para que se vea prácticamente negro en Discord
+        embed = discord.Embed(
+            description=(
+                f"> **User:** {roblox_user}\n"
+                f"> **Creada:** {cuenta_creada}\n"
+                f"> **Amigos:** {cantidad_amigos}\n"
+                f"> **Link:** [perfil]({perfil_link})"
+            ),
+            color=discord.Color.from_str("#010101") 
+        )
+
+        # Colocamos la imagen del avatar completo abajo en grande
+        embed.set_image(url=avatar_url)
+
+        # Respondemos a la interacción enviando el embed
+        await interaction.response.send_message(embed=embed)
+
+# Función para añadir el Cog al bot
+async def setup(bot):
+    await bot.add_cog(RobloxCommand(bot))
+
 # -------------------------
 # FLASK WEB
 # -------------------------
