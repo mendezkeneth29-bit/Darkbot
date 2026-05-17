@@ -1610,8 +1610,7 @@ async def on_command_error(ctx: commands.Context, error: commands.CommandError):
     
     embed = discord.Embed(
         title="Error",
-        description=f"```{str(error)}
-```",
+        description=f"```{str(error)}```",
         color=discord.Color.red()
     )
     await ctx.send(embed=embed, delete_after=10)
