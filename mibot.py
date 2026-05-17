@@ -1326,29 +1326,6 @@ async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
     await ctx.send(file=archivo)
 
 # =========================================================
-# CONFIGURACIÓN
-# =========================================================
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix=">dl ", intents=intents)
-
-# Colores profesionales
-COLORS = {
-    'background': (18, 18, 20),
-    'card': (28, 28, 32),
-    'primary': (37, 211, 102),  # Verde TikTok
-    'secondary': (254, 44, 85),  # Rojo TikTok
-    'text': (255, 255, 255),
-    'text_muted': (138, 141, 148),
-    'stats_bg': (32, 34, 37),
-    'border': (48, 48, 52)
-}
-
-# =========================================================
 # SCRAPER DE TIKTOK (SIN API KEY)
 # =========================================================
 class TikTokScraper:
