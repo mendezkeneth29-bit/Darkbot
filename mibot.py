@@ -965,68 +965,87 @@ async def delete_prefix(ctx, cantidad: int):
     await ctx.send(f"Se eliminaron {len(eliminados) - 1} mensajes", delete_after=3)
 
 # =========================================================
-# EMBED CREATE
+# EMBED
 # =========================================================
 
-@bot.tree.command(name="embed", description="Crea un embed totalmente personalizado")
-async def respuesta_groq_gen(interaction: discord.Interaction, mensaje: str):
-    # Aquí va el resto de tu código del embed...  
-    ctx: commands.Context,
-    titulo: typing.Optional[str] = None,
-    descripcion: typing.Optional[str] = None,
-    color: typing.Optional[str] = None, # Formato Hexadecimal, ej: #FF0000 o #010101
-    autor: typing.Optional[str] = None,
-    imagen_autor: typing.Optional[str] = None,
-    imagen_principal: typing.Optional[str] = None,
-    imagen_derecha: typing.Optional[str] = None, # Thumbnail
-    pie_de_pagina: typing.Optional[str] = None,
-    imagen_pie: typing.Optional[str] = None
+@bot.tree.command(
+    name="embed",
+    description="Crear un embed personalizado"
+)
+@app_commands.checks.has_permissions(
+    administrator=True
+)
+async def embed(
+    i: discord.Interaction,
+
+    titulo: str = None,
+    descripcion: str = None,
+    color: str = None,
+
+    autor: str = None,
+    imagen_autor: str = None,
+
+    imagen_principal: str = None,
+    thumbnail: str = None,
+
+    footer: str = None,
+    imagen_footer: str = None
 ):
-    # Verificación por si el usuario ejecuta el comando sin enviar ningún dato
-    if not any([titulo, descripcion, color, autor, imagen_autor, imagen_principal, imagen_derecha, pie_de_pagina, imagen_pie]):
-        return await ctx.send("> Debes rellenar al menos una de las opciones para crear un embed.", ephemeral=True)
 
-    # 1. Configurar Color (Si no pone, se usa el gris por defecto de Discord)
-    embed_color = discord.Color.default()
-    if color:
-        try:
-            embed_color = discord.Color.from_str(color)
-        except ValueError:
-            return await ctx.send("> El formato de color no es válido. Usa un código Hex (Ej: `#FF0000` o `#010101`).", ephemeral=True)
+    # COLOR
+    try:
 
-    # 2. Inicializar Embed con Título, Descripción y Color
-    embed = discord.Embed(
-        title=titulo,
-        description=descripcion,
-        color=embed_color
+        color_final = int(
+            color.replace("#", ""),
+            16
+        ) if color else 0x000000
+
+    except:
+
+        color_final = 0x000000
+
+    # EMBED
+    em = discord.Embed(
+        title=titulo or "",
+        description=descripcion or "",
+        color=color_final
     )
 
-    # 3. Configurar Autor e Imagen de Autor
+    # AUTOR
     if autor:
-        # Si pone autor pero no imagen, solo se aplica el texto
-        embed.set_author(name=autor, icon_url=imagen_autor)
-    elif imagen_autor:
-        # Si puso url de imagen de autor pero olvidó el texto, Discord exige texto para mostrar el icono
-        embed.set_author(name="Autor", icon_url=imagen_autor)
 
-    # 4. Configurar Imagen de arriba a la derecha (Thumbnail)
-    if imagen_derecha:
-        embed.set_thumbnail(url=imagen_derecha)
+        em.set_author(
+            name=autor,
+            icon_url=imagen_autor
+            if imagen_autor else None
+        )
 
-    # 5. Configurar Imagen Principal (Abajo en grande)
+    # IMAGEN PRINCIPAL
     if imagen_principal:
-        embed.set_image(url=imagen_principal)
 
-    # 6. Configurar Pie de página (Footer) e Imagen de pie de página
-    if pie_de_pagina:
-        embed.set_footer(text=pie_de_pagina, icon_url=imagen_pie)
-    elif imagen_pie:
-        # Discord exige texto en el footer para poder renderizar su icono
-        embed.set_footer(text=" ", icon_url=imagen_pie)
+        em.set_image(
+            url=imagen_principal
+        )
 
-    # Enviar el embed terminado
-    await ctx.send(embed=embed)
+    # THUMBNAIL
+    if thumbnail:
 
+        em.set_thumbnail(
+            url=thumbnail
+        )
+
+    # FOOTER
+    if footer:
+
+        em.set_footer(
+            text=footer,
+            icon_url=imagen_footer
+            if imagen_footer else None
+        )
+
+    await i.response.send_message(
+        embed=em
+    )
 # =========================================================
 # SET NIVELES / WLC / BYE
 # =========================================================
