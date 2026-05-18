@@ -14,6 +14,8 @@ from discord import app_commands
 from flask import Flask
 from duckduckgo_search import DDGS
 import threading
+import requests
+import urllib.parse
 
 # -------------------------
 # CLIENTES
@@ -1565,128 +1567,90 @@ async def roblox(ctx: commands.Context, usuario: str):
     else:
         await ctx.send(embed=embed)
 
-# =========================================================
-# CREAR CLAVE
-# =========================================================
+# ==========================
+# CALCULADORA
+# ==========================
 
 @bot.hybrid_command(
-    name="clave",
-    description="Crear una palabra clave"
+    name="calculadora",
+    description="Resuelve operaciones matemáticas"
 )
-@commands.has_permissions(
-    administrator=True
-)
-async def clave(
+async def calculadora(
     ctx,
-    palabra: str,
     *,
-    mensaje: str
+    operacion: str
 ):
 
-    gid = ctx.guild.id
+    try:
 
-    if gid not in claves:
-        claves[gid] = {}
+        resultado = eval(operacion)
 
-    claves[gid][palabra.lower()] = mensaje
+        embed = discord.Embed(
+            title="Calculadora",
+            color=0x000000
+        )
 
-    embed = discord.Embed(
-        title="Clave creada",
-        color=0x000000
-    )
+        embed.description = (
+            f"> Operación:\n"
+            f"> `{operacion}`\n\n"
+            f"> Resultado:\n"
+            f"> `{resultado}`"
+        )
 
-    embed.description = (
-        f"> Palabra:\n"
-        f"> `{palabra}`\n\n"
-        f"> Mensaje:\n"
-        f"> {mensaje}"
-    )
+        await ctx.send(embed=embed)
 
-    await ctx.send(
-        embed=embed
-    )
-
-# =========================================================
-# VER CLAVES
-# =========================================================
-
-@bot.hybrid_command(
-    name="claves",
-    description="Ver todas las claves"
-)
-async def claves_list(ctx):
-
-    gid = ctx.guild.id
-
-    if gid not in claves or not claves[gid]:
+    except Exception as e:
 
         await ctx.send(
-            "No hay claves creadas."
+            f"Error:\n```{e}```"
         )
 
-        return
-
-    texto = ""
-
-    for palabra, mensaje in claves[gid].items():
-
-        texto += (
-            f"`{palabra}`\n"
-            f"> {mensaje}\n\n"
-        )
-
-    embed = discord.Embed(
-        title="Lista de claves",
-        description=texto,
-        color=0x000000
-    )
-
-    await ctx.send(
-        embed=embed
-    )
-
-# =========================================================
-# ELIMINAR CLAVE
-# =========================================================
+# =============================
+# TRADUCTOR
+# =============================
 
 @bot.hybrid_command(
-    name="eliminar-clave",
-    description="Eliminar una clave"
+    name="translate",
+    description="Traduce textos"
 )
-@commands.has_permissions(
-    administrator=True
-)
-async def eliminar_clave(
+async def translate(
     ctx,
-    palabra: str
+    idioma: str,
+    *,
+    texto: str
 ):
 
-    gid = ctx.guild.id
+    try:
 
-    if (
-        gid not in claves
-        or palabra.lower() not in claves[gid]
-    ):
-
-        await ctx.send(
-            "Esa clave no existe."
+        url = (
+            "https://translate.googleapis.com/translate_a/single"
+            f"?client=gtx&sl=auto&tl={idioma}"
+            f"&dt=t&q={urllib.parse.quote(texto)}"
         )
 
-        return
+        data = requests.get(url).json()
 
-    del claves[gid][palabra.lower()]
+        traduccion = data[0][0][0]
 
-    embed = discord.Embed(
-        description=(
-            f"La clave `{palabra}` "
-            f"> fue eliminada."
-        ),
-        color=0x000000
-    )
+        embed = discord.Embed(
+            title="Traductor",
+            color=0x000000
+        )
 
-    await ctx.send(
-        embed=embed
-    )
+        embed.description = (
+            f"> Texto:\n"
+            f"> {texto}\n\n"
+            f"> Traducción:\n"
+            f"> {traduccion}"
+        )
+
+        await ctx.send(embed=embed)
+
+    except Exception as e:
+
+        await ctx.send(
+            f"Error:\n```{e}```"
+        )
 
 # -------------------------
 # FLASK WEB
