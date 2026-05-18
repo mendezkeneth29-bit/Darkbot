@@ -1531,8 +1531,6 @@ async def delete_clave(ctx: commands.Context, palabra_clave: str):
         color=discord.Color.pink()
     )
     await ctx.send(embed=embed)
-⚙️ El detector de mensajes (on_message)
-Para que el bot realmente responda cuando los usuarios escriben en los canales, necesitas añadir este código a tu evento on_message actual.
 
 Asegúrate de incluir el await bot.process_commands(message) al final para que los comandos normales sigan funcionando.
 
