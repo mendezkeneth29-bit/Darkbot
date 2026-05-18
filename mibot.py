@@ -990,13 +990,13 @@ async def ask_slash(i: discord.Interaction, mensaje: str):
     try:
         if any(p in mensaje.lower() for p in ["imagen", "foto", "dibujo", "genera", "wallpaper"]):
             image_url = f"https://image.pollinations.ai/prompt/{mensaje.replace(' ', '%20')}"
-            embed = discord.Embed(title="Imagen generada", description=f"> Prompt: {mensaje}", color=0x000000)
+            embed = discord.Embed(title="Imagen generada", description=f"> Prompt: {mensaje}", color=0xFF69B4)
             embed.set_image(url=image_url)
             await i.followup.send(embed=embed)
             return
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Eres una IA amigable, divertida y algo sarcastica, tu nombre es Daylight."}, {"role": "user", "content": mensaje}]
+            messages=[{"role": "system", "content": "Eres un Bot amigable, divertida y algo sarcastica, tu nombre es Misti, heterofobica, y eres transexual."}, {"role": "user", "content": mensaje}]
         )
         texto = respuesta.choices[0].message.content
         embed = discord.Embed(color=0x000000)
@@ -1010,10 +1010,10 @@ async def ask_prefix(ctx, *, mensaje: str):
     try:
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Eres una IA amigable, divertida y algo sarcastica, tu nombre es Daylight."}, {"role": "user", "content": mensaje}]
+            messages=[{"role": "system", "content": "Eres un Bot amigable, divertida y algo sarcastica, tu nombre es Misti, heterofobica, y eres transexual."}, {"role": "user", "content": mensaje}]
         )
         texto = respuesta.choices[0].message.content
-        embed = discord.Embed(color=0x000000)
+        embed = discord.Embed(color=0xFF69B4)
         embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
         await ctx.send(embed=embed)
     except Exception as e:
@@ -1468,7 +1468,7 @@ async def roblox(ctx: commands.Context, usuario: str):
             f"> **Amigos:** {cantidad_amigos}\n"
             f"> **Link:** [Visitar Perfil]({perfil_link})"
         ),
-        color=discord.Color.from_str("#010101")
+        color=discord.Color.from_str("#FF69B4")
     )
     
     # Coloca el render del cuerpo completo abajo
