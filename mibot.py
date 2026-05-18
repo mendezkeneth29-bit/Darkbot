@@ -462,7 +462,7 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
     draw.rounded_rectangle([(182, 128), (645, 136)], radius=4, fill=GRIS)
     fill_w = int(182 + (463 * progreso))
     if fill_w > 182:
-        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=VERDE)
+        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=ROSA)
 
     fmt = lambda s: f"{int(s) // 60}:{int(s) % 60:02}"
     draw.text((182, 148), fmt(max(transcurrido, 0)), font=fuente(11), fill=SUBTEXTO)
