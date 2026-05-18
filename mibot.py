@@ -1,4 +1,3 @@
-cat > /home/claude/mibot.py << 'ENDOFFILE'
 import discord
 import os
 import io
@@ -1480,5 +1479,3 @@ threading.Thread(target=run_web).start()
 # -------------------------
 
 bot.run(TOKEN)
-ENDOFFILE
-echo "Done"
