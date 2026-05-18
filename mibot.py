@@ -432,7 +432,7 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
 
     try:
         portada = await descargar_imagen(actividad.album_cover_url)
@@ -445,11 +445,11 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
     except:
         draw.rounded_rectangle([(30, 25), (160, 155)], radius=10, fill=GRIS)
 
-    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=VERDE, width=2)
+    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=ROSA, width=2)
     draw.text((182, 28), f"{usuario.display_name} esta escuchando", font=fuente(13), fill=SUBTEXTO)
     cancion = actividad.title[:30] + "..." if len(actividad.title) > 30 else actividad.title
     draw.text((182, 50), cancion, font=fuente(20, bold=True), fill=TEXTO)
-    draw.text((182, 78), actividad.artist, font=fuente(14), fill=VERDE)
+    draw.text((182, 78), actividad.artist, font=fuente(14), fill=ROSA)
     album = actividad.album[:35] + "..." if len(actividad.album) > 35 else actividad.album
     draw.text((182, 100), album, font=fuente(12), fill=SUBTEXTO)
     draw.rectangle([(182, 118), (645, 119)], fill=GRIS)
