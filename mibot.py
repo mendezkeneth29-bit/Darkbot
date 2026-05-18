@@ -980,42 +980,6 @@ async def set_niveles_prefix(ctx, canal: discord.TextChannel):
     nivel_canal[ctx.guild.id] = canal.id
     await ctx.send(f"> Canal de niveles seteado en {canal.mention}")
 
-@bot.tree.command(name="wlc", description="Activa el mensaje de bienvenida")
-@app_commands.checks.has_permissions(administrator=True)
-async def wlc_slash(i: discord.Interaction, canal: discord.TextChannel):
-    wlc_canal[i.guild.id] = canal.id
-    await i.response.send_message(f"> Bienvenida activada en {canal.mention}", ephemeral=True)
-
-@bot.command(name="wlc")
-@commands.has_permissions(administrator=True)
-async def wlc_prefix(ctx, canal: discord.TextChannel):
-    wlc_canal[ctx.guild.id] = canal.id
-    await ctx.send(f"> Bienvenida activada en {canal.mention}")
-
-@bot.tree.command(name="bye", description="Activa el mensaje de despedida")
-@app_commands.checks.has_permissions(administrator=True)
-async def bye_slash(i: discord.Interaction, canal: discord.TextChannel):
-    bye_canal[i.guild.id] = canal.id
-    await i.response.send_message(f"> Despedida activada en {canal.mention}", ephemeral=True)
-
-@bot.command(name="bye")
-@commands.has_permissions(administrator=True)
-async def bye_prefix(ctx, canal: discord.TextChannel):
-    bye_canal[ctx.guild.id] = canal.id
-    await ctx.send(f"> Despedida activada en {canal.mention}")
-
-@bot.tree.command(name="reset-wlc")
-@app_commands.checks.has_permissions(administrator=True)
-async def reset_wlc_slash(i: discord.Interaction):
-    wlc_canal.pop(i.guild.id, None)
-    await i.response.send_message("> Bienvenida desactivada", ephemeral=True)
-
-@bot.tree.command(name="reset-bye")
-@app_commands.checks.has_permissions(administrator=True)
-async def reset_bye_slash(i: discord.Interaction):
-    bye_canal.pop(i.guild.id, None)
-    await i.response.send_message("> Despedida desactivada", ephemeral=True)
-
 # =========================================================
 # ASK IA
 # =========================================================
@@ -1114,54 +1078,6 @@ async def on_message(message):
         await message.reply(embed=embed, mention_author=False)
     except:
         pass
-
-# =========================================================
-# EVENTOS JOIN / REMOVE
-# =========================================================
-
-@bot.event
-async def on_member_join(member):
-    if member.bot:
-        return
-    canal_id = wlc_canal.get(member.guild.id)
-    if not canal_id:
-        return
-    canal = member.guild.get_channel(canal_id)
-    if not canal:
-        return
-    embed = discord.Embed(
-        title=f"-            Welc_ome_ {member.name}      ୨୧",
-        description=(
-            f"˙ ∘ ⊹ Bienvenido nuevo ~{member.mention}~ <:emoji_17:1494897832803700847>\n\n"
-            f"12 edad _Minima_ ♱ 18 edad _Maxima_ ∘ ˙ (🦢)\n\n"
-            f"[Book](https://0.com) | [Lobby](https://0.com) | [General](https://0.com)    ⌗"
-        ),
-        color=0xFFFFFF
-    )
-    embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
-    await canal.send(embed=embed)
-
-@bot.event
-async def on_member_remove(member):
-    if member.bot:
-        return
-    canal_id = bye_canal.get(member.guild.id)
-    if not canal_id:
-        return
-    canal = member.guild.get_channel(canal_id)
-    if not canal:
-        return
-    embed = discord.Embed(
-        title=f"-            God_bye_ {member.name}      ୨୧",
-        description=(
-            f"˙ ∘ ⊹ Hasta nunca maldito ~{member.name}~ <:emoji_26:1494897832803700847>\n\n"
-            f"12 edad _Minima_ ♱ 18 edad _Maxima_ ∘ ˙ (🦢)\n\n"
-            f"[Book](https://0.com) | [Lobby](https://0.com) | [General](https://0.com)    ⌗"
-        ),
-        color=0xFFFFFF
-    )
-    embed.set_footer(text=member.display_name, icon_url=member.display_avatar.url)
-    await canal.send(embed=embed)
 
 # =========================================================
 # DAR XP
@@ -1563,6 +1479,249 @@ async def roblox(ctx: commands.Context, usuario: str):
         await ctx.interaction.followup.send(embed=embed)
     else:
         await ctx.send(embed=embed)
+
+# -------------------------
+# EMBED-CREATE
+# -------------------------
+@bot.tree.command(name="embed-create")
+async def embed_create(
+    i: discord.Interaction,
+    titulo: str = None,
+    descripcion: str = None,
+    color: str = None,
+    imagen: str = None,
+    footer_texto: str = None,
+    footer_icono: str = None,
+    autor_nombre: str = None,
+    autor_icono: str = None,
+    canal: discord.TextChannel = None
+):
+
+    # si no eligen canal, usa el actual
+    canal = canal or i.channel
+
+    # convertir color HEX
+    try:
+        color_final = int(color, 16) if color else 0x000000
+    except:
+        color_final = 0x000000
+
+    # crear embed
+    embed = discord.Embed(
+        title=titulo if titulo else "",
+        description=descripcion if descripcion else "",
+        color=color_final
+    )
+
+    # imagen principal
+    if imagen:
+        embed.set_image(url=imagen)
+
+    # footer
+    if footer_texto or footer_icono:
+        embed.set_footer(
+            text=footer_texto if footer_texto else "",
+            icon_url=footer_icono if footer_icono else None
+        )
+
+    # autor
+    if autor_nombre or autor_icono:
+        embed.set_author(
+    name=parse_welc(cfg["autor"][0], member),
+    icon_url=parse_welc(cfg["autor"][1], member)
+)
+
+    # enviar embed
+    await canal.send(embed=embed)
+
+    # responder al comando
+    await i.response.send_message("Embed enviado", ephemeral=True)
+
+# ----------------------------
+# WELC/BYE
+# ----------------------------
+
+welc_config = {}
+bye_config = {}
+
+def parse_text(texto, member):
+    if not texto:
+        return texto
+
+    return texto.replace("{user_name}", member.name) \
+                .replace("{user_mention}", member.mention) \
+                .replace("{user_id}", str(member.id)) \
+                .replace("{server_name}", member.guild.name) \
+                .replace("{user_avatar}", member.display_avatar.url)
+
+@bot.tree.command(name="welc")
+async def welc(
+    i: discord.Interaction,
+    titulo: str = None,
+    descripcion: str = None,
+    color: str = None,
+    autor: str = None,
+    autor_imagen: str = None,
+    imagen: str = None,
+    footer: str = None,
+    footer_imagen: str = None
+):
+
+    gid = i.guild.id
+
+    try:
+        color_final = int(color, 16) if color else 0x000000
+    except:
+        color_final = 0x000000
+
+    welc_config[gid] = {
+        "title": titulo,
+        "desc": descripcion,
+        "color": color_final,
+        "autor": (autor, autor_imagen),
+        "image": imagen,
+        "footer": (footer, footer_imagen),
+        "canal": i.channel.id,
+        "activo": True
+    }
+
+    await i.response.send_message(" Bienvenida activada", ephemeral=True)
+
+@bot.event
+async def on_member_join(member):
+    if member.bot:
+        return
+
+    cfg = welc_config.get(member.guild.id)
+    if not cfg or not cfg.get("activo"):
+        return
+
+    canal = member.guild.get_channel(cfg["canal"])
+    if not canal:
+        return
+
+    embed = discord.Embed(
+        title=parse_text(cfg.get("title") or "Bienvenido", member),
+        description=parse_text(cfg.get("desc") or "", member),
+        color=cfg.get("color", 0x000000)
+    )
+
+    if cfg.get("autor"):
+        embed.set_author(
+            name=parse_text(cfg["autor"][0] or "", member),
+            icon_url=parse_text(cfg["autor"][1] or "", member)
+        )
+
+    if cfg.get("image"):
+        embed.set_image(url=parse_text(cfg["image"], member))
+
+    if cfg.get("footer"):
+        embed.set_footer(
+            text=parse_text(cfg["footer"][0] or "", member),
+            icon_url=parse_text(cfg["footer"][1] or "", member)
+        )
+
+    await canal.send(embed=embed)
+
+@bot.tree.command(name="bye")
+async def bye(
+    i: discord.Interaction,
+    titulo: str = None,
+    descripcion: str = None,
+    color: str = None,
+    autor: str = None,
+    autor_imagen: str = None,
+    imagen: str = None,
+    footer: str = None,
+    footer_imagen: str = None
+):
+
+    gid = i.guild.id
+
+    try:
+        color_final = int(color, 16) if color else 0x000000
+    except:
+        color_final = 0x000000
+
+    bye_config[gid] = {
+        "title": titulo,
+        "desc": descripcion,
+        "color": color_final,
+        "autor": (autor, autor_imagen),
+        "image": imagen,
+        "footer": (footer, footer_imagen),
+        "canal": i.channel.id,
+        "activo": True
+    }
+
+    await i.response.send_message(" Despedida activada", ephemeral=True)
+
+@bot.event
+async def on_member_remove(member):
+    if member.bot:
+        return
+
+    cfg = bye_config.get(member.guild.id)
+    if not cfg or not cfg.get("activo"):
+        return
+
+    canal = member.guild.get_channel(cfg["canal"])
+    if not canal:
+        return
+
+    embed = discord.Embed(
+        title=parse_text(cfg.get("title") or "Adiós", member),
+        description=parse_text(cfg.get("desc") or "", member),
+        color=cfg.get("color", 0x000000)
+    )
+
+    if cfg.get("autor"):
+        embed.set_author(
+            name=parse_text(cfg["autor"][0] or "", member),
+            icon_url=parse_text(cfg["autor"][1] or "", member)
+        )
+
+    if cfg.get("image"):
+        embed.set_image(url=parse_text(cfg["image"], member))
+
+    if cfg.get("footer"):
+        embed.set_footer(
+            text=parse_text(cfg["footer"][0] or "", member),
+            icon_url=parse_text(cfg["footer"][1] or "", member)
+        )
+
+    await canal.send(embed=embed)
+
+# --------------------------
+# RESET-WELC
+# --------------------------
+@bot.tree.command(name="reset-welc")
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_welc(i: discord.Interaction):
+
+    gid = i.guild.id
+
+    if gid in welc_config:
+        del welc_config[gid]
+        await i.response.send_message("> Configuración de bienvenida eliminada", ephemeral=True)
+    else:
+        await i.response.send_message("> No había configuración de bienvenida", ephemeral=True)
+
+# -----------------------
+# RESET-BYE
+# -----------------------
+@bot.tree.command(name="reset-bye")
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_bye(i: discord.Interaction):
+
+    gid = i.guild.id
+
+    if gid in bye_config:
+        del bye_config[gid]
+        await i.response.send_message("> Configuración de despedida eliminada", ephemeral=True)
+    else:
+        await i.response.send_message("> había configuración de despedida", ephemeral=True)
+
 # -------------------------
 # FLASK WEB
 # -------------------------
@@ -1577,24 +1736,7 @@ def run_web():
     flask_app.run(host="0.0.0.0", port=10000)
 
 threading.Thread(target=run_web).start()
-
-# -------------------------
-# EMBED
-# -------------------------
-
-@bot.tree.command(name="embed-create")
-@app_commands.checks.has_permissions(administrator=True)
-async def embed_create_slash(i: discord.Interaction, canal: discord.TextChannel = None, titulo: str = None, descripcion: str = None, color: str = None, footer: str = None):
-    canal = canal or i.channel
-    try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        color_final = 0x000000
-    embed = discord.Embed(title=titulo or "", description=descripcion or "", color=color_final)
-    if footer:
-        embed.set_footer(text=footer)
-    await canal.send(embed=embed)
-    await i.response.send_message(f"Embed enviado en {canal.mention}", ephemeral=True)
+    
 
 # -------------------------
 # RUN
