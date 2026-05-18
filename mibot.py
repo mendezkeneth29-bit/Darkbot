@@ -1,16 +1,18 @@
 import discord
 import os
+import io
+from datetime import datetime
+from typing import List, Dict, Optional, Tuple
 import asyncio
 import random
-import io
 import time
 import aiohttp
-from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from groq import AsyncGroq
 from discord.ext import commands
 from discord import app_commands
 from flask import Flask
+from duckduckgo_search import DDGS
 import threading
 
 # -------------------------
@@ -44,7 +46,7 @@ economia_data = {}
 class DarkyBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix=">dl",
+            command_prefix=">dl ",
             intents=discord.Intents.all()
         )
 
@@ -122,7 +124,7 @@ def get_user_eco(guild_id, user_id):
 # =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
-    W, H = 700, 260
+    W, H = 700, 340
     FONDO = (30, 31, 34)
     TEXTO = (255, 255, 255)
     SUBTEXTO = (180, 180, 190)
@@ -131,18 +133,23 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     img = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
+    # BARRA IZQUIERDA DE COLOR
     color = usuario.color
     r = color.r if color.value else 88
     g = color.g if color.value else 101
     b = color.b if color.value else 242
     draw.rectangle([(0, 0), (6, H)], fill=(r, g, b))
 
+    # AVATAR
     avatar_img = await descargar_imagen(str(usuario.display_avatar.url))
     avatar_img = avatar_circular(avatar_img, 90)
     img.paste(avatar_img, (24, 20), avatar_img)
 
+    # NOMBRE
     draw.text((128, 22), usuario.display_name, font=fuente(26, bold=True), fill=TEXTO)
     draw.text((128, 56), f"@{usuario.name}", font=fuente(16), fill=SUBTEXTO)
+
+    # LÍNEA SEPARADORA
     draw.rectangle([(24, 126), (W - 24, 128)], fill=(60, 63, 70))
 
     col1_x = 24
@@ -150,20 +157,32 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     y = 148
 
     def campo(x, y, titulo, valor, ancho=320):
-        draw.rounded_rectangle([(x, y), (x + ancho, y + 64)], radius=8, fill=CAMPO_FONDO)
+        draw.rounded_rectangle(
+            [(x, y), (x + ancho, y + 64)],
+            radius=8,
+            fill=CAMPO_FONDO
+        )
         draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
         draw.text((x + 12, y + 30), valor, font=fuente(17, bold=True), fill=TEXTO)
 
+    # FILA 1
     campo(col1_x, y, "USUARIO", f"@{usuario.display_name}")
     campo(col2_x, y, "ID", str(usuario.id))
 
+    # FILA 2
     y2 = y + 80
     creado = usuario.created_at.strftime("%d/%m/%Y")
     entro = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
     campo(col1_x, y2, "CUENTA CREADA", creado)
     campo(col2_x, y2, "ENTRO AL SERVER", entro)
 
-    draw.text((24, H - 22), f"Solicitado por {usuario.display_name}", font=fuente(12), fill=SUBTEXTO)
+    # FOOTER
+    draw.text(
+        (24, H - 22),
+        f"Solicitado por {usuario.display_name}",
+        font=fuente(12),
+        fill=SUBTEXTO
+    )
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -245,7 +264,7 @@ async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed:
     draw.text((162, 28), usuario.display_name, font=fuente(21, bold=True), fill=TEXTO)
     draw.rounded_rectangle([(162, 62), (242, 84)], radius=11, fill=ACENTO)
     draw.text((202, 68), f"Nivel {nivel}", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
-    draw.text((162, 103), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
+    draw.text((162, 100), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
     draw.rounded_rectangle([(162, 118), (630, 130)], radius=6, fill=GRIS)
 
     progreso = min(xp / xp_needed, 1.0)
@@ -468,7 +487,7 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="spotify.png")
-
+    
 # =========================================================
 # USERINFO
 # =========================================================
@@ -570,7 +589,7 @@ async def spotify_slash(i: discord.Interaction, usuario: discord.Member = None):
     usuario = i.guild.get_member((usuario or i.user).id)
     actividad = discord.utils.find(lambda a: isinstance(a, discord.Spotify), usuario.activities)
     if not actividad:
-        await i.followup.send(f"**{usuario.display_name} no esta escuchando Spotify**", ephemeral=True)
+        await i.followup.send(f"> **{usuario.name} no esta escuchando Spotify**",)
         return
     await i.followup.send(file=await generar_spotify(usuario, actividad))
 
@@ -582,7 +601,7 @@ async def spotify_prefix(ctx, usuario: discord.Member = None):
         await ctx.send(f"**{usuario.display_name} no esta escuchando Spotify**")
         return
     await ctx.send(file=await generar_spotify(usuario, actividad))
-
+    
 # =========================================================
 # NIVEL
 # =========================================================
@@ -674,20 +693,115 @@ async def ranking_prefix(ctx):
     await ctx.send(file=await generar_ranking(ctx.guild, top))
 
 # =========================================================
-# WARN
+# GENERAR TARJETA WARN
+# =========================================================
+
+async def generar_warn(usuario: discord.Member, razon: str, total: int) -> discord.File:
+    W, H     = 680, 180
+    FONDO    = (14, 14, 14)
+    AMARILLO = (245, 158, 11)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AMARILLO)
+
+    # TRIANGULO
+    triangulo = [(80, 22), (138, 122), (22, 122)]
+    draw.polygon(triangulo, fill=AMARILLO)
+
+    # SIGNO !
+    draw.rounded_rectangle([(75, 44), (85, 90)], radius=5, fill=FONDO)
+    draw.ellipse([(74, 102), (86, 114)], fill=FONDO)
+
+    # NOMBRE
+    draw.text((162, 28), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
+
+    # BADGE
+    draw.rounded_rectangle([(162, 56), (252, 78)], radius=11, fill=AMARILLO)
+    draw.text((207, 62), "Advertido", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
+
+    # SEPARADOR
+    draw.rectangle([(162, 92), (645, 93)], fill=GRIS)
+
+    # RAZON
+    draw.text((162, 104), "RAZON", font=fuente(11), fill=SUBTEXTO)
+    razon_texto = razon[:50] + "..." if len(razon) > 50 else razon
+    draw.text((162, 122), razon_texto, font=fuente(15, bold=True), fill=TEXTO)
+
+    # TOTAL WARNS
+    draw.text((162, 154), f"Total de warns: {total}", font=fuente(12), fill=AMARILLO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="warn.png")
+
+# =========================================================
+# GENERAR TARJETA WARNINGS
+# =========================================================
+
+async def generar_warnings(usuario: discord.Member, warns: list) -> discord.File:
+    filas = min(len(warns), 10)
+    W     = 680
+    H     = 90 + (filas * 44)
+    FONDO    = (14, 14, 14)
+    AMARILLO = (245, 158, 11)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    OSCURO   = (21, 21, 21)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AMARILLO)
+
+    # TITULO
+    draw.text((34, 24), f"Warns de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
+    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
+
+    # FILAS
+    for n, w in enumerate(warns[:10]):
+        y = 54 + (n * 44)
+        color_fila = (26, 26, 26) if n % 2 == 0 else OSCURO
+        draw.rounded_rectangle([(34, y), (646, y + 34)], radius=8, fill=color_fila)
+
+        # NUMERO
+        draw.text((54, y + 8), f"#{n+1}", font=fuente(13, bold=True), fill=AMARILLO)
+
+        # RAZON
+        razon = w["razon"][:40] + "..." if len(w["razon"]) > 40 else w["razon"]
+        draw.text((88, y + 10), razon, font=fuente(13), fill=TEXTO)
+
+        # MODERADOR
+        mod = w["moderador"][:20] + "..." if len(w["moderador"]) > 20 else w["moderador"]
+        draw.text((634, y + 10), mod, font=fuente(11), fill=SUBTEXTO, anchor="ra")
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="warnings.png")
+
+# =========================================================
+# COMANDO WARN
 # =========================================================
 
 @bot.tree.command(name="warn")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def warn_slash(i: discord.Interaction, usuario: discord.Member, razon: str):
+    await i.response.defer()
     gid, uid = str(i.guild.id), str(usuario.id)
     if gid not in warnings_data: warnings_data[gid] = {}
     if uid not in warnings_data[gid]: warnings_data[gid][uid] = []
     warnings_data[gid][uid].append({"razon": razon, "moderador": str(i.user), "fecha": str(datetime.now())})
     total = len(warnings_data[gid][uid])
-    embed = discord.Embed(title="Usuario Advertido", color=0x000000)
-    embed.description = f"> Usuario: {usuario.mention}\n> Razon: {razon}\n> Warnings: {total}"
-    await i.response.send_message(embed=embed)
+    await i.followup.send(file=await generar_warn(usuario, razon, total))
 
 @bot.command(name="warn")
 @commands.has_permissions(manage_messages=True)
@@ -697,23 +811,20 @@ async def warn_prefix(ctx, usuario: discord.Member, *, razon: str):
     if uid not in warnings_data[gid]: warnings_data[gid][uid] = []
     warnings_data[gid][uid].append({"razon": razon, "moderador": str(ctx.author), "fecha": str(datetime.now())})
     total = len(warnings_data[gid][uid])
-    embed = discord.Embed(title="Usuario Advertido", color=0x000000)
-    embed.description = f"> Usuario: {usuario.mention}\n> Razon: {razon}\n> Warnings: {total}"
-    await ctx.send(embed=embed)
+    await ctx.send(file=await generar_warn(usuario, razon, total))
 
 # =========================================================
-# WARNINGS
+# COMANDO WARNINGS
 # =========================================================
 
 @bot.tree.command(name="warnings")
 async def warnings_slash(i: discord.Interaction, usuario: discord.Member):
+    await i.response.defer()
     gid, uid = str(i.guild.id), str(usuario.id)
     if gid not in warnings_data or uid not in warnings_data[gid]:
-        await i.response.send_message("> Ese usuario no tiene warnings", ephemeral=True)
+        await i.followup.send("> Ese usuario no tiene warnings", ephemeral=True)
         return
-    texto = "".join([f"> {n}. {w['razon']}\n> Moderador: {w['moderador']}\n\n" for n, w in enumerate(warnings_data[gid][uid], 1)])
-    embed = discord.Embed(title=f"Warnings de {usuario.name}", description=texto, color=0x000000)
-    await i.response.send_message(embed=embed)
+    await i.followup.send(file=await generar_warnings(usuario, warnings_data[gid][uid]))
 
 @bot.command(name="warnings")
 async def warnings_prefix(ctx, usuario: discord.Member):
@@ -721,21 +832,72 @@ async def warnings_prefix(ctx, usuario: discord.Member):
     if gid not in warnings_data or uid not in warnings_data[gid]:
         await ctx.send("> Ese usuario no tiene warnings")
         return
-    texto = "".join([f"> {n}. {w['razon']}\n> Moderador: {w['moderador']}\n\n" for n, w in enumerate(warnings_data[gid][uid], 1)])
-    embed = discord.Embed(title=f"Warnings de {usuario.name}", description=texto, color=0x000000)
-    await ctx.send(embed=embed)
+    await ctx.send(file=await generar_warnings(usuario, warnings_data[gid][uid]))
 
 # =========================================================
-# LOCK / UNLOCK
+# GENERAR TARJETA LOCK
+# =========================================================
+
+async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.File:
+    W, H     = 680, 170
+    FONDO    = (14, 14, 14)
+    COLOR    = (239, 68, 68) if bloqueado else (34, 197, 94)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
+
+    # CUERPO DEL CANDADO
+    draw.rounded_rectangle([(44, 88), (116, 144)], radius=8, fill=COLOR)
+
+    if bloqueado:
+        # ARCO CERRADO - semicírculo perfecto
+        draw.arc([(56, 42), (104, 98)], start=180, end=0, fill=COLOR, width=10)
+    else:
+        # ARCO ABIERTO - desplazado arriba sin cerrar
+        draw.arc([(68, 30), (116, 86)], start=180, end=360, fill=COLOR, width=10)
+
+    # AGUJERO LLAVE
+    draw.ellipse([(71, 103), (89, 121)], fill=FONDO)
+    draw.rounded_rectangle([(76, 112), (84, 126)], radius=3, fill=FONDO)
+
+    # TITULO
+    titulo = "Canal Bloqueado" if bloqueado else "Canal Desbloqueado"
+    draw.text((144, 32), titulo, font=fuente(22, bold=True), fill=TEXTO)
+
+    # SEPARADOR
+    draw.rectangle([(144, 62), (654, 63)], fill=GRIS)
+
+    # CANAL
+    draw.text((144, 76), "CANAL", font=fuente(12), fill=SUBTEXTO)
+    draw.text((144, 96), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO)
+
+    # MENSAJE
+    msg = "Nadie puede enviar mensajes." if bloqueado else "Ya pueden enviar mensajes."
+    draw.text((144, 136), msg, font=fuente(13), fill=COLOR)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="lock.png")
+
+# =========================================================
+# LOCK
 # =========================================================
 
 @bot.tree.command(name="lock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def lock_slash(i: discord.Interaction):
+    await i.response.defer()
     ow = i.channel.overwrites_for(i.guild.default_role)
     ow.send_messages = False
     await i.channel.set_permissions(i.guild.default_role, overwrite=ow)
-    await i.response.send_message(embed=discord.Embed(title="Canal Bloqueado", description="> Nadie puede enviar mensajes.", color=0x000000))
+    await i.followup.send(file=await generar_lock(i.channel, bloqueado=True))
 
 @bot.command(name="lock")
 @commands.has_permissions(manage_channels=True)
@@ -743,15 +905,20 @@ async def lock_prefix(ctx):
     ow = ctx.channel.overwrites_for(ctx.guild.default_role)
     ow.send_messages = False
     await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=ow)
-    await ctx.send(embed=discord.Embed(title="Canal Bloqueado", description="> Nadie puede enviar mensajes.", color=0x000000))
+    await ctx.send(file=await generar_lock(ctx.channel, bloqueado=True))
+
+# =========================================================
+# UNLOCK
+# =========================================================
 
 @bot.tree.command(name="unlock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def unlock_slash(i: discord.Interaction):
+    await i.response.defer()
     ow = i.channel.overwrites_for(i.guild.default_role)
     ow.send_messages = True
     await i.channel.set_permissions(i.guild.default_role, overwrite=ow)
-    await i.response.send_message(embed=discord.Embed(title="Canal Desbloqueado", description="> Ya pueden hablar otra vez.", color=0x000000))
+    await i.followup.send(file=await generar_lock(i.channel, bloqueado=False))
 
 @bot.command(name="unlock")
 @commands.has_permissions(manage_channels=True)
@@ -759,8 +926,7 @@ async def unlock_prefix(ctx):
     ow = ctx.channel.overwrites_for(ctx.guild.default_role)
     ow.send_messages = True
     await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=ow)
-    await ctx.send(embed=discord.Embed(title="Canal Desbloqueado", description="> Ya pueden hablar otra vez.", color=0x000000))
-
+    await ctx.send(file=await generar_lock(ctx.channel, bloqueado=False))
 # =========================================================
 # NUKE
 # =========================================================
@@ -790,31 +956,13 @@ async def nuke_prefix(ctx):
 async def delete_slash(i: discord.Interaction, cantidad: app_commands.Range[int, 1, 1000]):
     await i.response.defer(ephemeral=True)
     eliminados = await i.channel.purge(limit=cantidad)
-    await i.followup.send(f"Se eliminaron {len(eliminados)} mensajes", ephemeral=True)
+    await i.followup.send(f"> Se eliminaron {len(eliminados)} mensajes", ephemeral=True)
 
 @bot.command(name="delete")
 @commands.has_permissions(manage_messages=True)
 async def delete_prefix(ctx, cantidad: int):
     eliminados = await ctx.channel.purge(limit=cantidad + 1)
     await ctx.send(f"Se eliminaron {len(eliminados) - 1} mensajes", delete_after=3)
-
-# =========================================================
-# EMBED CREATE
-# =========================================================
-
-@bot.tree.command(name="embed-create")
-@app_commands.checks.has_permissions(administrator=True)
-async def embed_create_slash(i: discord.Interaction, canal: discord.TextChannel = None, titulo: str = None, descripcion: str = None, color: str = None, footer: str = None):
-    canal = canal or i.channel
-    try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
-    except:
-        color_final = 0x000000
-    embed = discord.Embed(title=titulo or "", description=descripcion or "", color=color_final)
-    if footer:
-        embed.set_footer(text=footer)
-    await canal.send(embed=embed)
-    await i.response.send_message(f"Embed enviado en {canal.mention}", ephemeral=True)
 
 # =========================================================
 # SET NIVELES / WLC / BYE
@@ -1041,6 +1189,380 @@ async def dar_xp(message):
         except Exception as e:
             print(f"Error nivel: {e}")
 
+# =========================================================
+# MANEJO DE ERRORES GLOBAL
+# =========================================================
+@bot.event
+async def on_command_error(ctx: commands.Context, error: commands.CommandError):
+    if isinstance(error, commands.CommandNotFound):
+        return
+    
+    embed = discord.Embed(
+        title="Error",
+        description=f"```{str(error)}```",
+        color=discord.Color.red()
+    )
+    await ctx.send(embed=embed, delete_after=10)
+    logger.error(f"> Error en comando: {error}")
+            
+# =========================================================
+# GENERAR TARJETA SHIP
+# =========================================================
+
+async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porcentaje: int) -> discord.File:
+    W, H     = 680, 200
+    FONDO    = (14, 14, 14)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    # COLOR SIEMPRE ROSA
+    COLOR = (255, 92, 147)    # rosa fuerte
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
+
+    # AVATAR USUARIO 1
+    try:
+        av1 = await descargar_imagen(str(usuario1.display_avatar.url))
+        av1 = avatar_circular(av1, 110)
+        img.paste(av1, (30, 45), av1)
+    except:
+        draw.ellipse([(30, 45), (140, 155)], fill=GRIS)
+    draw.ellipse([(28, 43), (142, 157)], outline=COLOR, width=2)
+
+    # AVATAR USUARIO 2
+    try:
+        av2 = await descargar_imagen(str(usuario2.display_avatar.url))
+        av2 = avatar_circular(av2, 110)
+        img.paste(av2, (540, 45), av2)
+    except:
+        draw.ellipse([(540, 45), (650, 155)], fill=GRIS)
+    draw.ellipse([(538, 43), (652, 157)], outline=COLOR, width=2)
+
+    # NOMBRES
+    nombre1 = usuario1.display_name[:14] + "..." if len(usuario1.display_name) > 14 else usuario1.display_name
+    nombre2 = usuario2.display_name[:14] + "..." if len(usuario2.display_name) > 14 else usuario2.display_name
+    draw.text((85, 162), nombre1, font=fuente(13, bold=True), fill=TEXTO, anchor="mt")
+    draw.text((595, 162), nombre2, font=fuente(13, bold=True), fill=TEXTO, anchor="mt")
+
+    # BARRA CORAZON CENTRAL
+    draw.rounded_rectangle([(160, 82), (520, 118)], radius=18, fill=GRIS)
+    fill_w = int(160 + (360 * porcentaje / 100))
+    if fill_w > 160:
+        draw.rounded_rectangle([(160, 82), (fill_w, 118)], radius=18, fill=COLOR)
+
+    # PORCENTAJE
+    draw.text((340, 100), f"{porcentaje}%", font=fuente(20, bold=True), fill=TEXTO, anchor="mm")
+
+    # FRASE
+    if porcentaje >= 90:
+        frase = "Almas gemelas de otra dimension"
+    elif porcentaje >= 75:
+        frase = "El amor es inevitable entre estos dos"
+    elif porcentaje >= 60:
+        frase = "Hay chispa, pero falta avivarlo"
+    elif porcentaje >= 40:
+        frase = "Podria funcionar... o no"
+    elif porcentaje >= 20:
+        frase = "Mejor como amigos"
+    else:
+        frase = "Incompatibles al maximo nivel"
+
+    draw.text((340, 140), frase, font=fuente(12), fill=SUBTEXTO, anchor="mt")
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="ship.png")
+    
+# =========================================================
+# COMANDO SHIP
+# =========================================================
+
+@bot.tree.command(name="ship", description="Calcula la compatibilidad entre dos usuarios")
+async def ship_slash(i: discord.Interaction, usuario1: discord.Member, usuario2: discord.Member):
+    await i.response.defer()
+
+    # PORCENTAJE CONSISTENTE BASADO EN IDS
+    seed = (usuario1.id + usuario2.id) % 101
+    random.seed(seed)
+    porcentaje = random.randint(0, 100)
+    random.seed()
+
+    archivo = await generar_ship(usuario1, usuario2, porcentaje)
+    await i.followup.send(file=archivo)
+
+
+@bot.command(name="ship")
+async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
+    seed = (usuario1.id + usuario2.id) % 101
+    random.seed(seed)
+    porcentaje = random.randint(0, 100)
+    random.seed()
+
+    archivo = await generar_ship(usuario1, usuario2, porcentaje)
+    await ctx.send(file=archivo)
+
+# =========================================================
+# GENERAR TARJETA SPOTIFY SEARCH
+# =========================================================
+
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+
+async def generar_spotify_search(tracks: list, query: str) -> discord.File:
+    filas = min(len(tracks), 4)
+    W     = 680
+    H     = 110 + (filas * 80)
+    FONDO    = (14, 14, 14)
+    VERDE    = (29, 185, 84)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    OSCURO   = (21, 21, 21)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
+
+    # HEADER
+    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, fill=(20, 20, 20))
+    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS, width=1)
+    draw.text((42, 24), "Spotify Search", font=fuente(11), fill=SUBTEXTO)
+    query_texto = query[:55] + "..." if len(query) > 55 else query
+    draw.text((42, 42), query_texto, font=fuente(15, bold=True), fill=TEXTO)
+
+    # SEPARADOR
+    draw.rectangle([(24, 86), (656, 87)], fill=GRIS)
+
+    # RESULTADOS
+    for n, track in enumerate(tracks[:4]):
+        y = 96 + (n * 80)
+        color_fila = (22, 22, 22) if n % 2 == 0 else OSCURO
+
+        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, fill=color_fila)
+        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, outline=GRIS, width=1)
+
+        # PORTADA MINI
+        try:
+            cover = await descargar_imagen(track["cover"])
+            cover = cover.resize((52, 52)).convert("RGBA")
+            mask = Image.new("L", (52, 52), 0)
+            ImageDraw.Draw(mask).rounded_rectangle([(0, 0), (52, 52)], radius=6, fill=255)
+            cover_r = Image.new("RGBA", (52, 52), (0, 0, 0, 0))
+            cover_r.paste(cover, (0, 0), mask)
+            img.paste(cover_r, (36, y + 8), cover_r)
+        except:
+            draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS)
+
+        # NUMERO
+        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=VERDE)
+
+        # NOMBRE CANCION
+        nombre = track["nombre"][:38] + "..." if len(track["nombre"]) > 38 else track["nombre"]
+        draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO)
+
+        # ARTISTA
+        artista = track["artista"][:45] + "..." if len(track["artista"]) > 45 else track["artista"]
+        draw.text((118, y + 30), artista, font=fuente(12), fill=VERDE)
+
+        # DURACION
+        duracion = track.get("duracion", "")
+        draw.text((634, y + 28), duracion, font=fuente(11), fill=SUBTEXTO, anchor="ra")
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="spotify_search.png")
+
+# =========================================================
+# HELPERS SPOTIFY SEARCH
+# =========================================================
+
+async def buscar_spotify(query: str) -> list:
+    url = "https://spotify23.p.rapidapi.com/search/"
+    headers = {
+        "X-RapidAPI-Key":  RAPIDAPI_KEY,
+        "X-RapidAPI-Host": "spotify23.p.rapidapi.com"
+    }
+    params = {
+        "q":      query,
+        "type":   "tracks",
+        "limit":  "4",
+        "offset": "0"
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers, params=params) as r:
+            data = await r.json()
+
+    tracks = []
+    items = data.get("tracks", {}).get("items", [])
+
+    for item in items[:4]:
+        track = item.get("data", {})
+        nombre  = track.get("name", "Sin nombre")
+        artista = ", ".join([a.get("profile", {}).get("name", "") for a in track.get("artists", {}).get("items", [])])
+        cover   = ""
+        covers  = track.get("albumOfTrack", {}).get("coverArt", {}).get("sources", [])
+        if covers:
+            cover = covers[0].get("url", "")
+
+        # DURACION
+        ms      = track.get("duration", {}).get("totalMilliseconds", 0)
+        seg     = ms // 1000
+        duracion = f"{seg // 60}:{seg % 60:02}"
+
+        # URL
+        track_uri = track.get("uri", "")
+        track_id  = track_uri.split(":")[-1] if track_uri else ""
+        track_url = f"https://open.spotify.com/track/{track_id}" if track_id else "https://open.spotify.com"
+
+        tracks.append({
+            "nombre":   nombre,
+            "artista":  artista,
+            "cover":    cover,
+            "duracion": duracion,
+            "url":      track_url
+        })
+
+    return tracks
+
+# =========================================================
+# VISTA CON BOTONES DE CADA CANCION
+# =========================================================
+
+class SpotifySearchView(discord.ui.View):
+    def __init__(self, tracks: list):
+        super().__init__(timeout=None)
+        for n, track in enumerate(tracks[:4]):
+            nombre = track["nombre"][:40] + "..." if len(track["nombre"]) > 40 else track["nombre"]
+            self.add_item(discord.ui.Button(
+                label=f"{n+1}. {nombre}",
+                url=track["url"],
+                style=discord.ButtonStyle.link,
+                emoji="<:music:1504691247619641404>"
+            ))
+
+# =========================================================
+# COMANDO SPOTIFY SEARCH
+# =========================================================
+
+@bot.tree.command(name="spotify-search", description="Busca una cancion en Spotify")
+async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
+    await i.response.defer()
+    try:
+        tracks = await buscar_spotify(cancion)
+
+        if not tracks:
+            await i.followup.send("> No se encontraron resultados.", ephemeral=True)
+            return
+
+        archivo = await generar_spotify_search(tracks, cancion)
+        view    = SpotifySearchView(tracks)
+        await i.followup.send(file=archivo, view=view)
+
+    except Exception as e:
+        await i.followup.send(f"Error:\n```{e}```", ephemeral=True)
+
+
+@bot.command(name="spotify-search")
+async def spotify_buscar_prefix(ctx, *, cancion: str):
+    async with ctx.typing():
+        try:
+            tracks = await buscar_spotify(cancion)
+
+            if not tracks:
+                await ctx.send("> No se encontraron resultados.")
+                return
+
+            archivo = await generar_spotify_search(tracks, cancion)
+            view    = SpotifySearchView(tracks)
+            await ctx.send(file=archivo, view=view)
+
+        except Exception as e:
+            await ctx.send(f"Error:\n```{e}```")
+            
+# ---------------------------
+# ROBLOX
+# ---------------------------
+
+import aiohttp
+import discord
+from discord.ext import commands
+from datetime import datetime
+
+@bot.hybrid_command(
+    name="roblox", 
+    description="Mira el perfil de roblox de alguien"
+)
+async def roblox(ctx: commands.Context, usuario: str):
+    # Asegura que el bot no se quede congelado esperando la respuesta de Roblox
+    await ctx.defer() if ctx.interaction else None
+
+    async with aiohttp.ClientSession() as session:
+        # 1. Obtener el ID del usuario y su nombre real
+        data_user = {"usernames": [usuario], "excludeBannedUsers": False}
+        async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
+            if resp.status != 200:
+                return await ctx.send("> Error al conectar con la API de Roblox.")
+            
+            res_user = await resp.json()
+            if not res_user["data"]:
+                return await ctx.send(f"> El usuario **{usuario}** no existe en Roblox.")
+            
+            user_info = res_user["data"][0]
+            user_id = user_info["id"]
+            roblox_user = user_info["displayName"] # Nombre visible
+
+        # 2. Obtener fecha de creación (y si está baneado)
+        async with session.get(f"https://users.roblox.com/v1/users/{user_id}") as resp:
+            res_details = await resp.json()
+            # Formateamos la fecha (Ej: 25 Jan 2018)
+            fecha_iso = res_details["created"].split("T")[0]
+            fecha_obj = datetime.strptime(fecha_iso, "%Y-%m-%d")
+            cuenta_creada = fecha_obj.strftime("%d/%m/%Y")
+
+        # 3. Obtener cantidad de amigos
+        async with session.get(f"https://friends.roblox.com/v1/users/{user_id}/friends/count") as resp:
+            res_friends = await resp.json()
+            cantidad_amigos = res_friends.get("count", 0)
+
+        # 4. Obtener el avatar completo (Cuerpo entero, tamaño grande 720x720)
+        avatar_url = "https://images.rbxcdn.com/default_avatar.png" # Por si falla
+        async with session.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as resp:
+            if resp.status == 200:
+                res_thumb = await resp.json()
+                if res_thumb["data"]:
+                    avatar_url = res_thumb["data"][0]["imageUrl"]
+
+    # Link al perfil real
+    perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
+
+    # Creamos el Embed exactamente como lo querías
+    embed = discord.Embed(
+        description=(
+            f"> **User:** {roblox_user}\n"
+            f"> **Creada:** {cuenta_creada}\n"
+            f"> **Amigos:** {cantidad_amigos}\n"
+            f"> **Link:** [Visitar Perfil]({perfil_link})"
+        ),
+        color=discord.Color.from_str("#010101")
+    )
+    
+    # Coloca el render del cuerpo completo abajo
+    embed.set_image(url=avatar_url)
+
+    # Si fue comando slash usa reply, si fue prefijo usa send de forma automática
+    if ctx.interaction:
+        await ctx.interaction.followup.send(embed=embed)
+    else:
+        await ctx.send(embed=embed)
 # -------------------------
 # FLASK WEB
 # -------------------------
@@ -1055,6 +1577,24 @@ def run_web():
     flask_app.run(host="0.0.0.0", port=10000)
 
 threading.Thread(target=run_web).start()
+
+# -------------------------
+# EMBED
+# -------------------------
+
+@bot.tree.command(name="embed-create")
+@app_commands.checks.has_permissions(administrator=True)
+async def embed_create_slash(i: discord.Interaction, canal: discord.TextChannel = None, titulo: str = None, descripcion: str = None, color: str = None, footer: str = None):
+    canal = canal or i.channel
+    try:
+        color_final = int(color.replace("#", ""), 16) if color else 0x000000
+    except:
+        color_final = 0x000000
+    embed = discord.Embed(title=titulo or "", description=descripcion or "", color=color_final)
+    if footer:
+        embed.set_footer(text=footer)
+    await canal.send(embed=embed)
+    await i.response.send_message(f"Embed enviado en {canal.mention}", ephemeral=True)
 
 # -------------------------
 # RUN
