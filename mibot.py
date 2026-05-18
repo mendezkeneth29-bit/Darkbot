@@ -1568,7 +1568,10 @@ async def roblox(ctx: commands.Context, usuario: str):
 # MEMES
 # -------------------------
 
-@bot.command(name="meme")
+@bot.Hybrid_command(
+    name="meme",
+    description="crea tus memes o buscalos"
+)
 async def crear_meme(ctx, plantilla: str, *, texto: str):
     """
     Genera un meme al estilo TikTok con texto superior.
@@ -1647,7 +1650,7 @@ async def crear_meme(ctx, plantilla: str, *, texto: str):
 # ------------------------
 
 # CONFIGURACIÓN: Pega aquí tu API Key de OpenWeatherMap
-WEATHER_API_KEY = "TU_API_KEY_AQUÍ"
+WEATHER_API_KEY = "693249678b73a919f2a17cd467b44ca1"
 
 @bot.command(name="clima")
 async def consultar_clima(ctx, *, ciudad: str):
