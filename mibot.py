@@ -1563,6 +1563,177 @@ async def roblox(ctx: commands.Context, usuario: str):
         await ctx.interaction.followup.send(embed=embed)
     else:
         await ctx.send(embed=embed)
+
+# -------------------------
+# MEMES
+# -------------------------
+
+@bot.command(name="meme")
+async def crear_meme(ctx, plantilla: str, *, texto: str):
+    """
+    Genera un meme al estilo TikTok con texto superior.
+    Uso: !meme pov cuando el profe no viene
+    """
+    # 1. Diccionario con las rutas de tus plantillas de TikTok
+    plantillas = {
+        "pov": "memes/pov.jpg",
+        "reaccion": "memes/mi_honestidad.jpg",
+        "basado": "memes/basado.jpg",
+        "contexto": "memes/contexto.jpg"
+    }
+
+    # Verificar si la plantilla existe
+    plantilla = plantilla.lower()
+    if plantilla not in plantillas:
+        lista_memes = ", ".join([f"`{k}`" for k in plantillas.keys()])
+        await ctx.send(f"> Esa plantilla no existe. Elige una de estas: {lista_memes}")
+        return
+
+    ruta_imagen = plantillas[plantilla]
+
+    # 2. Procesamiento de la imagen con Pillow
+    try:
+        # Abrir la plantilla de fondo
+        img = Image.open(ruta_imagen)
+        draw = ImageDraw.Draw(img)
+        
+        # Intentar cargar una fuente impactante (puedes meter un archivo .ttf en tu proyecto)
+        # Si estás en Windows, 'arial.ttf' suele funcionar. En Linux/Render sube tu propio archivo .ttf
+        try:
+            font = ImageFont.truetype("arial.ttf", int(img.height * 0.08)) # Tamaño dinámico según la foto
+        except IOError:
+            font = ImageFont.load_default()
+
+        # Configurar el texto y dónde se va a dibujar
+        # En TikTok se usa mucho el texto arriba centrado con fondo o borde
+        ancho_texto = draw.textlength(texto, font=font)
+        x = (img.width - ancho_texto) / 2
+        y = int(img.height * 0.05) # 5% desde arriba
+
+        # Dibujar borde negro para que se lea bien (Estilo Meme)
+        for offset in [(-2, -2), (2, -2), (-2, 2), (2, 2)]:
+            draw.text((x + offset[0], y + offset[1]), texto, font=font, fill="black")
+
+        # Dibujar el texto blanco principal
+        draw.text((x, y), texto, font=font, fill="white")
+
+        # 3. Guardar temporalmente y enviar a Discord
+        ruta_salida = "memes/temp_output.png"
+        img.save(ruta_salida)
+
+        # Enviar archivo a Discord
+        with open(ruta_salida, "rb") as f:
+            archivo = discord.File(f, filename="meme_tiktok.png")
+            
+            # Crear un Embed elegante para presentarlo
+            embed = discord.Embed(
+                title=f"¡creado por {ctx.author.display_name}!",
+                color=0x2f3136
+            )
+            embed.set_image(url="attachment://meme_tiktok.png")
+            embed.set_footer(text="Tendencias TikTok 2026")
+            
+            await ctx.send(file=archivo, embed=embed)
+
+        # Borrar el archivo temporal para no llenar espacio
+        os.remove(ruta_salida)
+
+    except Exception as e:
+        await ctx.send("> Hubo un error al generar el meme.")
+        print(f"Error en comando meme: {e}")
+
+# ------------------------
+# CLIMA
+# ------------------------
+
+# CONFIGURACIÓN: Pega aquí tu API Key de OpenWeatherMap
+WEATHER_API_KEY = "TU_API_KEY_AQUÍ"
+
+@bot.command(name="clima")
+async def consultar_clima(ctx, *, ciudad: str):
+    """
+    Muestra el clima actual de una ciudad en una tarjeta visual dinámica.
+    Uso: !clima Ciudad de México
+    """
+    # 1. Petición a la API de OpenWeatherMap (en español y unidades métricas)
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={WEATHER_API_KEY}&units=metric&lang=es"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                await ctx.send("❌ No logré encontrar esa ciudad. Asegúrate de escribir bien el nombre.")
+                return
+            data = await response.json()
+
+    # Extraer los datos que nos importan de la API
+    nombre_ciudad = data["name"]
+    pais = data["sys"]["country"]
+    temp = round(data["main"]["temp"])
+    sensacion = round(data["main"]["feels_like"])
+    humedad = data["main"]["humidity"]
+    descripcion = data["weather"][0]["description"].capitalize()
+
+    # 2. Lógica Dinámica de Colores (Cambia según la temperatura)
+    # Definimos el color de fondo de la tarjeta: Frío = Azul, Templado = Verde, Calor = Naranja/Rojo
+    if temp <= 12:
+        color_fondo = (43, 92, 138)       # Azul frío
+        estado_termico = "❄️ ¡Hace frío!"
+    elif 13 <= temp <= 26:
+        color_fondo = (46, 117, 89)       # Verde templado
+        estado_termico = "Clima agradable"
+    else:
+        color_fondo = (194, 91, 41)       # Naranja/Rojo cálido
+        estado_termico = "¡Qué calor!"
+
+    # 3. Creación de la Tarjeta Visual con Pillow
+    # Creamos una imagen desde cero (Ancho: 600px, Alto: 250px)
+    img = Image.new("RGB", (600, 250), color=color_fondo)
+    draw = ImageDraw.Draw(img)
+
+    # Intentar cargar fuentes (Si estás en Linux/Render, asegúrate de subir un archivo .ttf)
+    try:
+        fuente_titulo = ImageFont.truetype("arial.ttf", 35)
+        fuente_temp = ImageFont.truetype("arial.ttf", 60)
+        fuente_sub = ImageFont.truetype("arial.ttf", 20)
+    except IOError:
+        fuente_titulo = fuente_temp = fuente_sub = ImageFont.load_default()
+
+    # Dibujar los textos en la imagen
+    # Ciudad y País
+    draw.text((30, 25), f"{nombre_ciudad}, {pais}", font=fuente_titulo, fill="white")
+    
+    # Temperatura Gigante
+    draw.text((30, 80), f"{temp}°C", font=fuente_temp, fill="white")
+    
+    # Estado térmico abajo de la temperatura
+    draw.text((30, 160), estado_termico, font=fuente_sub, fill="white")
+
+    # Detalles a la derecha (Sensación, Humedad, Estado)
+    draw.text((350, 90), f"Condición: {descripcion}", font=fuente_sub, fill="white")
+    draw.text((350, 130), f"Sensación: {sensacion}°C", font=fuente_sub, fill="white")
+    draw.text((350, 170), f"Humedad: {humedad}%", font=fuente_sub, fill="white")
+
+    # 4. Guardar y enviar a Discord
+    ruta_salida = "clima_temp.png"
+    img.save(ruta_salida)
+
+    with open(ruta_salida, "rb") as f:
+        archivo = discord.File(f, filename="clima.png")
+        
+        # Creamos un Embed para empaquetar la imagen elegantemente
+        embed = discord.Embed(
+            title=f"Reporte del Clima para {nombre_ciudad}",
+            color=discord.Color.from_rgb(*color_fondo)
+        )
+        embed.set_image(url="attachment://clima.png")
+        embed.set_footer(text=f"> Solicitado por {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        
+        await ctx.send(file=archivo, embed=embed)
+
+    # Limpiar el archivo temporal
+    if os.path.exists(ruta_salida):
+        os.remove(ruta_salida)
+
 # -------------------------
 # FLASK WEB
 # -------------------------
