@@ -1653,6 +1653,94 @@ async def on_message(message):
 
             break
 
+# =========================================================
+# VER CLAVES
+# =========================================================
+
+@bot.hybrid_command(
+    name="claves",
+    description="Muestra todas las palabras clave"
+)
+async def claves_list(i: discord.Interaction):
+
+    gid = i.guild.id
+
+    # SI NO HAY CLAVES
+    if gid not in claves or not claves[gid]:
+
+        await i.response.send_message(
+            "No hay claves creadas.",
+            ephemeral=True
+        )
+
+        return
+
+    texto = ""
+
+    for palabra, mensaje in claves[gid].items():
+
+        texto += (
+            f"`{palabra}`\n"
+            f"> **{mensaje}**\n\n"
+        )
+
+    embed = discord.Embed(
+        title="Lista de claves",
+        description=texto,
+        color=0x000000
+    )
+
+    await i.response.send_message(
+        embed=embed
+    )
+
+# =========================================================
+# ELIMINAR CLAVE
+# =========================================================
+
+@bot.hybrid_command(
+    name="eliminar-clave",
+    description="Elimina una palabra clave"
+)
+@app_commands.checks.has_permissions(
+    administrator=True
+)
+async def eliminar_clave(
+    i: discord.Interaction,
+    palabra: str
+):
+
+    gid = i.guild.id
+
+    # SI NO EXISTE
+    if (
+        gid not in claves
+        or palabra.lower() not in claves[gid]
+    ):
+
+        await i.response.send_message(
+            "Esa clave no existe.",
+            ephemeral=True
+        )
+
+        return
+
+    # ELIMINAR
+    del claves[gid][palabra.lower()]
+
+    embed = discord.Embed(
+        description=(
+            f"La clave `{palabra}` "
+            f"> fue eliminada."
+        ),
+        color=0x000000
+    )
+
+    await i.response.send_message(
+        embed=embed,
+        ephemeral=True
+    )
+
 # -------------------------
 # FLASK WEB
 # -------------------------
