@@ -1603,7 +1603,7 @@ async def clave(
         f"> {mensaje}"
     )
 
-    await i.response.send_message(
+    await ctx.send()
         embed=embed,
         ephemeral=True
     )
@@ -1690,7 +1690,7 @@ async def claves_list(i: discord.Interaction):
         color=0x000000
     )
 
-    await i.response.send_message(
+    await ctx.send()
         embed=embed
     )
 
@@ -1736,7 +1736,7 @@ async def eliminar_clave(
         color=0x000000
     )
 
-    await i.response.send_message(
+    await ctx.send()
         embed=embed,
         ephemeral=True
     )
