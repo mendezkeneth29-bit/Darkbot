@@ -1566,91 +1566,45 @@ async def roblox(ctx: commands.Context, usuario: str):
         await ctx.send(embed=embed)
 
 # =========================================================
-# COMANDO CLAVE
+# CREAR CLAVE
 # =========================================================
 
 @bot.hybrid_command(
     name="clave",
     description="Crear una palabra clave"
 )
-@app_commands.checks.has_permissions(
+@commands.has_permissions(
     administrator=True
 )
 async def clave(
-    i: discord.Interaction,
+    ctx,
     palabra: str,
+    *,
     mensaje: str
 ):
 
-    gid = i.guild.id
+    gid = ctx.guild.id
 
-    # CREAR LISTA DEL SERVER
     if gid not in claves:
         claves[gid] = {}
 
-    # GUARDAR CLAVE
     claves[gid][palabra.lower()] = mensaje
 
     embed = discord.Embed(
-        title="> Clave creada",
+        title="Clave creada",
         color=0x000000
     )
 
     embed.description = (
-        f"> Palabra clave:\n"
+        f"> Palabra:\n"
         f"> `{palabra}`\n\n"
         f"> Mensaje:\n"
         f"> {mensaje}"
     )
 
-    await ctx.send()
-        embed=embed,
+    await ctx.send(
+        embed=embed
     )
-
-# =========================================================
-# DETECTAR CLAVES
-# =========================================================
-
-@bot.event
-async def on_message(message):
-
-    # IGNORAR BOTS
-    if message.author.bot:
-        return
-
-    # PROCESAR COMANDOS
-    await bot.process_commands(message)
-
-    # SI NO ES SERVER
-    if not message.guild:
-        return
-
-    gid = message.guild.id
-
-    # SI NO HAY CLAVES
-    if gid not in claves:
-        return
-
-    contenido = message.content.lower()
-
-    # REVISAR CLAVES
-    for palabra, respuesta in claves[gid].items():
-
-        if palabra in contenido:
-
-            embed = discord.Embed(
-                color=0x000000
-            )
-
-            embed.description = (
-                f"> {respuesta}"
-            )
-
-            await message.channel.send(
-                embed=embed
-            )
-
-            break
 
 # =========================================================
 # VER CLAVES
@@ -1658,18 +1612,16 @@ async def on_message(message):
 
 @bot.hybrid_command(
     name="claves",
-    description="Muestra todas las palabras clave"
+    description="Ver todas las claves"
 )
-async def claves_list(i: discord.Interaction):
+async def claves_list(ctx):
 
-    gid = i.guild.id
+    gid = ctx.guild.id
 
-    # SI NO HAY CLAVES
     if gid not in claves or not claves[gid]:
 
-        await i.response.send_message(
-            "No hay claves creadas.",
-            ephemeral=True
+        await ctx.send(
+            "No hay claves creadas."
         )
 
         return
@@ -1680,7 +1632,7 @@ async def claves_list(i: discord.Interaction):
 
         texto += (
             f"`{palabra}`\n"
-            f"> **{mensaje}**\n\n"
+            f"> {mensaje}\n\n"
         )
 
     embed = discord.Embed(
@@ -1689,7 +1641,7 @@ async def claves_list(i: discord.Interaction):
         color=0x000000
     )
 
-    await ctx.send()
+    await ctx.send(
         embed=embed
     )
 
@@ -1699,32 +1651,29 @@ async def claves_list(i: discord.Interaction):
 
 @bot.hybrid_command(
     name="eliminar-clave",
-    description="Elimina una palabra clave"
+    description="Eliminar una clave"
 )
-@app_commands.checks.has_permissions(
+@commands.has_permissions(
     administrator=True
 )
 async def eliminar_clave(
-    i: discord.Interaction,
+    ctx,
     palabra: str
 ):
 
-    gid = i.guild.id
+    gid = ctx.guild.id
 
-    # SI NO EXISTE
     if (
         gid not in claves
         or palabra.lower() not in claves[gid]
     ):
 
-        await i.response.send_message(
-            "Esa clave no existe.",
-            ephemeral=True
+        await ctx.send(
+            "Esa clave no existe."
         )
 
         return
 
-    # ELIMINAR
     del claves[gid][palabra.lower()]
 
     embed = discord.Embed(
@@ -1735,9 +1684,8 @@ async def eliminar_clave(
         color=0x000000
     )
 
-    await ctx.send()
-        embed=embed,
-        ephemeral=True
+    await ctx.send(
+        embed=embed
     )
 
 # -------------------------
