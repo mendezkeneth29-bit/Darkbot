@@ -4,6 +4,7 @@ import io
 from datetime import datetime
 import asyncio
 import random
+import json
 import time
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
@@ -635,7 +636,7 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
     draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, fill=(18, 18, 18))
     draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS, width=1)
     draw.text((42, 24), "Spotify Search", font=fuente(11), fill=SUBTEXTO)
@@ -658,11 +659,11 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
         except:
             draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS)
 
-        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=VERDE)
+        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=ROSA)
         nombre = track["nombre"][:38] + "..." if len(track["nombre"]) > 38 else track["nombre"]
         draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO)
         artista = track["artista"][:45] + "..." if len(track["artista"]) > 45 else track["artista"]
-        draw.text((118, y + 30), artista, font=fuente(12), fill=VERDE)
+        draw.text((118, y + 30), artista, font=fuente(12), fill=ROSA)
         draw.text((634, y + 28), track.get("duracion", ""), font=fuente(11), fill=SUBTEXTO, anchor="ra")
 
     buf = io.BytesIO()
@@ -1037,30 +1038,6 @@ async def ping_prefix(ctx):
     embed.description = f"> Pong! `{ms}ms`"
     await ctx.send(embed=embed)
 
-@bot.tree.command(name="8ball", description="La bola magica responde tu pregunta")
-async def bola_slash(i: discord.Interaction, pregunta: str):
-    respuestas = [
-        "Si, definitivamente", "No lo creo", "Absolutamente",
-        "Mejor no contarlo", "Sin duda", "Muy dudoso",
-        "Las senales dicen que si", "Mis fuentes dicen que no",
-        "Perspectivas no muy buenas", "Es cierto"
-    ]
-    embed = discord.Embed(color=0xff69b4)
-    embed.description = f"> **{pregunta}**\n> {random.choice(respuestas)}"
-    await i.response.send_message(embed=embed)
-
-@bot.command(name="8ball")
-async def bola_prefix(ctx, *, pregunta: str):
-    respuestas = [
-        "Si, definitivamente", "No lo creo", "Absolutamente",
-        "Mejor no contarlo", "Sin duda", "Muy dudoso",
-        "Las senales dicen que si", "Mis fuentes dicen que no",
-        "Perspectivas no muy buenas", "Es cierto"
-    ]
-    embed = discord.Embed(color=0xff69b4)
-    embed.description = f"> **{pregunta}**\n> {random.choice(respuestas)}"
-    await ctx.send(embed=embed)
-
 @bot.tree.command(name="moneda", description="Tira una moneda")
 async def moneda_slash(i: discord.Interaction):
     resultado = random.choice(["Cara", "Cruz"])
@@ -1101,7 +1078,7 @@ async def ask_slash(i: discord.Interaction, mensaje: str):
             return
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Eres un Bot amigable, divertida y algo sarcastica, tu nombre es Misti, y eres transexual."}, {"role": "user", "content": mensaje}]
+            messages=[{"role": "system", "content": "Eres un Bot amigable, divertida y algo sarcastica, tu nombre es Misti."}, {"role": "user", "content": mensaje}]
         )
         texto = respuesta.choices[0].message.content
         embed = discord.Embed(color=0xff69b4)
@@ -1115,7 +1092,7 @@ async def ask_prefix(ctx, *, mensaje: str):
     try:
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Eres un Bot amigable, divertida y algo sarcastica, tu nombre es Misti, y eres transexual."}, {"role": "user", "content": mensaje}]
+            messages=[{"role": "system", "content": "Eres un Bot amigable, divertida y algo sarcastica, tu nombre es Misti."}, {"role": "user", "content": mensaje}]
         )
         texto = respuesta.choices[0].message.content
         embed = discord.Embed(color=0xff69b4)
@@ -1447,6 +1424,149 @@ async def dar_xp(message):
             await canal.send(content=message.author.mention, file=await generar_nivel(message.author, data["level"], data["xp"], xp_para_nivel(data["level"])))
         except Exception as e:
             print(f"Error nivel: {e}")
+
+# Nombre del archivo donde se guardarán las claves
+CLAVES_FILE = "claves.json"
+
+# Funciones para cargar y guardar los datos de forma segura
+def cargar_claves():
+    if not os.path.exists(CLAVES_FILE):
+        return {}
+    try:
+        with open(CLAVES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def guardar_claves(datos):
+    with open(CLAVES_FILE, "w", encoding="utf-8") as f:
+        json.dump(datos, f, indent=4, ensure_ascii=False)
+
+# ---------------------------------------------------------
+# 1. COMANDO: CREAR O ACTUALIZAR UNA CLAVE
+# ---------------------------------------------------------
+@bot.hybrid_command(
+    name="clave", 
+    description="Registra una palabra clave y el mensaje que responderá el bot."
+)
+@commands.has_permissions(manage_messages=True) # Solo para moderadores/staff
+async def clave(ctx: commands.Context, palabra_clave: str, *, mensaje_respuesta: str):
+    # Convertimos la clave a minúsculas para evitar problemas de mayúsculas/minúsculas
+    clave_lower = palabra_clave.lower()
+    
+    datos = cargar_claves()
+    guild_id = str(ctx.guild.id)
+    
+    # Si el servidor no tiene claves registradas, creamos su sección
+    if guild_id not in datos:
+        datos[guild_id] = {}
+        
+    datos[guild_id][clave_lower] = mensaje_respuesta
+    guardar_claves(datos)
+    
+    embed = discord.Embed(
+        title="Clave Registrada",
+        description=f"¡Cada vez que alguien diga **'{palabra_clave}'**, responderé con el mensaje configurado!",
+        color=discord.Color.from_rgb(ROSA) # Tu rosa estético
+    )
+    embed.add_field(name="Palabra:", value=f"`{clave_lower}`", inline=True)
+    embed.add_field(name="Respuesta:", value=mensaje_respuesta, inline=False)
+    
+    await ctx.send(embed=embed)
+
+# ---------------------------------------------------------
+# 2. COMANDO: VER LA LISTA DE CLAVES
+# ---------------------------------------------------------
+@bot.hybrid_command(
+    name="lista-claves", 
+    description="Muestra todas las palabras clave registradas en este servidor."
+)
+async def lista_claves(ctx: commands.Context):
+    datos = cargar_claves()
+    guild_id = str(ctx.guild.id)
+    
+    # Verificar si hay datos o si el servidor tiene claves
+    if guild_id not in datos or not datos[guild_id]:
+        await ctx.send("❌ No hay ninguna palabra clave registrada en este servidor.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="Palabras Clave del Servidor",
+        description="Aquí tienes la lista completa de activadores automáticos:",
+        color=discord.Color.from_rgb(ROSA) # Tu morado estético
+    )
+    
+    # Listamos todas las claves guardadas para este servidor
+    for clave, respuesta in datos[guild_id].items():
+        # Cortamos la respuesta si es demasiado larga para el embed
+        res_corta = respuesta if len(respuesta) < 50 else respuesta[:47] + "..."
+        embed.add_field(name=f"> `{clave}`", value=f"↳ {res_corta}", inline=False)
+        
+    await ctx.send(embed=embed)
+
+# ---------------------------------------------------------
+# 3. COMANDO: ELIMINAR UNA CLAVE
+# ---------------------------------------------------------
+@bot.hybrid_command(
+    name="delete-clave", 
+    description="Elimina una palabra clave para que el bot deje de responder a ella."
+)
+@commands.has_permissions(manage_messages=True)
+async def delete_clave(ctx: commands.Context, palabra_clave: str):
+    clave_lower = palabra_clave.lower()
+    datos = cargar_claves()
+    guild_id = str(ctx.guild.id)
+    
+    if guild_id not in datos or clave_lower not in datos[guild_id]:
+        await ctx.send(f"> La palabra clave `{palabra_clave}` no existe.", ephemeral=True)
+        return
+        
+    # Eliminamos la clave
+    del datos[guild_id][clave_lower]
+    guardar_claves(datos)
+    
+    embed = discord.Embed(
+        title="🗑️ Clave Eliminada",
+        description=f"La palabra clave **`{clave_lower}`** fue borrada exitosamente.",
+        color=discord.Color.pink()
+    )
+    await ctx.send(embed=embed)
+⚙️ El detector de mensajes (on_message)
+Para que el bot realmente responda cuando los usuarios escriben en los canales, necesitas añadir este código a tu evento on_message actual.
+
+Asegúrate de incluir el await bot.process_commands(message) al final para que los comandos normales sigan funcionando.
+
+Python
+@bot.event
+async def on_message(message):
+    # Si el mensaje es de un bot, lo ignoramos para evitar bucles infinitos
+    if message.author.bot:
+        return
+
+    # Si estamos en un servidor (guild)
+    if message.guild:
+        datos = cargar_claves()
+        guild_id = str(message.guild.id)
+        
+        # Si este servidor tiene claves registradas
+        if guild_id in datos:
+            # Convertimos todo el contenido a minúsculas
+            contenido = message.content.lower()
+            
+            # Opción A: Si quieres que responda solo si el mensaje es EXACTAMENTE la palabra clave
+            if contenido in datos[guild_id]:
+                respuesta = datos[guild_id][contenido]
+                await message.channel.send(respuesta)
+                
+            # Opción B (Opcional): Si prefieres que responda si la palabra está INCLUIDA en cualquier parte del texto,
+            # puedes usar este código en su lugar reemplazando las líneas de arriba:
+            # for clave, respuesta in datos[guild_id].items():
+            #     if clave in contenido:
+            #         await message.channel.send(respuesta)
+            #         break
+
+    # ¡SÚPER IMPORTANTE! Esto permite que sigan funcionando tus comandos normales e híbridos
+    await bot.process_commands(message)
 
 # =========================================================
 # ERROR HANDLER
