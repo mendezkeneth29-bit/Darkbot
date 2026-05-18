@@ -1605,7 +1605,6 @@ async def clave(
 
     await ctx.send()
         embed=embed,
-        ephemeral=True
     )
 
 # =========================================================
