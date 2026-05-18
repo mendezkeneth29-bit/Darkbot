@@ -38,6 +38,7 @@ xp_data = {}
 nivel_canal = {}
 xp_cooldown = {}
 economia_data = {}
+claves = {}
 
 # -------------------------
 # BOT
@@ -1564,85 +1565,93 @@ async def roblox(ctx: commands.Context, usuario: str):
     else:
         await ctx.send(embed=embed)
 
-# ----------------------------
-# PALABRAS CLAVE
-# ----------------------------
+# =========================================================
+# COMANDO CLAVE
+# =========================================================
 
-# Nombre del archivo donde se guardarán las palabras clave
-DATABASE_FILE = "palabras_clave.json"
+@bot.hybrid_command(
+    name="clave",
+    description="Crear una palabra clave"
+)
+@app_commands.checks.has_permissions(
+    administrator=True
+)
+async def clave(
+    i: discord.Interaction,
+    palabra: str,
+    mensaje: str
+):
 
-# Función para cargar los datos del JSON
-def cargar_datos():
-    if not os.path.exists(DATABASE_FILE):
-        return {}
-    with open(DATABASE_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    gid = i.guild.id
 
-# Función para guardar los datos en el JSON
-def guardar_datos(datos):
-    with open(DATABASE_FILE, "w", encoding="utf-8") as f:
-        json.dump(datos, f, indent=4, ensure_ascii=False)
+    # CREAR LISTA DEL SERVER
+    if gid not in claves:
+        claves[gid] = {}
 
+    # GUARDAR CLAVE
+    claves[gid][palabra.lower()] = mensaje
 
-# =======================================================
-# COMANDO PARA CONFIGURAR LA PALABRA CLAVE Y EL MENSAJE
-# =======================================================
-@bot.command()
-@commands.has_permissions(manage_messages=True) # Solo para moderadores/admins
-async def config_palabra(ctx, palabra: str, *, mensaje_respuesta: str):
-    """Configura una palabra clave y su respuesta automática."""
-    datos = cargar_datos()
-    id_servidor = str(ctx.guild.id)
-    
-    # Si el servidor no está en el JSON, lo agregamos
-    if id_servidor not in datos:
-        datos[id_servidor] = {}
-        
-    # Guardamos la palabra clave en minúsculas para evitar problemas de mayúsculas
-    palabra_limpia = palabra.lower()
-    datos[id_servidor][palabra_limpia] = mensaje_respuesta
-    
-    guardar_datos(datos)
-    
     embed = discord.Embed(
-        title="Palabra Clave Configurada", 
-        color=0x2ecc71,
-        description=f"Cada vez que alguien diga **{palabra_limpia}**, responderé con su mensaje."
+        title="> Clave creada",
+        color=0x000000
     )
-    embed.add_field(name="Mensaje asignado:", value=mensaje_respuesta)
-    await ctx.send(embed=embed)
 
+    embed.description = (
+        f"> Palabra clave:\n"
+        f"> `{palabra}`\n\n"
+        f"> Mensaje:\n"
+        f"> {mensaje}"
+    )
 
-# =======================================================
-# EVENTO QUE ESCUCHA EL CHAT Y RESPONDE AUTOMÁTICAMENTE
-# =======================================================
+    await i.response.send_message(
+        embed=embed,
+        ephemeral=True
+    )
+
+# =========================================================
+# DETECTAR CLAVES
+# =========================================================
+
 @bot.event
 async def on_message(message):
-    # Ignoramos los mensajes del propio bot para evitar bucles infinitos
+
+    # IGNORAR BOTS
     if message.author.bot:
         return
 
-    # Si el mensaje no viene de un servidor (sino por privado), lo ignoramos
+    # PROCESAR COMANDOS
+    await bot.process_commands(message)
+
+    # SI NO ES SERVER
     if not message.guild:
         return
 
-    datos = cargar_datos()
-    id_servidor = str(message.guild.id)
-    
-    # Revisamos si el servidor actual tiene palabras clave configuradas
-    if id_servidor in datos:
-        # Pasamos todo el texto del usuario a minúsculas para buscar la palabra
-        contenido_mensaje = message.content.lower()
-        
-        # Revisamos cada palabra clave guardada para este servidor
-        for palabra_clave, respuesta in datos[id_servidor].items():
-            # Si la palabra clave está dentro del mensaje que mandó el usuario
-            if palabra_clave in contenido_mensaje:
-                await message.channel.send(respuesta)
-                break # Rompemos el ciclo para que no responda múltiples veces si hay coincidencia
-                
-    # SUPER IMPORTANTE: Esto permite que los demás comandos normales sigan funcionando
-    await bot.process_commands(message)
+    gid = message.guild.id
+
+    # SI NO HAY CLAVES
+    if gid not in claves:
+        return
+
+    contenido = message.content.lower()
+
+    # REVISAR CLAVES
+    for palabra, respuesta in claves[gid].items():
+
+        if palabra in contenido:
+
+            embed = discord.Embed(
+                color=0x000000
+            )
+
+            embed.description = (
+                f"> {respuesta}"
+            )
+
+            await message.channel.send(
+                embed=embed
+            )
+
+            break
 
 # -------------------------
 # FLASK WEB
