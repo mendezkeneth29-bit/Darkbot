@@ -1573,183 +1573,430 @@ async def roblox(ctx: commands.Context, usuario: str):
 
 async def generar_dar_dinero(usuario: discord.Member, cantidad: int, nuevo_total: int, accion: str) -> discord.File:
     """Genera tarjeta para dar/quitar dinero"""
+
     W, H = 680, 190
+
     FONDO = (14, 14, 14)
-    VERDE = (34, 197, 94) if accion == "dar" else (239, 68, 68)
+
+    VERDE = (
+        (34, 197, 94)
+        if accion == "dar"
+        else (239, 68, 68)
+    )
+
     TEXTO = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS = (42, 42, 42)
-    
-    img = Image.new("RGBA", (W, H), FONDO)
-    draw = ImageDraw.Draw(img)
-    
-    # BARRA LATERAL
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
-    
-    # ICONO (MONEDA)
-    draw.ellipse([(44, 44), (136, 136)], outline=VERDE, width=4)
-    draw.text((76, 70), "$", font=fuente(40, bold=True), fill=VERDE)
-    
-    # TITULO
-    titulo = "Dinero Agregado" if accion == "dar" else "Dinero Removido"
-    draw.text((162, 32), titulo, font=fuente(20, bold=True), fill=TEXTO)
-    
-    # BADGE
-    draw.rounded_rectangle([(162, 62), (262, 84)], radius=11, fill=VERDE)
-    simbolo = "+" if accion == "dar" else "-"
-    draw.text((212, 68), f"{simbolo}{cantidad:,}", font=fuente(14, bold=True), fill=FONDO, anchor="mt")
-    
-    # SEPARADOR
-    draw.rectangle([(162, 98), (645, 99)], fill=GRIS)
-    
-    # USUARIO
-    draw.text((162, 110), "USUARIO", font=fuente(11), fill=SUBTEXTO)
-    draw.text((162, 128), usuario.display_name, font=fuente(15, bold=True), fill=TEXTO)
-    
-    # NUEVO TOTAL
-    draw.text((162, 156), f"Nuevo total: ${nuevo_total:,}", font=fuente(14, bold=True), fill=VERDE)
-    
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="dar_dinero.png")
 
+    img = Image.new("RGBA", (W, H), FONDO)
+
+    draw = ImageDraw.Draw(img)
+
+    # BARRA LATERAL
+    draw.rounded_rectangle(
+        [(0, 0), (6, H)],
+        radius=3,
+        fill=VERDE
+    )
+
+    # ICONO
+    draw.ellipse(
+        [(44, 44), (136, 136)],
+        outline=VERDE,
+        width=4
+    )
+
+    draw.text(
+        (76, 70),
+        "$",
+        font=fuente(40, bold=True),
+        fill=VERDE
+    )
+
+    # TITULO
+    titulo = (
+        "Dinero Agregado"
+        if accion == "dar"
+        else "Dinero Removido"
+    )
+
+    draw.text(
+        (162, 32),
+        titulo,
+        font=fuente(20, bold=True),
+        fill=TEXTO
+    )
+
+    # BADGE
+    draw.rounded_rectangle(
+        [(162, 62), (262, 84)],
+        radius=11,
+        fill=VERDE
+    )
+
+    simbolo = (
+        "+"
+        if accion == "dar"
+        else "-"
+    )
+
+    draw.text(
+        (212, 68),
+        f"{simbolo}{cantidad:,}",
+        font=fuente(14, bold=True),
+        fill=FONDO,
+        anchor="mt"
+    )
+
+    # SEPARADOR
+    draw.rectangle(
+        [(162, 98), (645, 99)],
+        fill=GRIS
+    )
+
+    # USUARIO
+    draw.text(
+        (162, 110),
+        "USUARIO",
+        font=fuente(11),
+        fill=SUBTEXTO
+    )
+
+    draw.text(
+        (162, 128),
+        usuario.display_name,
+        font=fuente(15, bold=True),
+        fill=TEXTO
+    )
+
+    # NUEVO TOTAL
+    draw.text(
+        (162, 156),
+        f"Nuevo total: ${nuevo_total:,}",
+        font=fuente(14, bold=True),
+        fill=VERDE
+    )
+
+    buf = io.BytesIO()
+
+    img.convert("RGB").save(
+        buf,
+        format="PNG"
+    )
+
+    buf.seek(0)
+
+    return discord.File(
+        buf,
+        filename="dar_dinero.png"
+    )
+
+
+# =========================================================
+# GENERAR TARJETA DAR NIVEL
+# =========================================================
 
 async def generar_dar_nivel(usuario: discord.Member, niveles: int, nuevo_nivel: int, xp_actual: int, accion: str) -> discord.File:
     """Genera tarjeta para dar/quitar niveles"""
+
     W, H = 680, 190
+
     FONDO = (14, 14, 14)
-    MORADO = (139, 92, 246) if accion == "dar" else (239, 68, 68)
+
+    MORADO = (
+        (139, 92, 246)
+        if accion == "dar"
+        else (239, 68, 68)
+    )
+
     TEXTO = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS = (42, 42, 42)
-    
+
     img = Image.new("RGBA", (W, H), FONDO)
+
     draw = ImageDraw.Draw(img)
-    
+
     # BARRA LATERAL
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=MORADO)
-    
-    # ICONO (ESTRELLA)
-    draw.text((56, 44), "★", font=fuente(55), fill=MORADO)
-    
+    draw.rounded_rectangle(
+        [(0, 0), (6, H)],
+        radius=3,
+        fill=MORADO
+    )
+
+    # ICONO
+    draw.text(
+        (56, 44),
+        "★",
+        font=fuente(55),
+        fill=MORADO
+    )
+
     # TITULO
-    titulo = "Niveles Agregados" if accion == "dar" else "Niveles Removidos"
-    draw.text((162, 32), titulo, font=fuente(20, bold=True), fill=TEXTO)
-    
+    titulo = (
+        "Niveles Agregados"
+        if accion == "dar"
+        else "Niveles Removidos"
+    )
+
+    draw.text(
+        (162, 32),
+        titulo,
+        font=fuente(20, bold=True),
+        fill=TEXTO
+    )
+
     # BADGE
-    draw.rounded_rectangle([(162, 62), (272, 84)], radius=11, fill=MORADO)
-    simbolo = "+" if accion == "dar" else "-"
-    draw.text((217, 68), f"{simbolo}{niveles} Niveles", font=fuente(13, bold=True), fill=FONDO, anchor="mt")
-    
+    draw.rounded_rectangle(
+        [(162, 62), (272, 84)],
+        radius=11,
+        fill=MORADO
+    )
+
+    simbolo = (
+        "+"
+        if accion == "dar"
+        else "-"
+    )
+
+    draw.text(
+        (217, 68),
+        f"{simbolo}{niveles} Niveles",
+        font=fuente(13, bold=True),
+        fill=FONDO,
+        anchor="mt"
+    )
+
     # SEPARADOR
-    draw.rectangle([(162, 98), (645, 99)], fill=GRIS)
-    
+    draw.rectangle(
+        [(162, 98), (645, 99)],
+        fill=GRIS
+    )
+
     # USUARIO
-    draw.text((162, 110), "USUARIO", font=fuente(11), fill=SUBTEXTO)
-    draw.text((162, 128), usuario.display_name, font=fuente(15, bold=True), fill=TEXTO)
-    
+    draw.text(
+        (162, 110),
+        "USUARIO",
+        font=fuente(11),
+        fill=SUBTEXTO
+    )
+
+    draw.text(
+        (162, 128),
+        usuario.display_name,
+        font=fuente(15, bold=True),
+        fill=TEXTO
+    )
+
     # NUEVO NIVEL
-    draw.text((162, 156), f"Nuevo nivel: {nuevo_nivel} | XP: {xp_actual}/{xp_para_nivel(nuevo_nivel)}", font=fuente(12, bold=True), fill=MORADO)
-    
+    draw.text(
+        (162, 156),
+        f"Nuevo nivel: {nuevo_nivel} | XP: {xp_actual}/{xp_para_nivel(nuevo_nivel)}",
+        font=fuente(12, bold=True),
+        fill=MORADO
+    )
+
     buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
+
+    img.convert("RGB").save(
+        buf,
+        format="PNG"
+    )
+
     buf.seek(0)
-    return discord.File(buf, filename="dar_nivel.png")
+
+    return discord.File(
+        buf,
+        filename="dar_nivel.png"
+    )
 
 
 # =========================================================
 # COMANDO DAR DINERO
 # =========================================================
 
-@bot.hybrid_command(name="dar-dinero", description="Da monedas a un usuario")
-@app_commands.checks.has_permissions(administrator=True)
-@app_commands.describe(usuario="Usuario a dar dinero", cantidad="Cantidad de monedas")
-async def dar_dinero(ctx: commands.Context, usuario: discord.Member, cantidad: int):
+@bot.hybrid_command(
+    name="dar-dinero",
+    description="Da monedas a un usuario"
+)
+@commands.has_permissions(
+    administrator=True
+)
+async def dar_dinero(
+    ctx: commands.Context,
+    usuario: discord.Member,
+    cantidad: int
+):
+
     if cantidad <= 0:
-        await ctx.send("> La cantidad debe ser positiva.")
+
+        await ctx.send(
+            "> La cantidad debe ser positiva."
+        )
+
         return
-    
-    data = get_user_eco(ctx.guild.id, usuario.id)
+
+    data = get_user_eco(
+        ctx.guild.id,
+        usuario.id
+    )
+
     data["coins"] += cantidad
-    
-    archivo = await generar_dar_dinero(usuario, cantidad, data["coins"], "dar")
-    
-    if ctx.interaction:
-        await ctx.interaction.followup.send(file=archivo)
-    else:
-        await ctx.send(file=archivo)
+
+    archivo = await generar_dar_dinero(
+        usuario,
+        cantidad,
+        data["coins"],
+        "dar"
+    )
+
+    await ctx.send(
+        file=archivo
+    )
 
 
 # =========================================================
 # COMANDO QUITAR DINERO
 # =========================================================
 
-@bot.hybrid_command(name="quitar-dinero", description="Quita monedas a un usuario")
-@app_commands.checks.has_permissions(administrator=True)
-@app_commands.describe(usuario="Usuario a quitar dinero", cantidad="Cantidad de monedas")
-async def quitar_dinero(ctx: commands.Context, usuario: discord.Member, cantidad: int):
+@bot.hybrid_command(
+    name="quitar-dinero",
+    description="Quita monedas a un usuario"
+)
+@commands.has_permissions(
+    administrator=True
+)
+async def quitar_dinero(
+    ctx: commands.Context,
+    usuario: discord.Member,
+    cantidad: int
+):
+
     if cantidad <= 0:
-        await ctx.send("> La cantidad debe ser positiva.")
+
+        await ctx.send(
+            "> La cantidad debe ser positiva."
+        )
+
         return
-    
-    data = get_user_eco(ctx.guild.id, usuario.id)
-    data["coins"] = max(0, data["coins"] - cantidad)
-    
-    archivo = await generar_dar_dinero(usuario, cantidad, data["coins"], "quitar")
-    
-    if ctx.interaction:
-        await ctx.interaction.followup.send(file=archivo)
-    else:
-        await ctx.send(file=archivo)
+
+    data = get_user_eco(
+        ctx.guild.id,
+        usuario.id
+    )
+
+    data["coins"] = max(
+        0,
+        data["coins"] - cantidad
+    )
+
+    archivo = await generar_dar_dinero(
+        usuario,
+        cantidad,
+        data["coins"],
+        "quitar"
+    )
+
+    await ctx.send(
+        file=archivo
+    )
 
 
 # =========================================================
 # COMANDO DAR NIVEL
 # =========================================================
 
-@bot.hybrid_command(name="dar-nivel", description="Da niveles a un usuario")
-@app_commands.checks.has_permissions(administrator=True)
-@app_commands.describe(usuario="Usuario a dar niveles", niveles="Cantidad de niveles")
-async def dar_nivel(ctx: commands.Context, usuario: discord.Member, niveles: int):
+@bot.hybrid_command(
+    name="dar-nivel",
+    description="Da niveles a un usuario"
+)
+@commands.has_permissions(
+    administrator=True
+)
+async def dar_nivel(
+    ctx: commands.Context,
+    usuario: discord.Member,
+    niveles: int
+):
+
     if niveles <= 0:
-        await ctx.send("> La cantidad debe ser positiva.")
+
+        await ctx.send(
+            "> La cantidad debe ser positiva."
+        )
+
         return
-    
-    data = get_xp(ctx.guild.id, usuario.id)
+
+    data = get_xp(
+        ctx.guild.id,
+        usuario.id
+    )
+
     data["level"] += niveles
-    data["xp"] = 0  # Resetear XP al subir de nivel
-    
-    archivo = await generar_dar_nivel(usuario, niveles, data["level"], data["xp"], "dar")
-    
-    if ctx.interaction:
-        await ctx.interaction.followup.send(file=archivo)
-    else:
-        await ctx.send(file=archivo)
+
+    data["xp"] = 0
+
+    archivo = await generar_dar_nivel(
+        usuario,
+        niveles,
+        data["level"],
+        data["xp"],
+        "dar"
+    )
+
+    await ctx.send(
+        file=archivo
+    )
 
 
 # =========================================================
 # COMANDO QUITAR NIVEL
 # =========================================================
 
-@bot.hybrid_command(name="quitar-nivel", description="Quita niveles a un usuario")
-@app_commands.checks.has_permissions(administrator=True)
-@app_commands.describe(usuario="Usuario a quitar niveles", niveles="Cantidad de niveles")
-async def quitar_nivel(ctx: commands.Context, usuario: discord.Member, niveles: int):
+@bot.hybrid_command(
+    name="quitar-nivel",
+    description="Quita niveles a un usuario"
+)
+@commands.has_permissions(
+    administrator=True
+)
+async def quitar_nivel(
+    ctx: commands.Context,
+    usuario: discord.Member,
+    niveles: int
+):
+
     if niveles <= 0:
-        await ctx.send("> La cantidad debe ser positiva.")
+
+        await ctx.send(
+            "> La cantidad debe ser positiva."
+        )
+
         return
-    
-    data = get_xp(ctx.guild.id, usuario.id)
-    data["level"] = max(1, data["level"] - niveles)
-    data["xp"] = 0  # Resetear XP al bajar de nivel
-    
-    archivo = await generar_dar_nivel(usuario, niveles, data["level"], data["xp"], "quitar")
-    
-    if ctx.interaction:
-        await ctx.interaction.followup.send(file=archivo)
-    else:
-        await ctx.send(file=archivo)
+
+    data = get_xp(
+        ctx.guild.id,
+        usuario.id
+    )
+
+    data["level"] = max(
+        1,
+        data["level"] - niveles
+    )
+
+    data["xp"] = 0
+
+    archivo = await generar_dar_nivel(
+        usuario,
+        niveles,
+        data["level"],
+        data["xp"],
+        "quitar"
+    )
+
+    await ctx.send(
+        file=archivo
+    )
 
 # -------------------------
 # FLASK WEB
