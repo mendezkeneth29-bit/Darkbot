@@ -691,7 +691,7 @@ async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CYAN)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
     draw.text((34, 24), f"Claves de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
     draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
 
@@ -701,7 +701,7 @@ async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.
         for n, (clave, mensaje) in enumerate(list(claves.items())[:8]):
             y = 54 + (n * 50)
             draw.rounded_rectangle([(34, y), (646, y + 38)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-            draw.text((54, y + 8), f"🔑 {clave}", font=fuente(12, bold=True), fill=CYAN)
+            draw.text((54, y + 8), f" {clave}", font=fuente(12, bold=True), fill=ROSA)
             msg = mensaje[:45] + "..." if len(mensaje) > 45 else mensaje
             draw.text((54, y + 24), msg, font=fuente(10), fill=SUBTEXTO)
 
@@ -1155,13 +1155,13 @@ async def clave_slash(i: discord.Interaction, clave: str, mensaje: str):
     
     if clave_lower in claves:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> ❌ La clave **{clave}** ya existe\n> Usa `/clave-delete` para eliminarla primero"
+        embed.description = f"> La clave **{clave}** ya existe\n> Usa `/clave-delete` para eliminarla primero"
         await i.followup.send(embed=embed)
         return
     
     claves[clave_lower] = mensaje
     embed = discord.Embed(color=0xff69b4)
-    embed.description = f"> ✅ Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
+    embed.description = f"> Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
     await i.followup.send(embed=embed)
 
 @bot.command(name="clave")
@@ -1174,13 +1174,13 @@ async def clave_prefix(ctx, clave: str, *, mensaje: str):
     
     if clave_lower in claves:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> ❌ La clave **{clave}** ya existe\n> Usa `>mt clave-delete` para eliminarla primero"
+        embed.description = f"> La clave **{clave}** ya existe\n> Usa `>mt clave-delete` para eliminarla primero"
         await ctx.send(embed=embed)
         return
     
     claves[clave_lower] = mensaje
     embed = discord.Embed(color=0xff69b4)
-    embed.description = f"> ✅ Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
+    embed.description = f"> Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
     await ctx.send(embed=embed)
 
 @bot.tree.command(name="clave-list", description="Ver todas tus claves configuradas")
@@ -1210,13 +1210,13 @@ async def clave_delete_slash(i: discord.Interaction, clave: str):
     
     if clave_lower not in claves:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> ❌ La clave **{clave}** no existe"
+        embed.description = f"> La clave **{clave}** no existe"
         await i.followup.send(embed=embed)
         return
     
     del claves[clave_lower]
     embed = discord.Embed(color=0xff69b4)
-    embed.description = f"> ✅ Clave **{clave}** eliminada exitosamente"
+    embed.description = f"> Clave **{clave}** eliminada exitosamente"
     await i.followup.send(embed=embed)
 
 @bot.command(name="clave-delete")
@@ -1227,13 +1227,13 @@ async def clave_delete_prefix(ctx, clave: str):
     
     if clave_lower not in claves:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> ❌ La clave **{clave}** no existe"
+        embed.description = f"> La clave **{clave}** no existe"
         await ctx.send(embed=embed)
         return
     
     del claves[clave_lower]
     embed = discord.Embed(color=0xff69b4)
-    embed.description = f"> ✅ Clave **{clave}** eliminada exitosamente"
+    embed.description = f"> Clave **{clave}** eliminada exitosamente"
     await ctx.send(embed=embed)
 
 # =========================================================
