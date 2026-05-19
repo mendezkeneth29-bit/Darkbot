@@ -1912,6 +1912,450 @@ async def vender_prefix(ctx, *, item: str):
     await ctx.send(file=await generar_compra(ctx.author, item_data["nombre"], precio_venta, eco_data["coins"], "venta"))
 
 # =========================================================
+# SISTEMA DE COSMÉTICA/PERSONALIZACIÓN
+# =========================================================
+
+# Data para cosmética
+cosmetic_data = {}
+
+# Temas disponibles
+TEMAS = {
+    "rosa": {"color_primario": (255, 105, 180), "color_secundario": (255, 182, 193), "nombre": "Rosa"},
+    "azul": {"color_primario": (59, 130, 246), "color_secundario": (147, 197, 253), "nombre": "Azul"},
+    "verde": {"color_primario": (34, 197, 94), "color_secundario": (134, 239, 172), "nombre": "Verde"},
+    "purpura": {"color_primario": (139, 92, 246), "color_secundario": (196, 181, 253), "nombre": "Púrpura"},
+    "rojo": {"color_primario": (239, 68, 68), "color_secundario": (252, 165, 165), "nombre": "Rojo"},
+    "naranja": {"color_primario": (249, 115, 22), "color_secundario": (254, 215, 170), "nombre": "Naranja"},
+    "cian": {"color_primario": (0, 188, 212), "color_secundario": (176, 245, 255), "nombre": "Cian"},
+    "oro": {"color_primario": (217, 119, 6), "color_secundario": (254, 243, 199), "nombre": "Oro"},
+}
+
+# Prefijos personalizados
+PREFIJOS_DISPONIBLES = {
+    "basico": {"prefijo": "[👤]", "nombre": "Básico", "precio": 0},
+    "royal": {"prefijo": "[👑]", "nombre": "Royal", "precio": 500},
+    "dragon": {"prefijo": "[🐉]", "nombre": "Dragón", "precio": 1000},
+    "devil": {"prefijo": "[😈]", "nombre": "Demonio", "precio": 800},
+    "angel": {"prefijo": "[😇]", "nombre": "Ángel", "precio": 800},
+    "vip": {"prefijo": "[⭐]", "nombre": "VIP", "precio": 1200},
+    "legend": {"prefijo": "[🏆]", "nombre": "Leyenda", "precio": 2000},
+    "god": {"prefijo": "[⚡]", "nombre": "Dios", "precio": 3000},
+}
+
+# Efectos visuales
+EFECTOS = {
+    "brillo": {"emoji": "✨", "nombre": "Brillo", "precio": 400},
+    "fuego": {"emoji": "🔥", "nombre": "Fuego", "precio": 500},
+    "hielo": {"emoji": "❄️", "nombre": "Hielo", "precio": 500},
+    "rayo": {"emoji": "⚡", "nombre": "Rayo", "precio": 600},
+    "viento": {"emoji": "💨", "nombre": "Viento", "precio": 450},
+    "oscuridad": {"emoji": "🌑", "nombre": "Oscuridad", "precio": 700},
+    "luz": {"emoji": "☀️", "nombre": "Luz", "precio": 700},
+    "magia": {"emoji": "🪄", "nombre": "Magia", "precio": 800},
+}
+
+# Títulos personalizados
+TITULOS = {
+    "novato": {"titulo": "Novato", "precio": 0},
+    "veterano": {"titulo": "Veterano", "precio": 500},
+    "heroe": {"titulo": "Héroe", "precio": 1000},
+    "maestro": {"titulo": "Maestro", "precio": 1500},
+    "legendario": {"titulo": "Legendario", "precio": 2500},
+    "supremo": {"titulo": "Supremo", "precio": 3500},
+    "divino": {"titulo": "Divino", "precio": 5000},
+    "infinito": {"titulo": "Infinito", "precio": 7500},
+}
+
+def get_cosmetic(guild_id, user_id):
+    gid, uid = str(guild_id), str(user_id)
+    if gid not in cosmetic_data: cosmetic_data[gid] = {}
+    if uid not in cosmetic_data[gid]:
+        cosmetic_data[gid][uid] = {
+            "tema": "rosa",
+            "prefijo": "basico",
+            "efecto": None,
+            "titulo": "novato",
+            "desbloqueados": {"tema": ["rosa"], "prefijo": ["basico"], "efecto": [], "titulo": ["novato"]}
+        }
+    return cosmetic_data[gid][uid]
+
+async def generar_tienda_cosmetics() -> discord.File:
+    W, H  = 700, 350
+    FONDO    = (10, 10, 10)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=(255, 105, 180))
+    draw.text((34, 24), "TIENDA DE COSMÉTICA", font=fuente(18, bold=True), fill=TEXTO)
+    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
+
+    y_pos = 60
+    
+    # Temas
+    draw.text((34, y_pos), "TEMAS", font=fuente(12, bold=True), fill=(255, 105, 180))
+    y_pos += 25
+    temas_text = ", ".join([f"{t['nombre']}" for t in TEMAS.values()])
+    draw.text((34, y_pos), temas_text[:70], font=fuente(10), fill=SUBTEXTO)
+    y_pos += 25
+
+    # Prefijos
+    draw.text((34, y_pos), "PREFIJOS", font=fuente(12, bold=True), fill=(255, 105, 180))
+    y_pos += 25
+    prefijos_text = ", ".join([f"{p['nombre']} (${p['precio']})" for p in list(PREFIJOS_DISPONIBLES.values())[:4]])
+    draw.text((34, y_pos), prefijos_text, font=fuente(9), fill=SUBTEXTO)
+    y_pos += 25
+
+    # Efectos
+    draw.text((34, y_pos), "EFECTOS", font=fuente(12, bold=True), fill=(255, 105, 180))
+    y_pos += 25
+    efectos_text = ", ".join([f"{e['nombre']} (${e['precio']})" for e in list(EFECTOS.values())[:4]])
+    draw.text((34, y_pos), efectos_text, font=fuente(9), fill=SUBTEXTO)
+    y_pos += 25
+
+    # Títulos
+    draw.text((34, y_pos), "TÍTULOS", font=fuente(12, bold=True), fill=(255, 105, 180))
+    y_pos += 25
+    titulos_text = ", ".join([f"{t['titulo']} (${t['precio']})" for t in list(TITULOS.values())[:4]])
+    draw.text((34, y_pos), titulos_text, font=fuente(9), fill=SUBTEXTO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="cosmetic_shop.png")
+
+async def generar_perfil_cosmetic(usuario: discord.Member, cosmetic: dict) -> discord.File:
+    W, H     = 700, 300
+    FONDO    = (10, 10, 10)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    TEMA_COLOR = TEMAS[cosmetic["tema"]]["color_primario"]
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=TEMA_COLOR)
+
+    try:
+        av = await descargar_imagen(str(usuario.display_avatar.url))
+        av = avatar_circular(av, 100)
+        img.paste(av, (34, 38), av)
+    except:
+        draw.ellipse([(34, 38), (134, 138)], fill=GRIS)
+
+    draw.ellipse([(32, 36), (136, 140)], outline=TEMA_COLOR, width=2)
+
+    # Nombre y título
+    titulo_actual = TITULOS[cosmetic["titulo"]]["titulo"]
+    draw.text((154, 38), f"{PREFIJOS_DISPONIBLES[cosmetic['prefijo']]['prefijo']} {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
+    draw.text((154, 62), f"{titulo_actual}", font=fuente(13), fill=TEMA_COLOR)
+
+    draw.rectangle([(34, 148), (646, 149)], fill=GRIS)
+
+    # Información de cosmética
+    def campo(x, y, titulo, valor, ancho=310):
+        draw.rounded_rectangle([(x, y), (x + ancho, y + 50)], radius=8, fill=(20, 20, 20))
+        draw.text((x + 14, y + 8), titulo, font=fuente(10), fill=SUBTEXTO)
+        draw.text((x + 14, y + 24), valor, font=fuente(12, bold=True), fill=TEMA_COLOR)
+
+    campo(34,  158, "TEMA", TEMAS[cosmetic["tema"]]["nombre"])
+    campo(368, 158, "PREFIJO", PREFIJOS_DISPONIBLES[cosmetic["prefijo"]]["nombre"])
+    
+    efecto_text = EFECTOS[cosmetic["efecto"]]["nombre"] if cosmetic["efecto"] else "Ninguno"
+    campo(34,  216, "EFECTO", efecto_text)
+    
+    campo(368, 216, "TÍTULO", titulo_actual)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="cosmetic_profile.png")
+
+async def generar_cosmetic_cambio(usuario: discord.Member, tipo: str, nombre: str, precio: int, nuevo_balance: int) -> discord.File:
+    W, H     = 680, 200
+    FONDO    = (10, 10, 10)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    COLOR    = (139, 92, 246)  # Púrpura
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
+
+    try:
+        av = await descargar_imagen(str(usuario.display_avatar.url))
+        av = avatar_circular(av, 90)
+        img.paste(av, (38, 55), av)
+    except:
+        draw.ellipse([(38, 55), (128, 145)], fill=GRIS)
+
+    draw.ellipse([(36, 53), (130, 147)], outline=COLOR, width=2)
+    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
+    
+    tipo_emoji = {"tema": "<:identy:1504901134173737103>", "prefijo": "<:Plear:1504584518202556436>", "efecto": "<:sparkles:1506394397057613864>", "titulo": "<:congrat:1504584224835895458>"}
+    draw.rounded_rectangle([(158, 68), (288, 90)], radius=11, fill=COLOR)
+    draw.text((223, 74), f"{tipo_emoji.get(tipo, '<:Check:1504584129302499399>')} Cambio!", font=fuente(12, bold=True), fill=TEXTO, anchor="mt")
+    
+    draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
+    draw.text((158, 116), tipo.upper(), font=fuente(11), fill=SUBTEXTO)
+    draw.text((158, 134), nombre[:40], font=fuente(15, bold=True), fill=TEXTO)
+    
+    draw.text((158, 164), f"Saldo: ${nuevo_balance:,}", font=fuente(12), fill=COLOR)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="cosmetic_cambio.png")
+
+# =========================================================
+# COMANDOS COSMÉTICA
+# =========================================================
+
+@bot.tree.command(name="cosmetics", description="Ver tienda de cosmética")
+async def cosmetics_tienda_slash(i: discord.Interaction):
+    await i.response.defer()
+    await i.followup.send(file=await generar_tienda_cosmetics())
+
+@bot.command(name="cosmetics")
+async def cosmetics_tienda_prefix(ctx):
+    await ctx.send(file=await generar_tienda_cosmetics())
+
+@bot.tree.command(name="perfil-cosmetic", description="Ver tu perfil con cosmética")
+async def perfil_cosmetic_slash(i: discord.Interaction, usuario: discord.Member = None):
+    await i.response.defer()
+    usuario = usuario or i.user
+    cosmetic = get_cosmetic(i.guild.id, usuario.id)
+    usuario_obj = i.guild.get_member(usuario.id)
+    await i.followup.send(file=await generar_perfil_cosmetic(usuario_obj, cosmetic))
+
+@bot.command(name="perfil-cosmetic")
+async def perfil_cosmetic_prefix(ctx, usuario: discord.Member = None):
+    usuario = await get_member_from_ctx(ctx, usuario)
+    cosmetic = get_cosmetic(ctx.guild.id, usuario.id)
+    await ctx.send(file=await generar_perfil_cosmetic(usuario, cosmetic))
+
+@bot.tree.command(name="tema", description="Cambiar tema de color")
+async def tema_slash(i: discord.Interaction, tema: str):
+    await i.response.defer()
+    
+    tema_lower = tema.lower()
+    if tema_lower not in TEMAS:
+        temas_disponibles = ", ".join(TEMAS.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Tema no encontrado\n> Disponibles: {temas_disponibles}"
+        await i.followup.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(i.guild.id, i.user.id)
+    if tema_lower in cosmetic["desbloqueados"]["tema"]:
+        cosmetic["tema"] = tema_lower
+        usuario_obj = i.guild.get_member(i.user.id)
+        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "tema", TEMAS[tema_lower]["nombre"], 0, 0))
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> No tienes desbloqueado el tema **{TEMAS[tema_lower]['nombre']}**"
+        await i.followup.send(embed=embed)
+
+@bot.command(name="tema")
+async def tema_prefix(ctx, tema: str):
+    tema_lower = tema.lower()
+    if tema_lower not in TEMAS:
+        temas_disponibles = ", ".join(TEMAS.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Tema no encontrado\n> Disponibles: {temas_disponibles}"
+        await ctx.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
+    if tema_lower in cosmetic["desbloqueados"]["tema"]:
+        cosmetic["tema"] = tema_lower
+        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "tema", TEMAS[tema_lower]["nombre"], 0, 0))
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> No tienes desbloqueado el tema **{TEMAS[tema_lower]['nombre']}**"
+        await ctx.send(embed=embed)
+
+@bot.tree.command(name="prefijo", description="Cambiar tu prefijo personalizado")
+async def prefijo_slash(i: discord.Interaction, prefijo: str):
+    await i.response.defer()
+    
+    prefijo_lower = prefijo.lower()
+    if prefijo_lower not in PREFIJOS_DISPONIBLES:
+        prefijos_disponibles = ", ".join(PREFIJOS_DISPONIBLES.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Prefijo no encontrado\n> Disponibles: {prefijos_disponibles}"
+        await i.followup.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(i.guild.id, i.user.id)
+    if prefijo_lower in cosmetic["desbloqueados"]["prefijo"]:
+        cosmetic["prefijo"] = prefijo_lower
+        usuario_obj = i.guild.get_member(i.user.id)
+        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "prefijo", PREFIJOS_DISPONIBLES[prefijo_lower]["nombre"], 0, 0))
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> No tienes desbloqueado el prefijo **{PREFIJOS_DISPONIBLES[prefijo_lower]['nombre']}**"
+        await i.followup.send(embed=embed)
+
+@bot.command(name="prefijo")
+async def prefijo_prefix(ctx, prefijo: str):
+    prefijo_lower = prefijo.lower()
+    if prefijo_lower not in PREFIJOS_DISPONIBLES:
+        prefijos_disponibles = ", ".join(PREFIJOS_DISPONIBLES.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Prefijo no encontrado\n> Disponibles: {prefijos_disponibles}"
+        await ctx.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
+    if prefijo_lower in cosmetic["desbloqueados"]["prefijo"]:
+        cosmetic["prefijo"] = prefijo_lower
+        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "prefijo", PREFIJOS_DISPONIBLES[prefijo_lower]["nombre"], 0, 0))
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> No tienes desbloqueado el prefijo **{PREFIJOS_DISPONIBLES[prefijo_lower]['nombre']}**"
+        await ctx.send(embed=embed)
+
+@bot.tree.command(name="efecto", description="Cambiar tu efecto visual")
+async def efecto_slash(i: discord.Interaction, efecto: str = None):
+    await i.response.defer()
+    
+    if efecto is None:
+        cosmetic = get_cosmetic(i.guild.id, i.user.id)
+        cosmetic["efecto"] = None
+        usuario_obj = i.guild.get_member(i.user.id)
+        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "efecto", "Ninguno", 0, 0))
+        return
+    
+    efecto_lower = efecto.lower()
+    if efecto_lower not in EFECTOS:
+        efectos_disponibles = ", ".join(EFECTOS.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Efecto no encontrado\n> Disponibles: {efectos_disponibles}"
+        await i.followup.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(i.guild.id, i.user.id)
+    if efecto_lower in cosmetic["desbloqueados"]["efecto"]:
+        cosmetic["efecto"] = efecto_lower
+        usuario_obj = i.guild.get_member(i.user.id)
+        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "efecto", EFECTOS[efecto_lower]["nombre"], 0, 0))
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> No tienes desbloqueado el efecto **{EFECTOS[efecto_lower]['nombre']}**"
+        await i.followup.send(embed=embed)
+
+@bot.command(name="efecto")
+async def efecto_prefix(ctx, efecto: str = None):
+    if efecto is None:
+        cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
+        cosmetic["efecto"] = None
+        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "efecto", "Ninguno", 0, 0))
+        return
+    
+    efecto_lower = efecto.lower()
+    if efecto_lower not in EFECTOS:
+        efectos_disponibles = ", ".join(EFECTOS.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Efecto no encontrado\n> Disponibles: {efectos_disponibles}"
+        await ctx.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
+    if efecto_lower in cosmetic["desbloqueados"]["efecto"]:
+        cosmetic["efecto"] = efecto_lower
+        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "efecto", EFECTOS[efecto_lower]["nombre"], 0, 0))
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> No tienes desbloqueado el efecto **{EFECTOS[efecto_lower]['nombre']}**"
+        await ctx.send(embed=embed)
+
+@bot.tree.command(name="titulo", description="Cambiar tu título personalizado")
+async def titulo_slash(i: discord.Interaction, titulo: str):
+    await i.response.defer()
+    
+    titulo_lower = titulo.lower()
+    if titulo_lower not in TITULOS:
+        titulos_disponibles = ", ".join(TITULOS.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Título no encontrado\n> Disponibles: {titulos_disponibles}"
+        await i.followup.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(i.guild.id, i.user.id)
+    if titulo_lower in cosmetic["desbloqueados"]["titulo"]:
+        cosmetic["titulo"] = titulo_lower
+        usuario_obj = i.guild.get_member(i.user.id)
+        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "titulo", TITULOS[titulo_lower]["titulo"], 0, 0))
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> No tienes desbloqueado el título **{TITULOS[titulo_lower]['titulo']}**"
+        await i.followup.send(embed=embed)
+
+@bot.command(name="titulo")
+async def titulo_prefix(ctx, titulo: str):
+    titulo_lower = titulo.lower()
+    if titulo_lower not in TITULOS:
+        titulos_disponibles = ", ".join(TITULOS.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Título no encontrado\n> Disponibles: {titulos_disponibles}"
+        await ctx.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
+    if titulo_lower in cosmetic["desbloqueados"]["titulo"]:
+        cosmetic["titulo"] = titulo_lower
+        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "titulo", TITULOS[titulo_lower]["titulo"], 0, 0))
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> No tienes desbloqueado el título **{TITULOS[titulo_lower]['titulo']}**"
+        await ctx.send(embed=embed)
+
+@bot.tree.command(name="desbloquear-cosmetic", description="Desbloquear cosmética (ADMIN)")
+@app_commands.checks.has_permissions(administrator=True)
+async def desbloquear_cosmetic_slash(i: discord.Interaction, usuario: discord.Member, tipo: str, item: str):
+    await i.response.defer()
+    
+    tipo_lower = tipo.lower()
+    item_lower = item.lower()
+    
+    if tipo_lower not in ["tema", "prefijo", "efecto", "titulo"]:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Tipo no válido. Usa: tema, prefijo, efecto, titulo"
+        await i.followup.send(embed=embed)
+        return
+    
+    cosmetic = get_cosmetic(i.guild.id, usuario.id)
+    
+    if tipo_lower == "tema" and item_lower in TEMAS:
+        cosmetic["desbloqueados"]["tema"].append(item_lower)
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Tema **{TEMAS[item_lower]['nombre']}** desbloqueado para {usuario.mention}"
+        await i.followup.send(embed=embed)
+    elif tipo_lower == "prefijo" and item_lower in PREFIJOS_DISPONIBLES:
+        cosmetic["desbloqueados"]["prefijo"].append(item_lower)
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Prefijo **{PREFIJOS_DISPONIBLES[item_lower]['nombre']}** desbloqueado para {usuario.mention}"
+        await i.followup.send(embed=embed)
+    elif tipo_lower == "efecto" and item_lower in EFECTOS:
+        cosmetic["desbloqueados"]["efecto"].append(item_lower)
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Efecto **{EFECTOS[item_lower]['nombre']}** desbloqueado para {usuario.mention}"
+        await i.followup.send(embed=embed)
+    elif tipo_lower == "titulo" and item_lower in TITULOS:
+        cosmetic["desbloqueados"]["titulo"].append(item_lower)
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> Título **{TITULOS[item_lower]['titulo']}** desbloqueado para {usuario.mention}"
+        await i.followup.send(embed=embed)
+    else:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> {tipo_lower} o item no encontrado"
+        await i.followup.send(embed=embed)
+
+# =========================================================
 # ERROR HANDLER
 # =========================================================
 
