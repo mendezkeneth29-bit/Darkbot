@@ -1572,6 +1572,86 @@ async def dar_xp(message):
             print(f"Error nivel: {e}")
 
 # =========================================================
+# ADMIN COMMANDS - XP/DINERO
+# =========================================================
+
+@bot.tree.command(name="add-nivel", description="Agregar niveles a un usuario (ADMIN)")
+@app_commands.checks.has_permissions(administrator=True)
+async def add_nivel_slash(i: discord.Interaction, usuario: discord.Member, cantidad: int):
+    await i.response.defer()
+    data = get_xp(i.guild.id, usuario.id)
+    data["level"] += cantidad
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> Se agregaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
+    await i.followup.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
+
+@bot.command(name="add-nivel")
+@commands.has_permissions(administrator=True)
+async def add_nivel_prefix(ctx, usuario: discord.Member, cantidad: int):
+    data = get_xp(ctx.guild.id, usuario.id)
+    data["level"] += cantidad
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> Se agregaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
+    await ctx.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
+
+@bot.tree.command(name="remove-nivel", description="Quitar niveles a un usuario (ADMIN)")
+@app_commands.checks.has_permissions(administrator=True)
+async def remove_nivel_slash(i: discord.Interaction, usuario: discord.Member, cantidad: int):
+    await i.response.defer()
+    data = get_xp(i.guild.id, usuario.id)
+    data["level"] = max(1, data["level"] - cantidad)
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> Se quitaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
+    await i.followup.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
+
+@bot.command(name="remove-nivel")
+@commands.has_permissions(administrator=True)
+async def remove_nivel_prefix(ctx, usuario: discord.Member, cantidad: int):
+    data = get_xp(ctx.guild.id, usuario.id)
+    data["level"] = max(1, data["level"] - cantidad)
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> Se quitaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
+    await ctx.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
+
+@bot.tree.command(name="add-dinero", description="Agregar dinero a un usuario (ADMIN)")
+@app_commands.checks.has_permissions(administrator=True)
+async def add_dinero_slash(i: discord.Interaction, usuario: discord.Member, cantidad: int):
+    await i.response.defer()
+    data = get_user_eco(i.guild.id, usuario.id)
+    data["coins"] += cantidad
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> Se agregaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
+    await i.followup.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
+
+@bot.command(name="add-dinero")
+@commands.has_permissions(administrator=True)
+async def add_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
+    data = get_user_eco(ctx.guild.id, usuario.id)
+    data["coins"] += cantidad
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> Se agregaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
+    await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
+
+@bot.tree.command(name="remove-dinero", description="Quitar dinero a un usuario (ADMIN)")
+@app_commands.checks.has_permissions(administrator=True)
+async def remove_dinero_slash(i: discord.Interaction, usuario: discord.Member, cantidad: int):
+    await i.response.defer()
+    data = get_user_eco(i.guild.id, usuario.id)
+    data["coins"] = max(0, data["coins"] - cantidad)
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
+    await i.followup.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
+
+@bot.command(name="remove-dinero")
+@commands.has_permissions(administrator=True)
+async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
+    data = get_user_eco(ctx.guild.id, usuario.id)
+    data["coins"] = max(0, data["coins"] - cantidad)
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
+    await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
+
+# =========================================================
 # ERROR HANDLER
 # =========================================================
 
