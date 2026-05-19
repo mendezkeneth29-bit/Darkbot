@@ -1687,7 +1687,7 @@ async def generar_tienda() -> discord.File:
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
     draw.text((34, 24), "TIENDA", font=fuente(20, bold=True), fill=TEXTO)
     draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
 
@@ -1696,7 +1696,7 @@ async def generar_tienda() -> discord.File:
         draw.rounded_rectangle([(34, y), (646, y + 43)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
         draw.text((54, y + 8), f"{item['emoji']} {item['nombre']}", font=fuente(13, bold=True), fill=TEXTO)
         draw.text((54, y + 24), item['descripcion'], font=fuente(10), fill=SUBTEXTO)
-        draw.text((634, y + 16), f"$ {item['precio']:,}", font=fuente(12, bold=True), fill=VERDE, anchor="ra")
+        draw.text((634, y + 16), f"$ {item['precio']:,}", font=fuente(12, bold=True), fill=ROSA, anchor="ra")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -1715,7 +1715,7 @@ async def generar_inventario(usuario: discord.Member, items: dict) -> discord.Fi
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
     draw.text((34, 24), f"Inventario de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
     draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
 
@@ -1727,7 +1727,7 @@ async def generar_inventario(usuario: discord.Member, items: dict) -> discord.Fi
                 item = TIENDA_ITEMS[item_id]
                 y = 54 + (n * 50)
                 draw.rounded_rectangle([(34, y), (646, y + 38)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-                draw.text((54, y + 8), f"{item['emoji']} {item['nombre']}", font=fuente(12, bold=True), fill=AZUL)
+                draw.text((54, y + 8), f"{item['emoji']} {item['nombre']}", font=fuente(12, bold=True), fill=ROSA)
                 draw.text((634, y + 10), f"x{cantidad}", font=fuente(12, bold=True), fill=TEXTO, anchor="ra")
 
     buf = io.BytesIO()
@@ -1745,7 +1745,7 @@ async def generar_compra(usuario: discord.Member, item_nombre: str, precio: int,
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
@@ -1767,7 +1767,7 @@ async def generar_compra(usuario: discord.Member, item_nombre: str, precio: int,
     draw.text((158, 134), item_texto, font=fuente(15, bold=True), fill=TEXTO)
     
     operador = "-" if accion == "compra" else "+"
-    draw.text((158, 164), f"{operador} $ {precio:,} | Saldo: $ {nuevo_balance:,}", font=fuente(12), fill=COLOR)
+    draw.text((158, 164), f"{operador} $ {precio:,} | Saldo: $ {nuevo_balance:,}", font=fuente(12), fill=ROSA)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
