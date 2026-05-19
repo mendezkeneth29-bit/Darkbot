@@ -135,7 +135,7 @@ async def get_member_from_ctx(ctx, usuario=None):
 # =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
-    W, H        = 700, 260
+    W, H        = 700, 280
     FONDO       = (10, 10, 10)
     TEXTO       = (255, 255, 255)
     SUBTEXTO    = (160, 163, 172)
@@ -164,9 +164,10 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     draw.ellipse([(av_x + 66, av_y + 66), (av_x + 84, av_y + 84)], fill=FONDO)
     draw.ellipse([(av_x + 68, av_y + 68), (av_x + 82, av_y + 82)], fill=(35, 165, 90))
 
-    draw.text((136, 32), usuario.display_name, font=fuente(24, bold=True), fill=TEXTO)
-    draw.text((136, 62), f"@{usuario.name}", font=fuente(13), fill=SUBTEXTO)
-    draw.rectangle([(24, 124), (W - 24, 125)], fill=ROSA)
+    draw.text((136, 28), usuario.display_name, font=fuente(24, bold=True), fill=TEXTO)
+    draw.text((136, 58), f"@{usuario.name}", font=fuente(13), fill=SUBTEXTO)
+
+    draw.rectangle([(24, 128), (W - 24, 129)], fill=ROSA)
 
     def campo(x, y, titulo, valor, ancho=310):
         draw.rounded_rectangle([(x, y), (x + ancho, y + 62)], radius=10, fill=CAMPO_FONDO)
@@ -175,17 +176,29 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
         draw.text((x + 14, y + 10), titulo, font=fuente(11), fill=SUBTEXTO)
         draw.text((x + 14, y + 32), valor, font=fuente(15, bold=True), fill=TEXTO)
 
-    campo(24,  136, "USUARIO",         f"@{usuario.display_name}")
-    campo(356, 136, "ID",              str(usuario.id))
+    campo(24,  144, "USUARIO",         f"@{usuario.display_name}")
+    campo(356, 144, "ID",              str(usuario.id))
     creado = usuario.created_at.strftime("%d/%m/%Y")
     entro  = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
-    campo(24,  210, "CUENTA CREADA",   creado)
-    campo(356, 210, "ENTRO AL SERVER", entro)
+    campo(24,  218, "CUENTA CREADA",   creado)
+    campo(356, 218, "ENTRO AL SERVER", entro)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="userinfo.png")
+
+
+@bot.tree.command(name="userinfo")
+async def userinfo_slash(i: discord.Interaction, usuario: discord.Member = None):
+    await i.response.defer()
+    usuario = i.guild.get_member((usuario or i.user).id)
+    await i.followup.send(file=await generar_userinfo(usuario))
+
+@bot.command(name="userinfo")
+async def userinfo_prefix(ctx, usuario: discord.Member = None):
+    usuario = await get_member_from_ctx(ctx, usuario)
+    await ctx.send(file=await generar_userinfo(usuario))
 
 
 async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) -> discord.File:
