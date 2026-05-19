@@ -688,12 +688,6 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
 # COMANDOS
 # =========================================================
 
-@bot.tree.command(name="userinfo")
-async def userinfo_slash(i: discord.Interaction, usuario: discord.Member = None):
-    await i.response.defer()
-    usuario = i.guild.get_member((usuario or i.user).id)
-    await i.followup.send(file=await generar_userinfo(usuario))
-
 @bot.command(name="userinfo")
 async def userinfo_prefix(ctx, usuario: discord.Member = None):
     usuario = await get_member_from_ctx(ctx, usuario)
