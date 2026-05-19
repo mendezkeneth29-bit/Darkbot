@@ -41,6 +41,7 @@ xp_data       = {}
 nivel_canal   = {}
 xp_cooldown   = {}
 economia_data = {}
+claves_data   = {}
 
 # -------------------------
 # BOT
@@ -107,6 +108,12 @@ def get_user_eco(guild_id, user_id):
     if gid not in economia_data: economia_data[gid] = {}
     if uid not in economia_data[gid]: economia_data[gid][uid] = {"coins": 0, "last_daily": 0}
     return economia_data[gid][uid]
+
+def get_user_claves(guild_id, user_id):
+    gid, uid = str(guild_id), str(user_id)
+    if gid not in claves_data: claves_data[gid] = {}
+    if uid not in claves_data[gid]: claves_data[gid][uid] = {}
+    return claves_data[gid][uid]
 
 def parse_text(texto, member):
     if not texto:
@@ -672,6 +679,37 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
     buf.seek(0)
     return discord.File(buf, filename="spotify_search.png")
 
+async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.File:
+    filas = min(len(claves), 8)
+    W, H  = 680, 90 + (filas * 50)
+    FONDO    = (10, 10, 10)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    OSCURO   = (15, 15, 15)
+    CYAN     = (0, 188, 212)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CYAN)
+    draw.text((34, 24), f"Claves de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
+    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
+
+    if not claves:
+        draw.text((340, H//2), "No tienes claves configuradas", font=fuente(14), fill=SUBTEXTO, anchor="mm")
+    else:
+        for n, (clave, mensaje) in enumerate(list(claves.items())[:8]):
+            y = 54 + (n * 50)
+            draw.rounded_rectangle([(34, y), (646, y + 38)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
+            draw.text((54, y + 8), f"🔑 {clave}", font=fuente(12, bold=True), fill=CYAN)
+            msg = mensaje[:45] + "..." if len(mensaje) > 45 else mensaje
+            draw.text((54, y + 24), msg, font=fuente(10), fill=SUBTEXTO)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="claves_list.png")
+
 # =========================================================
 # COMANDOS
 # =========================================================
@@ -1103,6 +1141,102 @@ async def ask_prefix(ctx, *, mensaje: str):
         await ctx.send(f"Error:\n```{e}```")
 
 # =========================================================
+# SISTEMA DE CLAVES
+# =========================================================
+
+@bot.tree.command(name="clave", description="Crea una clave personalizada")
+async def clave_slash(i: discord.Interaction, clave: str, mensaje: str):
+    await i.response.defer()
+    uid = str(i.user.id)
+    gid = str(i.guild.id)
+    
+    claves = get_user_claves(gid, i.user.id)
+    clave_lower = clave.lower()
+    
+    if clave_lower in claves:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> ❌ La clave **{clave}** ya existe\n> Usa `/clave-delete` para eliminarla primero"
+        await i.followup.send(embed=embed)
+        return
+    
+    claves[clave_lower] = mensaje
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> ✅ Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
+    await i.followup.send(embed=embed)
+
+@bot.command(name="clave")
+async def clave_prefix(ctx, clave: str, *, mensaje: str):
+    uid = str(ctx.author.id)
+    gid = str(ctx.guild.id)
+    
+    claves = get_user_claves(gid, ctx.author.id)
+    clave_lower = clave.lower()
+    
+    if clave_lower in claves:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> ❌ La clave **{clave}** ya existe\n> Usa `>mt clave-delete` para eliminarla primero"
+        await ctx.send(embed=embed)
+        return
+    
+    claves[clave_lower] = mensaje
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> ✅ Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
+    await ctx.send(embed=embed)
+
+@bot.tree.command(name="clave-list", description="Ver todas tus claves configuradas")
+async def clave_list_slash(i: discord.Interaction, usuario: discord.Member = None):
+    await i.response.defer()
+    usuario = usuario or i.user
+    gid = str(i.guild.id)
+    claves = get_user_claves(gid, usuario.id)
+    
+    usuario_obj = i.guild.get_member(usuario.id)
+    await i.followup.send(file=await generar_claves_list(usuario_obj, claves))
+
+@bot.command(name="clave-list")
+async def clave_list_prefix(ctx, usuario: discord.Member = None):
+    usuario = await get_member_from_ctx(ctx, usuario)
+    gid = str(ctx.guild.id)
+    claves = get_user_claves(gid, usuario.id)
+    
+    await ctx.send(file=await generar_claves_list(usuario, claves))
+
+@bot.tree.command(name="clave-delete", description="Elimina una clave")
+async def clave_delete_slash(i: discord.Interaction, clave: str):
+    await i.response.defer()
+    gid = str(i.guild.id)
+    claves = get_user_claves(gid, i.user.id)
+    clave_lower = clave.lower()
+    
+    if clave_lower not in claves:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> ❌ La clave **{clave}** no existe"
+        await i.followup.send(embed=embed)
+        return
+    
+    del claves[clave_lower]
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> ✅ Clave **{clave}** eliminada exitosamente"
+    await i.followup.send(embed=embed)
+
+@bot.command(name="clave-delete")
+async def clave_delete_prefix(ctx, clave: str):
+    gid = str(ctx.guild.id)
+    claves = get_user_claves(gid, ctx.author.id)
+    clave_lower = clave.lower()
+    
+    if clave_lower not in claves:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"> ❌ La clave **{clave}** no existe"
+        await ctx.send(embed=embed)
+        return
+    
+    del claves[clave_lower]
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"> ✅ Clave **{clave}** eliminada exitosamente"
+    await ctx.send(embed=embed)
+
+# =========================================================
 # WELC / BYE
 # =========================================================
 
@@ -1309,6 +1443,17 @@ async def on_message(message):
         if user.id in afk_data and user.id != message.author.id:
             await message.channel.send(f"**{user.name}** esta dormido...\n> Motivo: `{afk_data[user.id]['motivo']}`")
 
+    # Sistema de claves
+    if message.guild:
+        gid = str(message.guild.id)
+        uid = str(message.author.id)
+        if gid in claves_data and uid in claves_data[gid]:
+            mensaje_lower = message.content.lower()
+            for clave, respuesta in claves_data[gid][uid].items():
+                if mensaje_lower == clave:
+                    await message.reply(respuesta, mention_author=False)
+                    break
+
     await bot.process_commands(message)
 
     if message.guild:
@@ -1330,7 +1475,7 @@ async def on_message(message):
         mensaje_original = replied.content
         if replied.embeds and replied.embeds[0].description:
             mensaje_original = replied.embeds[0].description
-        system_prompt = f"Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual. El usuario se llama {message.author.display_name} y estas en {message.guild.name}."
+        system_prompt = f"Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual. El usuario se llama {message.author.display_name} y estas en {message.guild.name}"
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "system", "content": system_prompt}, {"role": "assistant", "content": mensaje_original}, {"role": "user", "content": message.content}]
