@@ -1105,6 +1105,28 @@ async def dado_prefix(ctx, caras: int = 6):
     embed.description = f"> Dado de {caras} caras: **{resultado}**"
     await ctx.send(embed=embed)
 
+# =========================================================
+# MEMORIA IA
+# =========================================================
+
+memoria_usuarios = {}  # { user_id: [ {role, content}, ... ] }
+
+def get_memoria(user_id: int) -> list:
+    if user_id not in memoria_usuarios:
+        memoria_usuarios[user_id] = []
+    return memoria_usuarios[user_id]
+
+def agregar_memoria(user_id: int, role: str, content: str):
+    memoria = get_memoria(user_id)
+    memoria.append({"role": role, "content": content})
+    # MAXIMO 20 mensajes por usuario para no pasarse de tokens
+    if len(memoria) > 20:
+        memoria.pop(0)
+
+# =========================================================
+# ASK IA
+# =========================================================
+
 @bot.tree.command(name="ask")
 async def ask_slash(i: discord.Interaction, mensaje: str):
     await i.response.defer()
@@ -1115,30 +1137,85 @@ async def ask_slash(i: discord.Interaction, mensaje: str):
             embed.set_image(url=image_url)
             await i.followup.send(embed=embed)
             return
+
+        system_prompt = f"""
+Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual.
+Estas hablando con {i.user.display_name} (usuario: {i.user.name}).
+Estas en el servidor: {i.guild.name}.
+Recuerda todo lo que te han dicho antes y adapta tu personalidad a cada usuario.
+Si ya conoces al usuario, trata de recordar cosas que te haya contado.
+Responde de forma natural, casual y con personalidad.
+"""
+        historial = get_memoria(i.user.id)
+
+        mensajes = [{"role": "system", "content": system_prompt}] + historial + [{"role": "user", "content": mensaje}]
+
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Eres un Bot amigable, divertida y algo sarcastica, tu nombre es Misti."}, {"role": "user", "content": mensaje}]
+            messages=mensajes
         )
+
         texto = respuesta.choices[0].message.content
+
+        # GUARDAR EN MEMORIA
+        agregar_memoria(i.user.id, "user", mensaje)
+        agregar_memoria(i.user.id, "assistant", texto)
+
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
         await i.followup.send(embed=embed)
+
     except Exception as e:
         await i.followup.send(f"Error:\n```{e}```")
 
 @bot.command(name="ask")
 async def ask_prefix(ctx, *, mensaje: str):
     try:
+        system_prompt = f"""
+Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual.
+Estas hablando con {ctx.author.display_name} (usuario: {ctx.author.name}).
+Estas en el servidor: {ctx.guild.name}.
+Recuerda todo lo que te han dicho antes y adapta tu personalidad a cada usuario.
+Si ya conoces al usuario, trata de recordar cosas que te haya contado.
+Responde de forma natural, casual y con personalidad.
+"""
+        historial = get_memoria(ctx.author.id)
+        mensajes  = [{"role": "system", "content": system_prompt}] + historial + [{"role": "user", "content": mensaje}]
+
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Eres un Bot amigable, divertida y algo sarcastica, tu nombre es Misti."}, {"role": "user", "content": mensaje}]
+            messages=mensajes
         )
+
         texto = respuesta.choices[0].message.content
+
+        agregar_memoria(ctx.author.id, "user", mensaje)
+        agregar_memoria(ctx.author.id, "assistant", texto)
+
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
         await ctx.send(embed=embed)
+
     except Exception as e:
         await ctx.send(f"Error:\n```{e}```")
+
+# =========================================================
+# COMANDO PARA BORRAR MEMORIA
+# =========================================================
+
+@bot.tree.command(name="forget", description="Borra la memoria que Misti tiene de ti")
+async def forget_slash(i: discord.Interaction):
+    memoria_usuarios.pop(i.user.id, None)
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = "> Ya no recuerdo nada de ti..."
+    await i.response.send_message(embed=embed, ephemeral=True)
+
+@bot.command(name="forget")
+async def forget_prefix(ctx):
+    memoria_usuarios.pop(ctx.author.id, None)
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = "> Ya no recuerdo nada de ti..."
+    await ctx.send(embed=embed)
 
 # =========================================================
 # SISTEMA DE CLAVES
@@ -1650,309 +1727,6 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     embed = discord.Embed(color=0xff69b4)
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
-
-
-# =========================================================
-# SISTEMA DE TIENDA/ITEMS
-# =========================================================
-
-# Data para items
-inventario_data = {}
-
-# Definir items de la tienda
-TIENDA_ITEMS = {
-    "Perfume": {"nombre": "Perfume", "precio": 1000, "descripcion": "Un perfume común", "categoria": "objetos"},
-    "celular": {"nombre": "celular", "precio": 1500, "descripcion": "dispositivo electronico", "categoria": "objetos"},
-    "pocion": {"nombre": "Pocion", "precio": 500, "descripcion": "Restaura salud", "categoria": "pociones"},
-    "moneda_suerte": {"nombre": "Moneda de Suerte", "precio": 2000, "descripcion": "Trae buena suerte", "categoria": "objetos"},
-    "anillo": {"nombre": "Anillo", "precio": 3000, "descripcion": "Aumenta poder", "categoria": "accesorios"},
-    "gema": {"nombre": "Gema", "precio": 2500, "descripcion": "Muy valiosa", "categoria": "joyas"},
-    "llave": {"nombre": "Llave", "precio": 1200, "descripcion": "Abre cosas", "categoria": "herramientas"},
-    "corona": {"nombre": "Corona", "precio": 5000, "descripcion": "Simbolo de poder", "categoria": "especiales"},
-}
-
-CATEGORIAS_TIENDA = {
-    "armas": "Armas",
-    "pociones": "Pociones",
-    "objetos": "Objetos",
-    "accesorios": "Accesorios",
-    "joyas": "Joyas",
-    "herramientas": "Herramientas",
-    "especiales": "Especiales",
-}
-
-def get_inventario(guild_id, user_id):
-    gid, uid = str(guild_id), str(user_id)
-    if gid not in inventario_data: inventario_data[gid] = {}
-    if uid not in inventario_data[gid]: inventario_data[gid][uid] = {}
-    return inventario_data[gid][uid]
-
-async def generar_tienda(categoria: str = None) -> discord.File:
-    if categoria is None:
-        items_mostrar = TIENDA_ITEMS
-        titulo = "TIENDA - Todos los Items"
-    else:
-        items_mostrar = {k: v for k, v in TIENDA_ITEMS.items() if v["categoria"] == categoria}
-        titulo = f"TIENDA - {CATEGORIAS_TIENDA.get(categoria, 'Desconocida')}"
-    
-    W, H  = 700, 100 + (len(items_mostrar) * 55)
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    OSCURO   = (15, 15, 15)
-    VERDE    = (34, 197, 94)
-
-    img  = Image.new("RGBA", (W, H), FONDO)
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
-    draw.text((34, 24), titulo, font=fuente(18, bold=True), fill=TEXTO)
-    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
-
-    for n, (item_id, item) in enumerate(items_mostrar.items()):
-        y = 54 + (n * 55)
-        draw.rounded_rectangle([(34, y), (646, y + 43)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-        draw.text((54, y + 8), f"{item['nombre']}", font=fuente(13, bold=True), fill=TEXTO)
-        draw.text((54, y + 24), item['descripcion'], font=fuente(10), fill=SUBTEXTO)
-        draw.text((634, y + 16), f"${item['precio']:,}", font=fuente(12, bold=True), fill=ROSA, anchor="ra")
-
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="tienda.png")
-
-async def generar_inventario(usuario: discord.Member, items: dict) -> discord.File:
-    filas = min(len(items), 8) if items else 1
-    W, H  = 700, 100 + (filas * 50)
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    OSCURO   = (15, 15, 15)
-    AZUL     = (59, 130, 246)
-
-    img  = Image.new("RGBA", (W, H), FONDO)
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
-    draw.text((34, 24), f"Inventario de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
-    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
-
-    if not items:
-        draw.text((340, H//2), "Inventario vacio", font=fuente(14), fill=SUBTEXTO, anchor="mm")
-    else:
-        for n, (item_id, cantidad) in enumerate(list(items.items())[:8]):
-            if item_id in TIENDA_ITEMS:
-                item = TIENDA_ITEMS[item_id]
-                y = 54 + (n * 50)
-                draw.rounded_rectangle([(34, y), (646, y + 38)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-                draw.text((54, y + 8), f"{item['nombre']}", font=fuente(12, bold=True), fill=ROSA)
-                draw.text((634, y + 10), f"x{cantidad}", font=fuente(12, bold=True), fill=TEXTO, anchor="ra")
-
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="inventario.png")
-
-async def generar_compra(usuario: discord.Member, item_nombre: str, precio: int, nuevo_balance: int, accion: str) -> discord.File:
-    W, H     = 680, 200
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    COLOR    = (34, 197, 94) if accion == "compra" else (239, 68, 68)
-
-    img  = Image.new("RGBA", (W, H), FONDO)
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
-
-    try:
-        av = await descargar_imagen(str(usuario.display_avatar.url))
-        av = avatar_circular(av, 90)
-        img.paste(av, (38, 55), av)
-    except:
-        draw.ellipse([(38, 55), (128, 145)], fill=GRIS)
-
-    draw.ellipse([(36, 53), (130, 147)], outline=COLOR, width=2)
-    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    
-    accion_texto = "Compra Exitosa" if accion == "compra" else "Venta Exitosa"
-    draw.rounded_rectangle([(158, 68), (288, 90)], radius=11, fill=ROSA)
-    draw.text((223, 74), accion_texto, font=fuente(12, bold=True), fill=TEXTO, anchor="mt")
-    
-    draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
-    draw.text((158, 116), "ARTICULO", font=fuente(11), fill=SUBTEXTO)
-    item_texto = item_nombre[:40] + "..." if len(item_nombre) > 40 else item_nombre
-    draw.text((158, 134), item_texto, font=fuente(15, bold=True), fill=TEXTO)
-    
-    operador = "-" if accion == "compra" else "+"
-    draw.text((158, 164), f"{operador} ${precio:,} | Saldo: ${nuevo_balance:,}", font=fuente(12), fill=ROSA)
-
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="transaccion.png")
-
-class TiendaSelectView(discord.ui.View):
-    def __init__(self, usuario_id, categoria=None):
-        super().__init__(timeout=60)
-        self.usuario_id = usuario_id
-        self.categoria = categoria
-        
-        items_mostrar = TIENDA_ITEMS if categoria is None else {k: v for k, v in TIENDA_ITEMS.items() if v["categoria"] == categoria}
-        
-        select_options = [
-            discord.SelectOption(label=f"{item['nombre']} - ${item['precio']:,}", value=item_id)
-            for item_id, item in list(items_mostrar.items())[:25]
-        ]
-        
-        self.select = discord.ui.Select(
-            placeholder="Selecciona un item para comprar",
-            options=select_options,
-            min_values=1,
-            max_values=1
-        )
-        self.select.callback = self.on_select
-        self.add_item(self.select)
-    
-    async def on_select(self, interaction: discord.Interaction):
-        if interaction.user.id != self.usuario_id:
-            await interaction.response.send_message("No puedes usar este selector", ephemeral=True)
-            return
-        
-        item_id = self.select.values[0]
-        item_data = TIENDA_ITEMS[item_id]
-        precio = item_data["precio"]
-        eco_data = get_user_eco(interaction.guild.id, interaction.user.id)
-        
-        if eco_data["coins"] < precio:
-            embed = discord.Embed(color=0xff69b4)
-            embed.description = f"No tienes suficientes monedas\nNecesitas: ${precio:,}\nTienes: ${eco_data['coins']:,}"
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        
-        eco_data["coins"] -= precio
-        inv = get_inventario(interaction.guild.id, interaction.user.id)
-        inv[item_id] = inv.get(item_id, 0) + 1
-        
-        usuario_obj = interaction.guild.get_member(interaction.user.id)
-        await interaction.response.send_message(file=await generar_compra(usuario_obj, item_data["nombre"], precio, eco_data["coins"], "compra"))
-
-class TiendaCategoriaView(discord.ui.View):
-    def __init__(self, usuario_id):
-        super().__init__(timeout=60)
-        self.usuario_id = usuario_id
-        
-        select_options = [
-            discord.SelectOption(label=cat_nombre, value=cat_id)
-            for cat_id, cat_nombre in CATEGORIAS_TIENDA.items()
-        ]
-        
-        self.select = discord.ui.Select(
-            placeholder="Selecciona una categoria",
-            options=select_options,
-            min_values=1,
-            max_values=1
-        )
-        self.select.callback = self.on_select
-        self.add_item(self.select)
-    
-    async def on_select(self, interaction: discord.Interaction):
-        if interaction.user.id != self.usuario_id:
-            await interaction.response.send_message("No puedes usar este selector", ephemeral=True)
-            return
-        
-        categoria = self.select.values[0]
-        await interaction.response.defer()
-        await interaction.followup.send(
-            file=await generar_tienda(categoria),
-            view=TiendaSelectView(interaction.user.id, categoria)
-        )
-
-@bot.tree.command(name="tienda", description="Ver tienda de items")
-async def tienda_slash(i: discord.Interaction):
-    await i.response.defer()
-    await i.followup.send(
-        file=await generar_tienda(),
-        view=TiendaCategoriaView(i.user.id)
-    )
-
-@bot.command(name="tienda")
-async def tienda_prefix(ctx):
-    await ctx.send(
-        file=await generar_tienda(),
-        view=TiendaCategoriaView(ctx.author.id)
-    )
-
-@bot.tree.command(name="inventario", description="Ver tu inventario")
-async def inventario_slash(i: discord.Interaction, usuario: discord.Member = None):
-    await i.response.defer()
-    usuario = usuario or i.user
-    inv = get_inventario(i.guild.id, usuario.id)
-    usuario_obj = i.guild.get_member(usuario.id)
-    await i.followup.send(file=await generar_inventario(usuario_obj, inv))
-
-@bot.command(name="inventario")
-async def inventario_prefix(ctx, usuario: discord.Member = None):
-    usuario = await get_member_from_ctx(ctx, usuario)
-    inv = get_inventario(ctx.guild.id, usuario.id)
-    await ctx.send(file=await generar_inventario(usuario, inv))
-
-@bot.tree.command(name="vender", description="Vender un item de tu inventario")
-async def vender_slash(i: discord.Interaction, item: str):
-    await i.response.defer()
-    
-    item_lower = item.lower()
-    if item_lower not in TIENDA_ITEMS:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"Item {item} no existe"
-        await i.followup.send(embed=embed)
-        return
-    
-    inv = get_inventario(i.guild.id, i.user.id)
-    if item_lower not in inv or inv[item_lower] <= 0:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"No tienes {TIENDA_ITEMS[item_lower]['nombre']} en tu inventario"
-        await i.followup.send(embed=embed)
-        return
-    
-    item_data = TIENDA_ITEMS[item_lower]
-    precio_venta = int(item_data["precio"] * 0.75)
-    eco_data = get_user_eco(i.guild.id, i.user.id)
-    
-    eco_data["coins"] += precio_venta
-    inv[item_lower] -= 1
-    if inv[item_lower] <= 0:
-        del inv[item_lower]
-    
-    usuario_obj = i.guild.get_member(i.user.id)
-    await i.followup.send(file=await generar_compra(usuario_obj, item_data["nombre"], precio_venta, eco_data["coins"], "venta"))
-
-@bot.command(name="vender")
-async def vender_prefix(ctx, *, item: str):
-    item_lower = item.lower()
-    if item_lower not in TIENDA_ITEMS:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"Item {item} no existe"
-        await ctx.send(embed=embed)
-        return
-    
-    inv = get_inventario(ctx.guild.id, ctx.author.id)
-    if item_lower not in inv or inv[item_lower] <= 0:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"No tienes {TIENDA_ITEMS[item_lower]['nombre']} en tu inventario"
-        await ctx.send(embed=embed)
-        return
-    
-    item_data = TIENDA_ITEMS[item_lower]
-    precio_venta = int(item_data["precio"] * 0.75)
-    eco_data = get_user_eco(ctx.guild.id, ctx.author.id)
-    
-    eco_data["coins"] += precio_venta
-    inv[item_lower] -= 1
-    if inv[item_lower] <= 0:
-        del inv[item_lower]
-    
-    await ctx.send(file=await generar_compra(ctx.author, item_data["nombre"], precio_venta, eco_data["coins"], "venta"))
 
 
 # =========================================================
