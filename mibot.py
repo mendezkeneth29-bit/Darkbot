@@ -1651,6 +1651,7 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
+
 # =========================================================
 # SISTEMA DE TIENDA/ITEMS
 # =========================================================
@@ -1660,14 +1661,24 @@ inventario_data = {}
 
 # Definir items de la tienda
 TIENDA_ITEMS = {
-    "espada_dorada": {"nombre": "Espada Dorada", "precio": 1000, "emoji": "⚔️", "descripcion": "Un arma poderosa"},
-    "escudo_diamante": {"nombre": "Escudo de Diamante", "precio": 1500, "emoji": "🛡️", "descripcion": "Defensa máxima"},
-    "pocima_curacion": {"nombre": "Pócima de Curación", "precio": 500, "emoji": "🧪", "descripcion": "Restaura tu salud"},
-    "moneda_dorada": {"nombre": "Moneda Dorada", "precio": 2000, "emoji": "🪙", "descripcion": "Moneda de suerte"},
-    "anillo_poder": {"nombre": "Anillo de Poder", "precio": 3000, "emoji": "💍", "descripcion": "Aumenta tu poder"},
-    "gema_rara": {"nombre": "Gema Rara", "precio": 2500, "emoji": "💎", "descripcion": "Muy valiosa"},
-    "llave_misteriosa": {"nombre": "Llave Misteriosa", "precio": 1200, "emoji": "🔑", "descripcion": "Abre puertas secretas"},
-    "corona_oro": {"nombre": "Corona de Oro", "precio": 5000, "emoji": "👑", "descripcion": "Símbolo de poder"},
+    "Perfume": {"nombre": "Perfume", "precio": 1000, "descripcion": "Un perfume común", "categoria": "objetos"},
+    "celular": {"nombre": "celular", "precio": 1500, "descripcion": "dispositivo electronico", "categoria": "objetos"},
+    "pocion": {"nombre": "Pocion", "precio": 500, "descripcion": "Restaura salud", "categoria": "pociones"},
+    "moneda_suerte": {"nombre": "Moneda de Suerte", "precio": 2000, "descripcion": "Trae buena suerte", "categoria": "objetos"},
+    "anillo": {"nombre": "Anillo", "precio": 3000, "descripcion": "Aumenta poder", "categoria": "accesorios"},
+    "gema": {"nombre": "Gema", "precio": 2500, "descripcion": "Muy valiosa", "categoria": "joyas"},
+    "llave": {"nombre": "Llave", "precio": 1200, "descripcion": "Abre cosas", "categoria": "herramientas"},
+    "corona": {"nombre": "Corona", "precio": 5000, "descripcion": "Simbolo de poder", "categoria": "especiales"},
+}
+
+CATEGORIAS_TIENDA = {
+    "armas": "Armas",
+    "pociones": "Pociones",
+    "objetos": "Objetos",
+    "accesorios": "Accesorios",
+    "joyas": "Joyas",
+    "herramientas": "Herramientas",
+    "especiales": "Especiales",
 }
 
 def get_inventario(guild_id, user_id):
@@ -1676,8 +1687,15 @@ def get_inventario(guild_id, user_id):
     if uid not in inventario_data[gid]: inventario_data[gid][uid] = {}
     return inventario_data[gid][uid]
 
-async def generar_tienda() -> discord.File:
-    W, H  = 700, 100 + (len(TIENDA_ITEMS) * 55)
+async def generar_tienda(categoria: str = None) -> discord.File:
+    if categoria is None:
+        items_mostrar = TIENDA_ITEMS
+        titulo = "TIENDA - Todos los Items"
+    else:
+        items_mostrar = {k: v for k, v in TIENDA_ITEMS.items() if v["categoria"] == categoria}
+        titulo = f"TIENDA - {CATEGORIAS_TIENDA.get(categoria, 'Desconocida')}"
+    
+    W, H  = 700, 100 + (len(items_mostrar) * 55)
     FONDO    = (10, 10, 10)
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
@@ -1687,16 +1705,16 @@ async def generar_tienda() -> discord.File:
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
-    draw.text((34, 24), "TIENDA", font=fuente(20, bold=True), fill=TEXTO)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=VERDE)
+    draw.text((34, 24), titulo, font=fuente(18, bold=True), fill=TEXTO)
     draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
 
-    for n, (item_id, item) in enumerate(TIENDA_ITEMS.items()):
+    for n, (item_id, item) in enumerate(items_mostrar.items()):
         y = 54 + (n * 55)
         draw.rounded_rectangle([(34, y), (646, y + 43)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-        draw.text((54, y + 8), f"{item['emoji']} {item['nombre']}", font=fuente(13, bold=True), fill=TEXTO)
+        draw.text((54, y + 8), f"{item['nombre']}", font=fuente(13, bold=True), fill=TEXTO)
         draw.text((54, y + 24), item['descripcion'], font=fuente(10), fill=SUBTEXTO)
-        draw.text((634, y + 16), f"$ {item['precio']:,}", font=fuente(12, bold=True), fill=ROSA, anchor="ra")
+        draw.text((634, y + 16), f"${item['precio']:,}", font=fuente(12, bold=True), fill=ROSA, anchor="ra")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -1720,14 +1738,14 @@ async def generar_inventario(usuario: discord.Member, items: dict) -> discord.Fi
     draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
 
     if not items:
-        draw.text((340, H//2), "Inventario vacío", font=fuente(14), fill=SUBTEXTO, anchor="mm")
+        draw.text((340, H//2), "Inventario vacio", font=fuente(14), fill=SUBTEXTO, anchor="mm")
     else:
         for n, (item_id, cantidad) in enumerate(list(items.items())[:8]):
             if item_id in TIENDA_ITEMS:
                 item = TIENDA_ITEMS[item_id]
                 y = 54 + (n * 50)
                 draw.rounded_rectangle([(34, y), (646, y + 38)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-                draw.text((54, y + 8), f"{item['emoji']} {item['nombre']}", font=fuente(12, bold=True), fill=ROSA)
+                draw.text((54, y + 8), f"{item['nombre']}", font=fuente(12, bold=True), fill=ROSA)
                 draw.text((634, y + 10), f"x{cantidad}", font=fuente(12, bold=True), fill=TEXTO, anchor="ra")
 
     buf = io.BytesIO()
@@ -1758,87 +1776,112 @@ async def generar_compra(usuario: discord.Member, item_nombre: str, precio: int,
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
     
     accion_texto = "Compra Exitosa" if accion == "compra" else "Venta Exitosa"
-    draw.rounded_rectangle([(158, 68), (288, 90)], radius=11, fill=COLOR)
-    draw.text((223, 74), accion_texto, font=fuente(12, bold=True), fill=TEXTO if COLOR == (34, 197, 94) else TEXTO, anchor="mt")
+    draw.rounded_rectangle([(158, 68), (288, 90)], radius=11, fill=ROSA)
+    draw.text((223, 74), accion_texto, font=fuente(12, bold=True), fill=TEXTO, anchor="mt")
     
     draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
-    draw.text((158, 116), "ARTÍCULO", font=fuente(11), fill=SUBTEXTO)
+    draw.text((158, 116), "ARTICULO", font=fuente(11), fill=SUBTEXTO)
     item_texto = item_nombre[:40] + "..." if len(item_nombre) > 40 else item_nombre
     draw.text((158, 134), item_texto, font=fuente(15, bold=True), fill=TEXTO)
     
     operador = "-" if accion == "compra" else "+"
-    draw.text((158, 164), f"{operador} $ {precio:,} | Saldo: $ {nuevo_balance:,}", font=fuente(12), fill=ROSA)
+    draw.text((158, 164), f"{operador} ${precio:,} | Saldo: ${nuevo_balance:,}", font=fuente(12), fill=ROSA)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="transaccion.png")
 
-# =========================================================
-# COMANDOS TIENDA
-# =========================================================
+class TiendaSelectView(discord.ui.View):
+    def __init__(self, usuario_id, categoria=None):
+        super().__init__(timeout=60)
+        self.usuario_id = usuario_id
+        self.categoria = categoria
+        
+        items_mostrar = TIENDA_ITEMS if categoria is None else {k: v for k, v in TIENDA_ITEMS.items() if v["categoria"] == categoria}
+        
+        select_options = [
+            discord.SelectOption(label=f"{item['nombre']} - ${item['precio']:,}", value=item_id)
+            for item_id, item in list(items_mostrar.items())[:25]
+        ]
+        
+        self.select = discord.ui.Select(
+            placeholder="Selecciona un item para comprar",
+            options=select_options,
+            min_values=1,
+            max_values=1
+        )
+        self.select.callback = self.on_select
+        self.add_item(self.select)
+    
+    async def on_select(self, interaction: discord.Interaction):
+        if interaction.user.id != self.usuario_id:
+            await interaction.response.send_message("No puedes usar este selector", ephemeral=True)
+            return
+        
+        item_id = self.select.values[0]
+        item_data = TIENDA_ITEMS[item_id]
+        precio = item_data["precio"]
+        eco_data = get_user_eco(interaction.guild.id, interaction.user.id)
+        
+        if eco_data["coins"] < precio:
+            embed = discord.Embed(color=0xff69b4)
+            embed.description = f"No tienes suficientes monedas\nNecesitas: ${precio:,}\nTienes: ${eco_data['coins']:,}"
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        eco_data["coins"] -= precio
+        inv = get_inventario(interaction.guild.id, interaction.user.id)
+        inv[item_id] = inv.get(item_id, 0) + 1
+        
+        usuario_obj = interaction.guild.get_member(interaction.user.id)
+        await interaction.response.send_message(file=await generar_compra(usuario_obj, item_data["nombre"], precio, eco_data["coins"], "compra"))
 
-@bot.tree.command(name="tienda", description="Ver los items disponibles en la tienda")
+class TiendaCategoriaView(discord.ui.View):
+    def __init__(self, usuario_id):
+        super().__init__(timeout=60)
+        self.usuario_id = usuario_id
+        
+        select_options = [
+            discord.SelectOption(label=cat_nombre, value=cat_id)
+            for cat_id, cat_nombre in CATEGORIAS_TIENDA.items()
+        ]
+        
+        self.select = discord.ui.Select(
+            placeholder="Selecciona una categoria",
+            options=select_options,
+            min_values=1,
+            max_values=1
+        )
+        self.select.callback = self.on_select
+        self.add_item(self.select)
+    
+    async def on_select(self, interaction: discord.Interaction):
+        if interaction.user.id != self.usuario_id:
+            await interaction.response.send_message("No puedes usar este selector", ephemeral=True)
+            return
+        
+        categoria = self.select.values[0]
+        await interaction.response.defer()
+        await interaction.followup.send(
+            file=await generar_tienda(categoria),
+            view=TiendaSelectView(interaction.user.id, categoria)
+        )
+
+@bot.tree.command(name="tienda", description="Ver tienda de items")
 async def tienda_slash(i: discord.Interaction):
     await i.response.defer()
-    await i.followup.send(file=await generar_tienda())
+    await i.followup.send(
+        file=await generar_tienda(),
+        view=TiendaCategoriaView(i.user.id)
+    )
 
 @bot.command(name="tienda")
 async def tienda_prefix(ctx):
-    await ctx.send(file=await generar_tienda())
-
-@bot.tree.command(name="comprar", description="Comprar un item de la tienda")
-async def comprar_slash(i: discord.Interaction, item: str):
-    await i.response.defer()
-    
-    item_lower = item.lower()
-    if item_lower not in TIENDA_ITEMS:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Item **{item}** no encontrado\n> Usa `/tienda` para ver los items disponibles"
-        await i.followup.send(embed=embed)
-        return
-    
-    item_data = TIENDA_ITEMS[item_lower]
-    precio = item_data["precio"]
-    eco_data = get_user_eco(i.guild.id, i.user.id)
-    
-    if eco_data["coins"] < precio:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes suficientes monedas\n> Necesitas: **${precio:,}**\n> Tienes: **${eco_data['coins']:,}**"
-        await i.followup.send(embed=embed)
-        return
-    
-    eco_data["coins"] -= precio
-    inv = get_inventario(i.guild.id, i.user.id)
-    inv[item_lower] = inv.get(item_lower, 0) + 1
-    
-    usuario_obj = i.guild.get_member(i.user.id)
-    await i.followup.send(file=await generar_compra(usuario_obj, item_data["nombre"], precio, eco_data["coins"], "compra"))
-
-@bot.command(name="comprar")
-async def comprar_prefix(ctx, *, item: str):
-    item_lower = item.lower()
-    if item_lower not in TIENDA_ITEMS:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Item **{item}** no encontrado\n> Usa `>mt tienda` para ver los items disponibles"
-        await ctx.send(embed=embed)
-        return
-    
-    item_data = TIENDA_ITEMS[item_lower]
-    precio = item_data["precio"]
-    eco_data = get_user_eco(ctx.guild.id, ctx.author.id)
-    
-    if eco_data["coins"] < precio:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes suficientes monedas\n> Necesitas: **${precio:,}**\n> Tienes: **${eco_data['coins']:,}**"
-        await ctx.send(embed=embed)
-        return
-    
-    eco_data["coins"] -= precio
-    inv = get_inventario(ctx.guild.id, ctx.author.id)
-    inv[item_lower] = inv.get(item_lower, 0) + 1
-    
-    await ctx.send(file=await generar_compra(ctx.author, item_data["nombre"], precio, eco_data["coins"], "compra"))
+    await ctx.send(
+        file=await generar_tienda(),
+        view=TiendaCategoriaView(ctx.author.id)
+    )
 
 @bot.tree.command(name="inventario", description="Ver tu inventario")
 async def inventario_slash(i: discord.Interaction, usuario: discord.Member = None):
@@ -1861,19 +1904,19 @@ async def vender_slash(i: discord.Interaction, item: str):
     item_lower = item.lower()
     if item_lower not in TIENDA_ITEMS:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Item **{item}** no existe"
+        embed.description = f"Item {item} no existe"
         await i.followup.send(embed=embed)
         return
     
     inv = get_inventario(i.guild.id, i.user.id)
     if item_lower not in inv or inv[item_lower] <= 0:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes **{TIENDA_ITEMS[item_lower]['nombre']}** en tu inventario"
+        embed.description = f"No tienes {TIENDA_ITEMS[item_lower]['nombre']} en tu inventario"
         await i.followup.send(embed=embed)
         return
     
     item_data = TIENDA_ITEMS[item_lower]
-    precio_venta = int(item_data["precio"] * 0.75)  # 75% del precio de compra
+    precio_venta = int(item_data["precio"] * 0.75)
     eco_data = get_user_eco(i.guild.id, i.user.id)
     
     eco_data["coins"] += precio_venta
@@ -1889,19 +1932,19 @@ async def vender_prefix(ctx, *, item: str):
     item_lower = item.lower()
     if item_lower not in TIENDA_ITEMS:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Item **{item}** no existe"
+        embed.description = f"Item {item} no existe"
         await ctx.send(embed=embed)
         return
     
     inv = get_inventario(ctx.guild.id, ctx.author.id)
     if item_lower not in inv or inv[item_lower] <= 0:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes **{TIENDA_ITEMS[item_lower]['nombre']}** en tu inventario"
+        embed.description = f"No tienes {TIENDA_ITEMS[item_lower]['nombre']} en tu inventario"
         await ctx.send(embed=embed)
         return
     
     item_data = TIENDA_ITEMS[item_lower]
-    precio_venta = int(item_data["precio"] * 0.75)  # 75% del precio de compra
+    precio_venta = int(item_data["precio"] * 0.75)
     eco_data = get_user_eco(ctx.guild.id, ctx.author.id)
     
     eco_data["coins"] += precio_venta
@@ -1911,449 +1954,6 @@ async def vender_prefix(ctx, *, item: str):
     
     await ctx.send(file=await generar_compra(ctx.author, item_data["nombre"], precio_venta, eco_data["coins"], "venta"))
 
-# =========================================================
-# SISTEMA DE COSMÉTICA/PERSONALIZACIÓN
-# =========================================================
-
-# Data para cosmética
-cosmetic_data = {}
-
-# Temas disponibles
-TEMAS = {
-    "rosa": {"color_primario": (255, 105, 180), "color_secundario": (255, 182, 193), "nombre": "Rosa"},
-    "azul": {"color_primario": (59, 130, 246), "color_secundario": (147, 197, 253), "nombre": "Azul"},
-    "verde": {"color_primario": (34, 197, 94), "color_secundario": (134, 239, 172), "nombre": "Verde"},
-    "purpura": {"color_primario": (139, 92, 246), "color_secundario": (196, 181, 253), "nombre": "Púrpura"},
-    "rojo": {"color_primario": (239, 68, 68), "color_secundario": (252, 165, 165), "nombre": "Rojo"},
-    "naranja": {"color_primario": (249, 115, 22), "color_secundario": (254, 215, 170), "nombre": "Naranja"},
-    "cian": {"color_primario": (0, 188, 212), "color_secundario": (176, 245, 255), "nombre": "Cian"},
-    "oro": {"color_primario": (217, 119, 6), "color_secundario": (254, 243, 199), "nombre": "Oro"},
-}
-
-# Prefijos personalizados
-PREFIJOS_DISPONIBLES = {
-    "basico": {"prefijo": "[👤]", "nombre": "Básico", "precio": 0},
-    "royal": {"prefijo": "[👑]", "nombre": "Royal", "precio": 500},
-    "dragon": {"prefijo": "[🐉]", "nombre": "Dragón", "precio": 1000},
-    "devil": {"prefijo": "[😈]", "nombre": "Demonio", "precio": 800},
-    "angel": {"prefijo": "[😇]", "nombre": "Ángel", "precio": 800},
-    "vip": {"prefijo": "[⭐]", "nombre": "VIP", "precio": 1200},
-    "legend": {"prefijo": "[🏆]", "nombre": "Leyenda", "precio": 2000},
-    "god": {"prefijo": "[⚡]", "nombre": "Dios", "precio": 3000},
-}
-
-# Efectos visuales
-EFECTOS = {
-    "brillo": {"emoji": "✨", "nombre": "Brillo", "precio": 400},
-    "fuego": {"emoji": "🔥", "nombre": "Fuego", "precio": 500},
-    "hielo": {"emoji": "❄️", "nombre": "Hielo", "precio": 500},
-    "rayo": {"emoji": "⚡", "nombre": "Rayo", "precio": 600},
-    "viento": {"emoji": "💨", "nombre": "Viento", "precio": 450},
-    "oscuridad": {"emoji": "🌑", "nombre": "Oscuridad", "precio": 700},
-    "luz": {"emoji": "☀️", "nombre": "Luz", "precio": 700},
-    "magia": {"emoji": "🪄", "nombre": "Magia", "precio": 800},
-}
-
-# Títulos personalizados
-TITULOS = {
-    "novato": {"titulo": "Novato", "precio": 0},
-    "veterano": {"titulo": "Veterano", "precio": 500},
-    "heroe": {"titulo": "Héroe", "precio": 1000},
-    "maestro": {"titulo": "Maestro", "precio": 1500},
-    "legendario": {"titulo": "Legendario", "precio": 2500},
-    "supremo": {"titulo": "Supremo", "precio": 3500},
-    "divino": {"titulo": "Divino", "precio": 5000},
-    "infinito": {"titulo": "Infinito", "precio": 7500},
-}
-
-def get_cosmetic(guild_id, user_id):
-    gid, uid = str(guild_id), str(user_id)
-    if gid not in cosmetic_data: cosmetic_data[gid] = {}
-    if uid not in cosmetic_data[gid]:
-        cosmetic_data[gid][uid] = {
-            "tema": "rosa",
-            "prefijo": "basico",
-            "efecto": None,
-            "titulo": "novato",
-            "desbloqueados": {"tema": ["rosa"], "prefijo": ["basico"], "efecto": [], "titulo": ["novato"]}
-        }
-    return cosmetic_data[gid][uid]
-
-async def generar_tienda_cosmetics() -> discord.File:
-    W, H  = 700, 350
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-
-    img  = Image.new("RGBA", (W, H), FONDO)
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=(255, 105, 180))
-    draw.text((34, 24), "TIENDA DE COSMÉTICA", font=fuente(18, bold=True), fill=TEXTO)
-    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
-
-    y_pos = 60
-    
-    # Temas
-    draw.text((34, y_pos), "TEMAS", font=fuente(12, bold=True), fill=(255, 105, 180))
-    y_pos += 25
-    temas_text = ", ".join([f"{t['nombre']}" for t in TEMAS.values()])
-    draw.text((34, y_pos), temas_text[:70], font=fuente(10), fill=SUBTEXTO)
-    y_pos += 25
-
-    # Prefijos
-    draw.text((34, y_pos), "PREFIJOS", font=fuente(12, bold=True), fill=(255, 105, 180))
-    y_pos += 25
-    prefijos_text = ", ".join([f"{p['nombre']} (${p['precio']})" for p in list(PREFIJOS_DISPONIBLES.values())[:4]])
-    draw.text((34, y_pos), prefijos_text, font=fuente(9), fill=SUBTEXTO)
-    y_pos += 25
-
-    # Efectos
-    draw.text((34, y_pos), "EFECTOS", font=fuente(12, bold=True), fill=(255, 105, 180))
-    y_pos += 25
-    efectos_text = ", ".join([f"{e['nombre']} (${e['precio']})" for e in list(EFECTOS.values())[:4]])
-    draw.text((34, y_pos), efectos_text, font=fuente(9), fill=SUBTEXTO)
-    y_pos += 25
-
-    # Títulos
-    draw.text((34, y_pos), "TÍTULOS", font=fuente(12, bold=True), fill=(255, 105, 180))
-    y_pos += 25
-    titulos_text = ", ".join([f"{t['titulo']} (${t['precio']})" for t in list(TITULOS.values())[:4]])
-    draw.text((34, y_pos), titulos_text, font=fuente(9), fill=SUBTEXTO)
-
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="cosmetic_shop.png")
-
-async def generar_perfil_cosmetic(usuario: discord.Member, cosmetic: dict) -> discord.File:
-    W, H     = 700, 300
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    TEMA_COLOR = TEMAS[cosmetic["tema"]]["color_primario"]
-
-    img  = Image.new("RGBA", (W, H), FONDO)
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=TEMA_COLOR)
-
-    try:
-        av = await descargar_imagen(str(usuario.display_avatar.url))
-        av = avatar_circular(av, 100)
-        img.paste(av, (34, 38), av)
-    except:
-        draw.ellipse([(34, 38), (134, 138)], fill=GRIS)
-
-    draw.ellipse([(32, 36), (136, 140)], outline=TEMA_COLOR, width=2)
-
-    # Nombre y título
-    titulo_actual = TITULOS[cosmetic["titulo"]]["titulo"]
-    draw.text((154, 38), f"{PREFIJOS_DISPONIBLES[cosmetic['prefijo']]['prefijo']} {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
-    draw.text((154, 62), f"{titulo_actual}", font=fuente(13), fill=TEMA_COLOR)
-
-    draw.rectangle([(34, 148), (646, 149)], fill=GRIS)
-
-    # Información de cosmética
-    def campo(x, y, titulo, valor, ancho=310):
-        draw.rounded_rectangle([(x, y), (x + ancho, y + 50)], radius=8, fill=(20, 20, 20))
-        draw.text((x + 14, y + 8), titulo, font=fuente(10), fill=SUBTEXTO)
-        draw.text((x + 14, y + 24), valor, font=fuente(12, bold=True), fill=TEMA_COLOR)
-
-    campo(34,  158, "TEMA", TEMAS[cosmetic["tema"]]["nombre"])
-    campo(368, 158, "PREFIJO", PREFIJOS_DISPONIBLES[cosmetic["prefijo"]]["nombre"])
-    
-    efecto_text = EFECTOS[cosmetic["efecto"]]["nombre"] if cosmetic["efecto"] else "Ninguno"
-    campo(34,  216, "EFECTO", efecto_text)
-    
-    campo(368, 216, "TÍTULO", titulo_actual)
-
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="cosmetic_profile.png")
-
-async def generar_cosmetic_cambio(usuario: discord.Member, tipo: str, nombre: str, precio: int, nuevo_balance: int) -> discord.File:
-    W, H     = 680, 200
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    COLOR    = (139, 92, 246)  # Púrpura
-
-    img  = Image.new("RGBA", (W, H), FONDO)
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
-
-    try:
-        av = await descargar_imagen(str(usuario.display_avatar.url))
-        av = avatar_circular(av, 90)
-        img.paste(av, (38, 55), av)
-    except:
-        draw.ellipse([(38, 55), (128, 145)], fill=GRIS)
-
-    draw.ellipse([(36, 53), (130, 147)], outline=COLOR, width=2)
-    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    
-    tipo_emoji = {"tema": "<:identy:1504901134173737103>", "prefijo": "<:Plear:1504584518202556436>", "efecto": "<:sparkles:1506394397057613864>", "titulo": "<:congrat:1504584224835895458>"}
-    draw.rounded_rectangle([(158, 68), (288, 90)], radius=11, fill=COLOR)
-    draw.text((223, 74), f"{tipo_emoji.get(tipo, '<:Check:1504584129302499399>')} Cambio!", font=fuente(12, bold=True), fill=TEXTO, anchor="mt")
-    
-    draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
-    draw.text((158, 116), tipo.upper(), font=fuente(11), fill=SUBTEXTO)
-    draw.text((158, 134), nombre[:40], font=fuente(15, bold=True), fill=TEXTO)
-    
-    draw.text((158, 164), f"Saldo: ${nuevo_balance:,}", font=fuente(12), fill=COLOR)
-
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="cosmetic_cambio.png")
-
-# =========================================================
-# COMANDOS COSMÉTICA
-# =========================================================
-
-@bot.tree.command(name="cosmetics", description="Ver tienda de cosmética")
-async def cosmetics_tienda_slash(i: discord.Interaction):
-    await i.response.defer()
-    await i.followup.send(file=await generar_tienda_cosmetics())
-
-@bot.command(name="cosmetics")
-async def cosmetics_tienda_prefix(ctx):
-    await ctx.send(file=await generar_tienda_cosmetics())
-
-@bot.tree.command(name="perfil-cosmetic", description="Ver tu perfil con cosmética")
-async def perfil_cosmetic_slash(i: discord.Interaction, usuario: discord.Member = None):
-    await i.response.defer()
-    usuario = usuario or i.user
-    cosmetic = get_cosmetic(i.guild.id, usuario.id)
-    usuario_obj = i.guild.get_member(usuario.id)
-    await i.followup.send(file=await generar_perfil_cosmetic(usuario_obj, cosmetic))
-
-@bot.command(name="perfil-cosmetic")
-async def perfil_cosmetic_prefix(ctx, usuario: discord.Member = None):
-    usuario = await get_member_from_ctx(ctx, usuario)
-    cosmetic = get_cosmetic(ctx.guild.id, usuario.id)
-    await ctx.send(file=await generar_perfil_cosmetic(usuario, cosmetic))
-
-@bot.tree.command(name="tema", description="Cambiar tema de color")
-async def tema_slash(i: discord.Interaction, tema: str):
-    await i.response.defer()
-    
-    tema_lower = tema.lower()
-    if tema_lower not in TEMAS:
-        temas_disponibles = ", ".join(TEMAS.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Tema no encontrado\n> Disponibles: {temas_disponibles}"
-        await i.followup.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(i.guild.id, i.user.id)
-    if tema_lower in cosmetic["desbloqueados"]["tema"]:
-        cosmetic["tema"] = tema_lower
-        usuario_obj = i.guild.get_member(i.user.id)
-        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "tema", TEMAS[tema_lower]["nombre"], 0, 0))
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes desbloqueado el tema **{TEMAS[tema_lower]['nombre']}**"
-        await i.followup.send(embed=embed)
-
-@bot.command(name="tema")
-async def tema_prefix(ctx, tema: str):
-    tema_lower = tema.lower()
-    if tema_lower not in TEMAS:
-        temas_disponibles = ", ".join(TEMAS.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Tema no encontrado\n> Disponibles: {temas_disponibles}"
-        await ctx.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
-    if tema_lower in cosmetic["desbloqueados"]["tema"]:
-        cosmetic["tema"] = tema_lower
-        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "tema", TEMAS[tema_lower]["nombre"], 0, 0))
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes desbloqueado el tema **{TEMAS[tema_lower]['nombre']}**"
-        await ctx.send(embed=embed)
-
-@bot.tree.command(name="prefijo", description="Cambiar tu prefijo personalizado")
-async def prefijo_slash(i: discord.Interaction, prefijo: str):
-    await i.response.defer()
-    
-    prefijo_lower = prefijo.lower()
-    if prefijo_lower not in PREFIJOS_DISPONIBLES:
-        prefijos_disponibles = ", ".join(PREFIJOS_DISPONIBLES.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Prefijo no encontrado\n> Disponibles: {prefijos_disponibles}"
-        await i.followup.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(i.guild.id, i.user.id)
-    if prefijo_lower in cosmetic["desbloqueados"]["prefijo"]:
-        cosmetic["prefijo"] = prefijo_lower
-        usuario_obj = i.guild.get_member(i.user.id)
-        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "prefijo", PREFIJOS_DISPONIBLES[prefijo_lower]["nombre"], 0, 0))
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes desbloqueado el prefijo **{PREFIJOS_DISPONIBLES[prefijo_lower]['nombre']}**"
-        await i.followup.send(embed=embed)
-
-@bot.command(name="prefijo")
-async def prefijo_prefix(ctx, prefijo: str):
-    prefijo_lower = prefijo.lower()
-    if prefijo_lower not in PREFIJOS_DISPONIBLES:
-        prefijos_disponibles = ", ".join(PREFIJOS_DISPONIBLES.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Prefijo no encontrado\n> Disponibles: {prefijos_disponibles}"
-        await ctx.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
-    if prefijo_lower in cosmetic["desbloqueados"]["prefijo"]:
-        cosmetic["prefijo"] = prefijo_lower
-        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "prefijo", PREFIJOS_DISPONIBLES[prefijo_lower]["nombre"], 0, 0))
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes desbloqueado el prefijo **{PREFIJOS_DISPONIBLES[prefijo_lower]['nombre']}**"
-        await ctx.send(embed=embed)
-
-@bot.tree.command(name="efecto", description="Cambiar tu efecto visual")
-async def efecto_slash(i: discord.Interaction, efecto: str = None):
-    await i.response.defer()
-    
-    if efecto is None:
-        cosmetic = get_cosmetic(i.guild.id, i.user.id)
-        cosmetic["efecto"] = None
-        usuario_obj = i.guild.get_member(i.user.id)
-        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "efecto", "Ninguno", 0, 0))
-        return
-    
-    efecto_lower = efecto.lower()
-    if efecto_lower not in EFECTOS:
-        efectos_disponibles = ", ".join(EFECTOS.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Efecto no encontrado\n> Disponibles: {efectos_disponibles}"
-        await i.followup.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(i.guild.id, i.user.id)
-    if efecto_lower in cosmetic["desbloqueados"]["efecto"]:
-        cosmetic["efecto"] = efecto_lower
-        usuario_obj = i.guild.get_member(i.user.id)
-        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "efecto", EFECTOS[efecto_lower]["nombre"], 0, 0))
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes desbloqueado el efecto **{EFECTOS[efecto_lower]['nombre']}**"
-        await i.followup.send(embed=embed)
-
-@bot.command(name="efecto")
-async def efecto_prefix(ctx, efecto: str = None):
-    if efecto is None:
-        cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
-        cosmetic["efecto"] = None
-        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "efecto", "Ninguno", 0, 0))
-        return
-    
-    efecto_lower = efecto.lower()
-    if efecto_lower not in EFECTOS:
-        efectos_disponibles = ", ".join(EFECTOS.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Efecto no encontrado\n> Disponibles: {efectos_disponibles}"
-        await ctx.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
-    if efecto_lower in cosmetic["desbloqueados"]["efecto"]:
-        cosmetic["efecto"] = efecto_lower
-        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "efecto", EFECTOS[efecto_lower]["nombre"], 0, 0))
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes desbloqueado el efecto **{EFECTOS[efecto_lower]['nombre']}**"
-        await ctx.send(embed=embed)
-
-@bot.tree.command(name="titulo", description="Cambiar tu título personalizado")
-async def titulo_slash(i: discord.Interaction, titulo: str):
-    await i.response.defer()
-    
-    titulo_lower = titulo.lower()
-    if titulo_lower not in TITULOS:
-        titulos_disponibles = ", ".join(TITULOS.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Título no encontrado\n> Disponibles: {titulos_disponibles}"
-        await i.followup.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(i.guild.id, i.user.id)
-    if titulo_lower in cosmetic["desbloqueados"]["titulo"]:
-        cosmetic["titulo"] = titulo_lower
-        usuario_obj = i.guild.get_member(i.user.id)
-        await i.followup.send(file=await generar_cosmetic_cambio(usuario_obj, "titulo", TITULOS[titulo_lower]["titulo"], 0, 0))
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes desbloqueado el título **{TITULOS[titulo_lower]['titulo']}**"
-        await i.followup.send(embed=embed)
-
-@bot.command(name="titulo")
-async def titulo_prefix(ctx, titulo: str):
-    titulo_lower = titulo.lower()
-    if titulo_lower not in TITULOS:
-        titulos_disponibles = ", ".join(TITULOS.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Título no encontrado\n> Disponibles: {titulos_disponibles}"
-        await ctx.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(ctx.guild.id, ctx.author.id)
-    if titulo_lower in cosmetic["desbloqueados"]["titulo"]:
-        cosmetic["titulo"] = titulo_lower
-        await ctx.send(file=await generar_cosmetic_cambio(ctx.author, "titulo", TITULOS[titulo_lower]["titulo"], 0, 0))
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> No tienes desbloqueado el título **{TITULOS[titulo_lower]['titulo']}**"
-        await ctx.send(embed=embed)
-
-@bot.tree.command(name="desbloquear-cosmetic", description="Desbloquear cosmética (ADMIN)")
-@app_commands.checks.has_permissions(administrator=True)
-async def desbloquear_cosmetic_slash(i: discord.Interaction, usuario: discord.Member, tipo: str, item: str):
-    await i.response.defer()
-    
-    tipo_lower = tipo.lower()
-    item_lower = item.lower()
-    
-    if tipo_lower not in ["tema", "prefijo", "efecto", "titulo"]:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Tipo no válido. Usa: tema, prefijo, efecto, titulo"
-        await i.followup.send(embed=embed)
-        return
-    
-    cosmetic = get_cosmetic(i.guild.id, usuario.id)
-    
-    if tipo_lower == "tema" and item_lower in TEMAS:
-        cosmetic["desbloqueados"]["tema"].append(item_lower)
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Tema **{TEMAS[item_lower]['nombre']}** desbloqueado para {usuario.mention}"
-        await i.followup.send(embed=embed)
-    elif tipo_lower == "prefijo" and item_lower in PREFIJOS_DISPONIBLES:
-        cosmetic["desbloqueados"]["prefijo"].append(item_lower)
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Prefijo **{PREFIJOS_DISPONIBLES[item_lower]['nombre']}** desbloqueado para {usuario.mention}"
-        await i.followup.send(embed=embed)
-    elif tipo_lower == "efecto" and item_lower in EFECTOS:
-        cosmetic["desbloqueados"]["efecto"].append(item_lower)
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Efecto **{EFECTOS[item_lower]['nombre']}** desbloqueado para {usuario.mention}"
-        await i.followup.send(embed=embed)
-    elif tipo_lower == "titulo" and item_lower in TITULOS:
-        cosmetic["desbloqueados"]["titulo"].append(item_lower)
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> Título **{TITULOS[item_lower]['titulo']}** desbloqueado para {usuario.mention}"
-        await i.followup.send(embed=embed)
-    else:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"> {tipo_lower} o item no encontrado"
-        await i.followup.send(embed=embed)
 
 # =========================================================
 # ERROR HANDLER
