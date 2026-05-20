@@ -206,7 +206,7 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="userinfo.png")
-
+    
 
 async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) -> discord.File:
     W, H        = 700, 400
