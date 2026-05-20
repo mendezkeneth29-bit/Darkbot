@@ -1457,60 +1457,6 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
 # ROBLOX
 # =========================================================
 
-async def generar_perfil_roblox(usuario_roblox: str, user_id: int, display_name: str, fecha_creacion: str, amigos: int, avatar_url: str) -> discord.File:
-    W, H     = 700, 350
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    ROBLOX   = (235, 0, 0)
-
-    img  = Image.new("RGBA", (W, H), FONDO)
-    draw = ImageDraw.Draw(img)
-    
-    # Borde rojo de Roblox
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROBLOX)
-    
-    # Avatar
-    try:
-        av = await descargar_imagen(avatar_url)
-        av = avatar_circular(av, 120)
-        img.paste(av, (30, 30), av)
-    except:
-        draw.ellipse([(30, 30), (150, 150)], fill=GRIS)
-    
-    draw.ellipse([(28, 28), (152, 152)], outline=ROBLOX, width=3)
-    
-    # Nombre de usuario
-    draw.text((170, 35), usuario_roblox, font=fuente(24, bold=True), fill=TEXTO)
-    
-    # Nickname
-    draw.text((170, 65), f"Apodo: {display_name}", font=fuente(13), fill=SUBTEXTO)
-    
-    # Linea separadora
-    draw.rectangle([(30, 165), (670, 166)], fill=GRIS)
-    
-    # Fecha de creacion
-    draw.text((30, 180), "CUENTA CREADA", font=fuente(11), fill=SUBTEXTO)
-    draw.text((30, 200), fecha_creacion, font=fuente(14, bold=True), fill=ROBLOX)
-    
-    # Amigos
-    draw.text((400, 180), "AMIGOS", font=fuente(11), fill=SUBTEXTO)
-    draw.text((400, 200), str(amigos), font=fuente(14, bold=True), fill=ROBLOX)
-    
-    # ID del perfil
-    draw.rectangle([(30, 240), (670, 241)], fill=GRIS)
-    draw.text((30, 255), "ID DE PERFIL", font=fuente(11), fill=SUBTEXTO)
-    draw.text((30, 275), str(user_id), font=fuente(13, bold=True), fill=TEXTO)
-    
-    # Link del perfil
-    draw.text((30, 310), f"https://www.roblox.com/users/{user_id}/profile", font=fuente(10), fill=ROBLOX)
-
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="roblox_perfil.png")
-
 @bot.hybrid_command(name="roblox", description="Mira el perfil de roblox de alguien")
 async def roblox_prefix(ctx: commands.Context, usuario: str):
     await ctx.defer() if ctx.interaction else None
@@ -1521,7 +1467,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
             async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
                 if resp.status != 200:
                     embed = discord.Embed(color=0xff69b4)
-                    embed.description = "Error al conectar con la API de Roblox"
+                    embed.description = "> Error al conectar con la API de Roblox"
                     if ctx.interaction:
                         await ctx.interaction.followup.send(embed=embed)
                     else:
@@ -1531,7 +1477,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
                 res_user = await resp.json()
                 if not res_user["data"]:
                     embed = discord.Embed(color=0xff69b4)
-                    embed.description = f"El usuario **{usuario}** no existe en Roblox"
+                    embed.description = f"> El usuario **{usuario}** no existe en Roblox"
                     if ctx.interaction:
                         await ctx.interaction.followup.send(embed=embed)
                     else:
@@ -1564,25 +1510,16 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
                         avatar_url = res_thumb["data"][0]["imageUrl"]
 
         perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
-        
-        # Generar tarjeta
-        archivo_tarjeta = await generar_perfil_roblox(
-            roblox_user,
-            user_id,
-            display_name,
-            cuenta_creada,
-            cantidad_amigos,
-            avatar_url
-        )
+
         
         # Crear embed con información adicional
-        embed = discord.Embed(color=0xff0000, title="Perfil de Roblox")
+        embed = discord.Embed(color=0xff69b4, title="Perfil de Roblox... <:Robloxlogo:1506497694661742643>")
         embed.add_field(name="Usuario", value=roblox_user, inline=True)
         embed.add_field(name="ID", value=user_id, inline=True)
         embed.add_field(name="Apodo", value=display_name, inline=False)
         embed.add_field(name="Cuenta Creada", value=cuenta_creada, inline=True)
         embed.add_field(name="Amigos", value=cantidad_amigos, inline=True)
-        embed.add_field(name="Perfil", value=f"[Abrir en Roblox]({perfil_link})", inline=False)
+        embed.add_field(name="Perfil", value=f"[ver]({perfil_link})", inline=False)
         embed.set_thumbnail(url=avatar_url)
         
         if ctx.interaction:
