@@ -1521,6 +1521,11 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
         embed.add_field(name="Amigos", value=cantidad_amigos, inline=True)
         embed.add_field(name="Perfil", value=f"[ver]({perfil_link})", inline=False)
         embed.set_thumbnail(url=avatar_url)
+
+            if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
         
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
