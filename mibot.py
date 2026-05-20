@@ -147,16 +147,13 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     TEXTO = (255, 255, 255)
     SUBTEXTO = (180, 180, 190)
     CAMPO_FONDO = (40, 43, 48)
+    ROSA = (255, 105, 180) # <--- Definimos el color rosa aquí
 
     img = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    # BARRA IZQUIERDA DE COLOR
-    color = ROSA
-    r = color.r if color.value else 88
-    g = color.g if color.value else 101
-    b = color.b if color.value else 242
-    draw.rectangle([(0, 0), (6, H)], fill=(r, g, b))
+    # BARRA IZQUIERDA DE COLOR (Ahora fija en rosa)
+    draw.rectangle([(0, 0), (6, H)], fill=ROSA)
 
     # AVATAR
     avatar_img = await descargar_imagen(str(usuario.display_avatar.url))
