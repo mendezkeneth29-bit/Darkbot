@@ -1528,7 +1528,7 @@ async def roblox_slash(i: discord.Interaction, usuario: str):
                 res_user = await resp.json()
                 if not res_user["data"]:
                     embed = discord.Embed(color=0xff69b4)
-                    embed.description = f"El usuario **{usuario}** no existe en Roblox"
+                    embed.description = f"> El usuario **{usuario}** no existe en Roblox"
                     await i.followup.send(embed=embed)
                     return
                 
@@ -1568,16 +1568,6 @@ async def roblox_slash(i: discord.Interaction, usuario: str):
             cantidad_amigos,
             avatar_url
         )
-        
-        # Crear embed con información adicional
-        embed = discord.Embed(color=0xff0000, title="Perfil de Roblox")
-        embed.add_field(name="Usuario", value=roblox_user, inline=True)
-        embed.add_field(name="ID", value=user_id, inline=True)
-        embed.add_field(name="Apodo", value=display_name, inline=False)
-        embed.add_field(name="Cuenta Creada", value=cuenta_creada, inline=True)
-        embed.add_field(name="Amigos", value=cantidad_amigos, inline=True)
-        embed.add_field(name="Perfil", value=f"[Abrir en Roblox]({perfil_link})", inline=False)
-        embed.set_thumbnail(url=avatar_url)
         
         await i.followup.send(file=archivo_tarjeta, embed=embed)
         
@@ -1649,16 +1639,6 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
             cantidad_amigos,
             avatar_url
         )
-        
-        # Crear embed con información adicional
-        embed = discord.Embed(color=0xff0000, title="Perfil de Roblox")
-        embed.add_field(name="Usuario", value=roblox_user, inline=True)
-        embed.add_field(name="ID", value=user_id, inline=True)
-        embed.add_field(name="Apodo", value=display_name, inline=False)
-        embed.add_field(name="Cuenta Creada", value=cuenta_creada, inline=True)
-        embed.add_field(name="Amigos", value=cantidad_amigos, inline=True)
-        embed.add_field(name="Perfil", value=f"[Abrir en Roblox]({perfil_link})", inline=False)
-        embed.set_thumbnail(url=avatar_url)
         
         if ctx.interaction:
             await ctx.interaction.followup.send(file=archivo_tarjeta, embed=embed)
