@@ -1457,12 +1457,6 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
 # ROBLOX
 # =========================================================
 
-from datetime import datetime
-import aiohttp
-import discord
-from discord.ext import commands
-
-
 @bot.hybrid_command(name="roblox", description="Mira el perfil de roblox de alguien")
 async def roblox_prefix(ctx: commands.Context, usuario: str):
     if ctx.interaction:
@@ -1519,7 +1513,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
         perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
 
         # Crear embed con información adicional
-        embed = discord.Embed(color=0xff69b4, title="Perfil de Roblox... <:Robloxlogo:1506497694661742643>")
+        embed = discord.Embed(color=0xff69b4, title="Perfil de R<:Robloxlogo:1506497694661742643>blox...")
         embed.add_field(name="Usuario", value=roblox_user, inline=True)
         embed.add_field(name="ID", value=user_id, inline=True)
         embed.add_field(name="Apodo", value=display_name, inline=False)
