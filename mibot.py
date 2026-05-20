@@ -1737,6 +1737,169 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
+# =========================================================
+# SISTEMA DE GESTOS
+# =========================================================
+
+GESTOS = {
+    "besar": {
+        "nombre": "Besar",
+        "gifs": [
+            "https://media.giphy.com/media/g9GUutsyeeNIY/giphy.gif",
+            "https://media.giphy.com/media/l0HlDtKPoULz0XO1i/giphy.gif",
+            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
+            "https://media.giphy.com/media/3o85xIO33l7RlmLR20/giphy.gif",
+            "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+        ]
+    },
+    "matar": {
+        "nombre": "Matar",
+        "gifs": [
+            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
+            "https://media.giphy.com/media/3o85xIO33l7RlmLR20/giphy.gif",
+            "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+            "https://media.giphy.com/media/3o6Zt6KHxJTbXCnSvu/giphy.gif",
+            "https://media.giphy.com/media/l0HlDxW5QwASkA3gI/giphy.gif",
+        ]
+    },
+    "punetazo": {
+        "nombre": "Punetazo",
+        "gifs": [
+            "https://media.giphy.com/media/xTiTnIHHAVf76uIQVq/giphy.gif",
+            "https://media.giphy.com/media/l0HlTy9x's6Xzd4gM/giphy.gif",
+            "https://media.giphy.com/media/5xtDarmwsuR9sDKgF2c/giphy.gif",
+            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
+            "https://media.giphy.com/media/3o7TKU8RveLHBjjNde/giphy.gif",
+        ]
+    },
+    "cachetada": {
+        "nombre": "Cachetada",
+        "gifs": [
+            "https://media.giphy.com/media/xTiTn0JyWMIqUj0z7O/giphy.gif",
+            "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
+            "https://media.giphy.com/media/3o85xIO33l7RlmLR20/giphy.gif",
+            "https://media.giphy.com/media/xTiTnGs7KzV3vkw9S8/giphy.gif",
+        ]
+    },
+    "cocina": {
+        "nombre": "Cocina",
+        "gifs": [
+            "https://media.giphy.com/media/l0HlNaQ9hWt9xjC1i/giphy.gif",
+            "https://media.giphy.com/media/l0HlLu7yqJ0gIhJDa/giphy.gif",
+            "https://media.giphy.com/media/3o6ZsYq8d0gOmJmYs0/giphy.gif",
+            "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
+        ]
+    }
+}
+
+class BotonDevolverGesto(discord.ui.View):
+    def __init__(self, usuario_original, usuario_receptor, gesto_nombre):
+        super().__init__(timeout=300)
+        self.usuario_original = usuario_original
+        self.usuario_receptor = usuario_receptor
+        self.gesto_nombre = gesto_nombre
+        self.pulsado = False
+    
+    @discord.ui.button(label="Devolver Gesto", style=discord.ButtonStyle.danger)
+    async def devolver(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.usuario_receptor:
+            await interaction.response.send_message("Solo quien recibio el gesto puede devolverlo", ephemeral=True)
+            return
+        
+        if self.pulsado:
+            await interaction.response.send_message("Este gesto ya fue devuelto", ephemeral=True)
+            return
+        
+        self.pulsado = True
+        button.disabled = True
+        
+        gesto_info = GESTOS[self.gesto_nombre]
+        gif_devuelto = random.choice(gesto_info["gifs"])
+        
+        embed = discord.Embed(
+            color=0xff69b4,
+            title=f"{self.usuario_receptor.name} devuelve el {gesto_info['nombre'].lower()}"
+        )
+        embed.description = f"{self.usuario_receptor.mention} le devuelve el {gesto_info['nombre'].lower()} a {self.usuario_original.mention}"
+        embed.set_image(url=gif_devuelto)
+        embed.set_footer(text="Gesto devuelto")
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+
+@bot.tree.command(name="gesto", description="Haz un gesto a alguien")
+async def gesto_slash(i: discord.Interaction, gesto: str, usuario: discord.Member):
+    if usuario == i.user:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "No puedes hacer un gesto a ti mismo"
+        await i.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    if usuario.bot:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "No puedes hacer un gesto a un bot"
+        await i.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    gesto_lower = gesto.lower()
+    if gesto_lower not in GESTOS:
+        gestos_disponibles = ", ".join(GESTOS.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Gesto no encontrado\nGestos disponibles: {gestos_disponibles}"
+        await i.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    gesto_info = GESTOS[gesto_lower]
+    gif_aleatorio = random.choice(gesto_info["gifs"])
+    
+    embed = discord.Embed(
+        color=0xff69b4,
+        title=f"{i.user.name} hace {gesto_info['nombre'].lower()}"
+    )
+    embed.description = f"{i.user.mention} le hace {gesto_info['nombre'].lower()} a {usuario.mention}"
+    embed.set_image(url=gif_aleatorio)
+    embed.set_footer(text="Presiona el boton abajo para devolver el gesto")
+    
+    view = BotonDevolverGesto(i.user, usuario, gesto_lower)
+    await i.response.send_message(embed=embed, view=view)
+
+@bot.command(name="gesto")
+async def gesto_prefix(ctx, gesto: str, usuario: discord.Member):
+    if usuario == ctx.author:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "No puedes hacer un gesto a ti mismo"
+        await ctx.send(embed=embed)
+        return
+    
+    if usuario.bot:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "No puedes hacer un gesto a un bot"
+        await ctx.send(embed=embed)
+        return
+    
+    gesto_lower = gesto.lower()
+    if gesto_lower not in GESTOS:
+        gestos_disponibles = ", ".join(GESTOS.keys())
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Gesto no encontrado\nGestos disponibles: {gestos_disponibles}"
+        await ctx.send(embed=embed)
+        return
+    
+    gesto_info = GESTOS[gesto_lower]
+    gif_aleatorio = random.choice(gesto_info["gifs"])
+    
+    embed = discord.Embed(
+        color=0xff69b4,
+        title=f"{ctx.author.name} hace {gesto_info['nombre'].lower()}"
+    )
+    embed.description = f"{ctx.author.mention} le hace {gesto_info['nombre'].lower()} a {usuario.mention}"
+    embed.set_image(url=gif_aleatorio)
+    embed.set_footer(text="Presiona el boton abajo para devolver el gesto")
+    
+    view = BotonDevolverGesto(ctx.author, usuario, gesto_lower)
+    await ctx.send(embed=embed, view=view)
+
 
 # =========================================================
 # ERROR HANDLER
