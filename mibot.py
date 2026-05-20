@@ -1454,58 +1454,224 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
             await ctx.send(f"Error:\n```{e}```")
 
 # =========================================================
-# ROBLOX
+# ROBLOX MEJORADO
 # =========================================================
 
+async def generar_perfil_roblox(usuario_roblox: str, user_id: int, display_name: str, fecha_creacion: str, amigos: int, avatar_url: str) -> discord.File:
+    W, H     = 700, 350
+    FONDO    = (10, 10, 10)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (136, 136, 136)
+    GRIS     = (42, 42, 42)
+    ROBLOX   = (235, 0, 0)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+    
+    # Borde rojo de Roblox
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROBLOX)
+    
+    # Avatar
+    try:
+        av = await descargar_imagen(avatar_url)
+        av = avatar_circular(av, 120)
+        img.paste(av, (30, 30), av)
+    except:
+        draw.ellipse([(30, 30), (150, 150)], fill=GRIS)
+    
+    draw.ellipse([(28, 28), (152, 152)], outline=ROBLOX, width=3)
+    
+    # Nombre de usuario
+    draw.text((170, 35), usuario_roblox, font=fuente(24, bold=True), fill=TEXTO)
+    
+    # Nickname
+    draw.text((170, 65), f"Apodo: {display_name}", font=fuente(13), fill=SUBTEXTO)
+    
+    # Linea separadora
+    draw.rectangle([(30, 165), (670, 166)], fill=GRIS)
+    
+    # Fecha de creacion
+    draw.text((30, 180), "CUENTA CREADA", font=fuente(11), fill=SUBTEXTO)
+    draw.text((30, 200), fecha_creacion, font=fuente(14, bold=True), fill=ROBLOX)
+    
+    # Amigos
+    draw.text((400, 180), "AMIGOS", font=fuente(11), fill=SUBTEXTO)
+    draw.text((400, 200), str(amigos), font=fuente(14, bold=True), fill=ROBLOX)
+    
+    # ID del perfil
+    draw.rectangle([(30, 240), (670, 241)], fill=GRIS)
+    draw.text((30, 255), "ID DE PERFIL", font=fuente(11), fill=SUBTEXTO)
+    draw.text((30, 275), str(user_id), font=fuente(13, bold=True), fill=TEXTO)
+    
+    # Link del perfil
+    draw.text((30, 310), f"https://www.roblox.com/users/{user_id}/profile", font=fuente(10), fill=ROBLOX)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="roblox_perfil.png")
+
+@bot.tree.command(name="roblox", description="Mira el perfil de roblox de alguien")
+async def roblox_slash(i: discord.Interaction, usuario: str):
+    await i.response.defer()
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            data_user = {"usernames": [usuario], "excludeBannedUsers": False}
+            async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
+                if resp.status != 200:
+                    embed = discord.Embed(color=0xff69b4)
+                    embed.description = "Error al conectar con la API de Roblox"
+                    await i.followup.send(embed=embed)
+                    return
+                
+                res_user = await resp.json()
+                if not res_user["data"]:
+                    embed = discord.Embed(color=0xff69b4)
+                    embed.description = f"El usuario **{usuario}** no existe en Roblox"
+                    await i.followup.send(embed=embed)
+                    return
+                
+                user_info   = res_user["data"][0]
+                user_id     = user_info["id"]
+                roblox_user = user_info["name"]
+                display_name = user_info["displayName"]
+
+            # Obtener detalles
+            async with session.get(f"https://users.roblox.com/v1/users/{user_id}") as resp:
+                res_details   = await resp.json()
+                fecha_iso     = res_details["created"].split("T")[0]
+                fecha_obj     = datetime.strptime(fecha_iso, "%Y-%m-%d")
+                cuenta_creada = fecha_obj.strftime("%d/%m/%Y")
+
+            # Obtener amigos
+            async with session.get(f"https://friends.roblox.com/v1/users/{user_id}/friends/count") as resp:
+                res_friends     = await resp.json()
+                cantidad_amigos = res_friends.get("count", 0)
+
+            # Obtener avatar
+            avatar_url = "https://images.rbxcdn.com/default_avatar.png"
+            async with session.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as resp:
+                if resp.status == 200:
+                    res_thumb = await resp.json()
+                    if res_thumb["data"]:
+                        avatar_url = res_thumb["data"][0]["imageUrl"]
+
+        perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
+        
+        # Generar tarjeta
+        archivo_tarjeta = await generar_perfil_roblox(
+            roblox_user,
+            user_id,
+            display_name,
+            cuenta_creada,
+            cantidad_amigos,
+            avatar_url
+        )
+        
+        # Crear embed con información adicional
+        embed = discord.Embed(color=0xff0000, title="Perfil de Roblox")
+        embed.add_field(name="Usuario", value=roblox_user, inline=True)
+        embed.add_field(name="ID", value=user_id, inline=True)
+        embed.add_field(name="Apodo", value=display_name, inline=False)
+        embed.add_field(name="Cuenta Creada", value=cuenta_creada, inline=True)
+        embed.add_field(name="Amigos", value=cantidad_amigos, inline=True)
+        embed.add_field(name="Perfil", value=f"[Abrir en Roblox]({perfil_link})", inline=False)
+        embed.set_thumbnail(url=avatar_url)
+        
+        await i.followup.send(file=archivo_tarjeta, embed=embed)
+        
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)}"
+        await i.followup.send(embed=embed)
+
 @bot.hybrid_command(name="roblox", description="Mira el perfil de roblox de alguien")
-async def roblox(ctx: commands.Context, usuario: str):
+async def roblox_prefix(ctx: commands.Context, usuario: str):
     await ctx.defer() if ctx.interaction else None
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            data_user = {"usernames": [usuario], "excludeBannedUsers": False}
+            async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
+                if resp.status != 200:
+                    embed = discord.Embed(color=0xff69b4)
+                    embed.description = "Error al conectar con la API de Roblox"
+                    if ctx.interaction:
+                        await ctx.interaction.followup.send(embed=embed)
+                    else:
+                        await ctx.send(embed=embed)
+                    return
+                
+                res_user = await resp.json()
+                if not res_user["data"]:
+                    embed = discord.Embed(color=0xff69b4)
+                    embed.description = f"El usuario **{usuario}** no existe en Roblox"
+                    if ctx.interaction:
+                        await ctx.interaction.followup.send(embed=embed)
+                    else:
+                        await ctx.send(embed=embed)
+                    return
+                
+                user_info   = res_user["data"][0]
+                user_id     = user_info["id"]
+                roblox_user = user_info["name"]
+                display_name = user_info["displayName"]
 
-    async with aiohttp.ClientSession() as session:
-        data_user = {"usernames": [usuario], "excludeBannedUsers": False}
-        async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
-            if resp.status != 200:
-                return await ctx.send("> Error al conectar con la API de Roblox.")
-            res_user = await resp.json()
-            if not res_user["data"]:
-                return await ctx.send(f"> El usuario **{usuario}** no existe en Roblox.")
-            user_info   = res_user["data"][0]
-            user_id     = user_info["id"]
-            roblox_user = user_info["displayName"]
+            # Obtener detalles
+            async with session.get(f"https://users.roblox.com/v1/users/{user_id}") as resp:
+                res_details   = await resp.json()
+                fecha_iso     = res_details["created"].split("T")[0]
+                fecha_obj     = datetime.strptime(fecha_iso, "%Y-%m-%d")
+                cuenta_creada = fecha_obj.strftime("%d/%m/%Y")
 
-        async with session.get(f"https://users.roblox.com/v1/users/{user_id}") as resp:
-            res_details   = await resp.json()
-            fecha_iso     = res_details["created"].split("T")[0]
-            fecha_obj     = datetime.strptime(fecha_iso, "%Y-%m-%d")
-            cuenta_creada = fecha_obj.strftime("%d/%m/%Y")
+            # Obtener amigos
+            async with session.get(f"https://friends.roblox.com/v1/users/{user_id}/friends/count") as resp:
+                res_friends     = await resp.json()
+                cantidad_amigos = res_friends.get("count", 0)
 
-        async with session.get(f"https://friends.roblox.com/v1/users/{user_id}/friends/count") as resp:
-            res_friends     = await resp.json()
-            cantidad_amigos = res_friends.get("count", 0)
+            # Obtener avatar
+            avatar_url = "https://images.rbxcdn.com/default_avatar.png"
+            async with session.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as resp:
+                if resp.status == 200:
+                    res_thumb = await resp.json()
+                    if res_thumb["data"]:
+                        avatar_url = res_thumb["data"][0]["imageUrl"]
 
-        avatar_url = "https://images.rbxcdn.com/default_avatar.png"
-        async with session.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as resp:
-            if resp.status == 200:
-                res_thumb = await resp.json()
-                if res_thumb["data"]:
-                    avatar_url = res_thumb["data"][0]["imageUrl"]
-
-    perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
-    embed = discord.Embed(
-        description=(
-            f"> **User:** {roblox_user}\n"
-            f"> **Creada:** {cuenta_creada}\n"
-            f"> **Amigos:** {cantidad_amigos}\n"
-            f"> **Link:** [Visitar Perfil]({perfil_link})"
-        ),
-        color=0xff69b4
-    )
-    embed.set_image(url=avatar_url)
-
-    if ctx.interaction:
-        await ctx.interaction.followup.send(embed=embed)
-    else:
-        await ctx.send(embed=embed)
+        perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
+        
+        # Generar tarjeta
+        archivo_tarjeta = await generar_perfil_roblox(
+            roblox_user,
+            user_id,
+            display_name,
+            cuenta_creada,
+            cantidad_amigos,
+            avatar_url
+        )
+        
+        # Crear embed con información adicional
+        embed = discord.Embed(color=0xff0000, title="Perfil de Roblox")
+        embed.add_field(name="Usuario", value=roblox_user, inline=True)
+        embed.add_field(name="ID", value=user_id, inline=True)
+        embed.add_field(name="Apodo", value=display_name, inline=False)
+        embed.add_field(name="Cuenta Creada", value=cuenta_creada, inline=True)
+        embed.add_field(name="Amigos", value=cantidad_amigos, inline=True)
+        embed.add_field(name="Perfil", value=f"[Abrir en Roblox]({perfil_link})", inline=False)
+        embed.set_thumbnail(url=avatar_url)
+        
+        if ctx.interaction:
+            await ctx.interaction.followup.send(file=archivo_tarjeta, embed=embed)
+        else:
+            await ctx.send(file=archivo_tarjeta, embed=embed)
+        
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)}"
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
 
 # =========================================================
 # ON MESSAGE
@@ -1736,169 +1902,6 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     embed = discord.Embed(color=0xff69b4)
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
-
-# =========================================================
-# SISTEMA DE GESTOS
-# =========================================================
-
-GESTOS = {
-    "besar": {
-        "nombre": "Besar",
-        "gifs": [
-            "https://media.giphy.com/media/g9GUutsyeeNIY/giphy.gif",
-            "https://media.giphy.com/media/l0HlDtKPoULz0XO1i/giphy.gif",
-            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
-            "https://media.giphy.com/media/3o85xIO33l7RlmLR20/giphy.gif",
-            "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-        ]
-    },
-    "matar": {
-        "nombre": "Matar",
-        "gifs": [
-            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
-            "https://media.giphy.com/media/3o85xIO33l7RlmLR20/giphy.gif",
-            "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-            "https://media.giphy.com/media/3o6Zt6KHxJTbXCnSvu/giphy.gif",
-            "https://media.giphy.com/media/l0HlDxW5QwASkA3gI/giphy.gif",
-        ]
-    },
-    "punetazo": {
-        "nombre": "Punetazo",
-        "gifs": [
-            "https://media.giphy.com/media/xTiTnIHHAVf76uIQVq/giphy.gif",
-            "https://media.giphy.com/media/l0HlTy9x's6Xzd4gM/giphy.gif",
-            "https://media.giphy.com/media/5xtDarmwsuR9sDKgF2c/giphy.gif",
-            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
-            "https://media.giphy.com/media/3o7TKU8RveLHBjjNde/giphy.gif",
-        ]
-    },
-    "cachetada": {
-        "nombre": "Cachetada",
-        "gifs": [
-            "https://media.giphy.com/media/xTiTn0JyWMIqUj0z7O/giphy.gif",
-            "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
-            "https://media.giphy.com/media/3o85xIO33l7RlmLR20/giphy.gif",
-            "https://media.giphy.com/media/xTiTnGs7KzV3vkw9S8/giphy.gif",
-        ]
-    },
-    "cocina": {
-        "nombre": "Cocina",
-        "gifs": [
-            "https://media.giphy.com/media/l0HlNaQ9hWt9xjC1i/giphy.gif",
-            "https://media.giphy.com/media/l0HlLu7yqJ0gIhJDa/giphy.gif",
-            "https://media.giphy.com/media/3o6ZsYq8d0gOmJmYs0/giphy.gif",
-            "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-            "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
-        ]
-    }
-}
-
-class BotonDevolverGesto(discord.ui.View):
-    def __init__(self, usuario_original, usuario_receptor, gesto_nombre):
-        super().__init__(timeout=300)
-        self.usuario_original = usuario_original
-        self.usuario_receptor = usuario_receptor
-        self.gesto_nombre = gesto_nombre
-        self.pulsado = False
-    
-    @discord.ui.button(label="Devolver Gesto", style=discord.ButtonStyle.danger)
-    async def devolver(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.usuario_receptor:
-            await interaction.response.send_message("Solo quien recibio el gesto puede devolverlo", ephemeral=True)
-            return
-        
-        if self.pulsado:
-            await interaction.response.send_message("Este gesto ya fue devuelto", ephemeral=True)
-            return
-        
-        self.pulsado = True
-        button.disabled = True
-        
-        gesto_info = GESTOS[self.gesto_nombre]
-        gif_devuelto = random.choice(gesto_info["gifs"])
-        
-        embed = discord.Embed(
-            color=0xff69b4,
-            title=f"{self.usuario_receptor.name} devuelve el {gesto_info['nombre'].lower()}"
-        )
-        embed.description = f"{self.usuario_receptor.mention} le devuelve el {gesto_info['nombre'].lower()} a {self.usuario_original.mention}"
-        embed.set_image(url=gif_devuelto)
-        embed.set_footer(text="Gesto devuelto")
-        
-        await interaction.response.edit_message(embed=embed, view=self)
-
-@bot.tree.command(name="gesto", description="Haz un gesto a alguien")
-async def gesto_slash(i: discord.Interaction, gesto: str, usuario: discord.Member):
-    if usuario == i.user:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = "No puedes hacer un gesto a ti mismo"
-        await i.response.send_message(embed=embed, ephemeral=True)
-        return
-    
-    if usuario.bot:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = "No puedes hacer un gesto a un bot"
-        await i.response.send_message(embed=embed, ephemeral=True)
-        return
-    
-    gesto_lower = gesto.lower()
-    if gesto_lower not in GESTOS:
-        gestos_disponibles = ", ".join(GESTOS.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"Gesto no encontrado\nGestos disponibles: {gestos_disponibles}"
-        await i.response.send_message(embed=embed, ephemeral=True)
-        return
-    
-    gesto_info = GESTOS[gesto_lower]
-    gif_aleatorio = random.choice(gesto_info["gifs"])
-    
-    embed = discord.Embed(
-        color=0xff69b4,
-        title=f"{i.user.name} hace {gesto_info['nombre'].lower()}"
-    )
-    embed.description = f"{i.user.mention} le hace {gesto_info['nombre'].lower()} a {usuario.mention}"
-    embed.set_image(url=gif_aleatorio)
-    embed.set_footer(text="Presiona el boton abajo para devolver el gesto")
-    
-    view = BotonDevolverGesto(i.user, usuario, gesto_lower)
-    await i.response.send_message(embed=embed, view=view)
-
-@bot.command(name="gesto")
-async def gesto_prefix(ctx, gesto: str, usuario: discord.Member):
-    if usuario == ctx.author:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = "No puedes hacer un gesto a ti mismo"
-        await ctx.send(embed=embed)
-        return
-    
-    if usuario.bot:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = "No puedes hacer un gesto a un bot"
-        await ctx.send(embed=embed)
-        return
-    
-    gesto_lower = gesto.lower()
-    if gesto_lower not in GESTOS:
-        gestos_disponibles = ", ".join(GESTOS.keys())
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"Gesto no encontrado\nGestos disponibles: {gestos_disponibles}"
-        await ctx.send(embed=embed)
-        return
-    
-    gesto_info = GESTOS[gesto_lower]
-    gif_aleatorio = random.choice(gesto_info["gifs"])
-    
-    embed = discord.Embed(
-        color=0xff69b4,
-        title=f"{ctx.author.name} hace {gesto_info['nombre'].lower()}"
-    )
-    embed.description = f"{ctx.author.mention} le hace {gesto_info['nombre'].lower()} a {usuario.mention}"
-    embed.set_image(url=gif_aleatorio)
-    embed.set_footer(text="Presiona el boton abajo para devolver el gesto")
-    
-    view = BotonDevolverGesto(ctx.author, usuario, gesto_lower)
-    await ctx.send(embed=embed, view=view)
 
 
 # =========================================================
