@@ -142,53 +142,65 @@ async def get_member_from_ctx(ctx, usuario=None):
 # =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
-    W, H        = 700, 280
-    FONDO       = (10, 10, 10)
-    TEXTO       = (255, 255, 255)
-    SUBTEXTO    = (160, 163, 172)
-    CAMPO_FONDO = (20, 20, 20)
-    CAMPO_BORDE = (50, 50, 60)
+    W, H = 700, 340
+    FONDO = (30, 31, 34)
+    TEXTO = (255, 255, 255)
+    SUBTEXTO = (180, 180, 190)
+    CAMPO_FONDO = (40, 43, 48)
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    for i_grad in range(60):
-        alpha = int(80 * (1 - i_grad / 60))
-        overlay = Image.new("RGBA", (W, 1), (*ROSA, alpha))
-        img.paste(overlay, (0, i_grad), overlay)
+    # BARRA IZQUIERDA DE COLOR
+    color = ROSA
+    r = color.r if color.value else 88
+    g = color.g if color.value else 101
+    b = color.b if color.value else 242
+    draw.rectangle([(0, 0), (6, H)], fill=(r, g, b))
 
-    draw.rectangle([(0, 0), (5, H)], fill=ROSA)
+    # AVATAR
+    avatar_img = await descargar_imagen(str(usuario.display_avatar.url))
+    avatar_img = avatar_circular(avatar_img, 90)
+    img.paste(avatar_img, (24, 20), avatar_img)
 
-    av_x, av_y = 28, 20
-    try:
-        av = await descargar_imagen(str(usuario.display_avatar.url))
-        av = avatar_circular(av, 90)
-        img.paste(av, (av_x, av_y), av)
-    except:
-        draw.ellipse([(av_x, av_y), (av_x + 90, av_y + 90)], fill=CAMPO_FONDO)
+    # NOMBRE
+    draw.text((128, 22), usuario.display_name, font=fuente(26, bold=True), fill=TEXTO)
+    draw.text((128, 56), f"@{usuario.name}", font=fuente(16), fill=SUBTEXTO)
 
-    draw.ellipse([(av_x - 3, av_y - 3), (av_x + 93, av_y + 93)], outline=ROSA, width=3)
-    draw.ellipse([(av_x + 66, av_y + 66), (av_x + 84, av_y + 84)], fill=FONDO)
-    draw.ellipse([(av_x + 68, av_y + 68), (av_x + 82, av_y + 82)], fill=(35, 165, 90))
+    # LÍNEA SEPARADORA
+    draw.rectangle([(24, 126), (W - 24, 128)], fill=(60, 63, 70))
 
-    draw.text((136, 28), usuario.display_name, font=fuente(24, bold=True), fill=TEXTO)
-    draw.text((136, 58), f"@{usuario.name}", font=fuente(13), fill=SUBTEXTO)
+    col1_x = 24
+    col2_x = 370
+    y = 148
 
-    draw.rectangle([(24, 128), (W - 24, 129)], fill=ROSA)
+    def campo(x, y, titulo, valor, ancho=320):
+        draw.rounded_rectangle(
+            [(x, y), (x + ancho, y + 64)],
+            radius=8,
+            fill=CAMPO_FONDO
+        )
+        draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
+        draw.text((x + 12, y + 30), valor, font=fuente(17, bold=True), fill=TEXTO)
 
-    def campo(x, y, titulo, valor, ancho=310):
-        draw.rounded_rectangle([(x, y), (x + ancho, y + 62)], radius=10, fill=CAMPO_FONDO)
-        draw.rounded_rectangle([(x, y), (x + ancho, y + 62)], radius=10, outline=CAMPO_BORDE, width=1)
-        draw.rounded_rectangle([(x, y + 8), (x + 3, y + 54)], radius=2, fill=ROSA)
-        draw.text((x + 14, y + 10), titulo, font=fuente(11), fill=SUBTEXTO)
-        draw.text((x + 14, y + 32), valor, font=fuente(15, bold=True), fill=TEXTO)
+    # FILA 1
+    campo(col1_x, y, "USUARIO", f"@{usuario.display_name}")
+    campo(col2_x, y, "ID", str(usuario.id))
 
-    campo(24,  144, "USUARIO",         f"@{usuario.display_name}")
-    campo(356, 144, "ID",              str(usuario.id))
+    # FILA 2
+    y2 = y + 80
     creado = usuario.created_at.strftime("%d/%m/%Y")
-    entro  = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
-    campo(24,  218, "CUENTA CREADA",   creado)
-    campo(356, 218, "ENTRO AL SERVER", entro)
+    entro = usuario.joined_at.strftime("%d/%m/%Y") if usuario.joined_at else "?"
+    campo(col1_x, y2, "CUENTA CREADA", creado)
+    campo(col2_x, y2, "ENTRO AL SERVER", entro)
+
+    # FOOTER
+    draw.text(
+        (24, H - 22),
+        f"Solicitado por {usuario.display_name}",
+        font=fuente(12),
+        fill=SUBTEXTO
+    )
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
