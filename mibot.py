@@ -1457,9 +1457,16 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
 # ROBLOX
 # =========================================================
 
+from datetime import datetime
+import aiohttp
+import discord
+from discord.ext import commands
+
+
 @bot.hybrid_command(name="roblox", description="Mira el perfil de roblox de alguien")
 async def roblox_prefix(ctx: commands.Context, usuario: str):
-    await ctx.defer() if ctx.interaction else None
+    if ctx.interaction:
+        await ctx.defer()
     
     try:
         async with aiohttp.ClientSession() as session:
@@ -1484,21 +1491,21 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
                         await ctx.send(embed=embed)
                     return
                 
-                user_info   = res_user["data"][0]
-                user_id     = user_info["id"]
+                user_info = res_user["data"][0]
+                user_id = user_info["id"]
                 roblox_user = user_info["name"]
                 display_name = user_info["displayName"]
 
             # Obtener detalles
             async with session.get(f"https://users.roblox.com/v1/users/{user_id}") as resp:
-                res_details   = await resp.json()
-                fecha_iso     = res_details["created"].split("T")[0]
-                fecha_obj     = datetime.strptime(fecha_iso, "%Y-%m-%d")
+                res_details = await resp.json()
+                fecha_iso = res_details["created"].split("T")[0]
+                fecha_obj = datetime.strptime(fecha_iso, "%Y-%m-%d")
                 cuenta_creada = fecha_obj.strftime("%d/%m/%Y")
 
             # Obtener amigos
             async with session.get(f"https://friends.roblox.com/v1/users/{user_id}/friends/count") as resp:
-                res_friends     = await resp.json()
+                res_friends = await resp.json()
                 cantidad_amigos = res_friends.get("count", 0)
 
             # Obtener avatar
@@ -1511,7 +1518,6 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
 
         perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
 
-        
         # Crear embed con información adicional
         embed = discord.Embed(color=0xff69b4, title="Perfil de Roblox... <:Robloxlogo:1506497694661742643>")
         embed.add_field(name="Usuario", value=roblox_user, inline=True)
@@ -1522,7 +1528,8 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
         embed.add_field(name="Perfil", value=f"[ver]({perfil_link})", inline=False)
         embed.set_thumbnail(url=avatar_url)
 
-            if ctx.interaction:
+        # Envío final (Solo el embed corregido)
+        if ctx.interaction:
             await ctx.interaction.followup.send(embed=embed)
         else:
             await ctx.send(embed=embed)
