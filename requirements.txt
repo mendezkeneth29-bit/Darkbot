@@ -5,3 +5,4 @@ Pillow
 aiohttp
 duckduckgo-search
 beautifulsoup4
+yt_dlp
