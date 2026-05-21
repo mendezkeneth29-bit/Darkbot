@@ -1787,7 +1787,7 @@ async def reproducir(ctx, *, cancion: str):
                     "clientVersion": "2.20230101.00.00"
                 }
             },
-            "query": video,
+            "query": cancion,
             "params": "EgIQAQ%3D%3D"
         }
         
