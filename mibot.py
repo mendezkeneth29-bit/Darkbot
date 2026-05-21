@@ -1775,163 +1775,69 @@ async def reproducir_slash(i: discord.Interaction, cancion: str):
     await i.response.defer()
     
     try:
-        from yt_dlp import YoutubeDL
+        import aiohttp
         
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            'socket_timeout': 30,
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        # Usar innertube API (más confiable)
+        url = "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO90d0o_cqFbnSa2Bx0-Dmp5BaM9aW0uM"
+        
+        payload = {
+            "context": {
+                "client": {
+                    "clientName": "WEB",
+                    "clientVersion": "2.20230101.00.00"
+                }
             },
-            'extractor_args': {'youtube': {'player_client': ['web']}},
-            'age_limit': None,
-            'no_color': True,
-            'default_search': 'ytsearch',
-            'skip_unavailable_fragments': True,
+            "query": cancion,
+            "params": "EgIQAQ%3D%3D"
         }
         
-        with YoutubeDL(ydl_opts) as ydl:
-            print(f"[MÚSICA] Buscando: {cancion}")
-            info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
-            
-            if not info or not info.get('entries'):
-                embed = discord.Embed(color=0xff69b4)
-                embed.description = "❌ No se encontraron resultados"
-                await i.followup.send(embed=embed)
-                return
-            
-            video = info['entries'][0]
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    
+                    # Extraer video
+                    contents = data.get('contents', {}).get('twoColumnSearchResultsRenderer', {}).get('primaryContents', {}).get('sectionListRenderer', {}).get('contents', [])
+                    
+                    if contents and 'itemSectionRenderer' in contents[0]:
+                        videos = contents[0]['itemSectionRenderer']['contents']
+                        
+                        if videos:
+                            video_data = videos[0].get('videoRenderer', {})
+                            titulo = video_data.get('title', {}).get('runs', [{}])[0].get('text', 'Sin titulo')
+                            video_id = video_data.get('videoId', '')
+                            duracion = video_data.get('lengthText', {}).get('simpleText', '0:00')
+                            canal = video_data.get('longBylineText', {}).get('runs', [{}])[0].get('text', 'Desconocido')
+                            thumbnail = video_data.get('thumbnail', {}).get('thumbnails', [{}])[-1].get('url', '')
+                            vistas = video_data.get('viewCountText', {}).get('simpleText', '0 vistas')
+                            
+                            url_video = f"https://www.youtube.com/watch?v={video_id}"
+                            
+                            embed = discord.Embed(color=0xff69b4, title="Cancion Encontrada")
+                            embed.add_field(name="> Titulo", value=titulo[:100], inline=False)
+                            embed.add_field(name="> Duracion", value=duracion, inline=True)
+                            embed.add_field(name="> Canal", value=canal[:50], inline=True)
+                            embed.add_field(name="> Vistas", value=vistas, inline=True)
+                            embed.add_field(name="> Link", value=f"[Abrir en YouTube]({url_video})", inline=False)
+                            
+                            if thumbnail:
+                                embed.set_thumbnail(url=thumbnail)
+                            
+                            embed.set_footer(text=f"Solicitado por {i.user.name}")
+                            
+                            await i.followup.send(embed=embed)
+                            return
         
-        # Información del video
-        titulo = video.get('title', 'Sin titulo')
-        duracion = video.get('duration', 0)
-        minutos = duracion // 60
-        segundos = duracion % 60
-        canal = video.get('uploader', 'Desconocido')
-        url_video = video.get('webpage_url', '')
-        thumbnail = video.get('thumbnail', '')
-        vistas = video.get('view_count', 0)
-        fecha_subida = video.get('upload_date', 'Desconocida')
-        
-        # Formatear fecha
-        if fecha_subida != 'Desconocida':
-            try:
-                fecha_obj = datetime.strptime(fecha_subida, '%Y%m%d')
-                fecha_formateada = fecha_obj.strftime('%d/%m/%Y')
-            except:
-                fecha_formateada = fecha_subida
-        else:
-            fecha_formateada = 'Desconocida'
-        
-        # Crear embed
-        embed = discord.Embed(color=0xff69b4, title="Cancion Encontrada <:sparkles:1506394397057613864>")
-        embed.add_field(name="> Titulo", value=titulo[:100], inline=False)
-        embed.add_field(name="> Duracion", value=f"`{minutos}:{segundos:02d}`", inline=True)
-        embed.add_field(name="> Canal", value=canal[:50], inline=True)
-        embed.add_field(name="> Vistas", value=f"{vistas:,}", inline=True)
-        embed.add_field(name="> Subida", value=fecha_formateada, inline=True)
-        
-        if url_video:
-            embed.add_field(name="> Link", value=f"[Abrir en YouTube]({url_video})", inline=False)
-        
-        if thumbnail:
-            embed.set_thumbnail(url=thumbnail)
-        
-        embed.set_footer(text=f"Solicitado por {i.user.name}")
-        
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "**No se encontraron resultados**"
         await i.followup.send(embed=embed)
-        print(f"[MÚSICA] Reproduciendo: {titulo}")
         
     except Exception as e:
         print(f"[ERROR] Reproducir: {str(e)}")
         embed = discord.Embed(color=0xff0000)
-        embed.title = "❌ Error al buscar"
+        embed.title = Error al buscar"
         embed.description = f"```{str(e)[:200]}```"
-        embed.add_field(name="Consejo", value="Intenta con un nombre mas especifico", inline=False)
         await i.followup.send(embed=embed, ephemeral=True)
-
-@bot.command(name="reproducir")
-async def reproducir_prefix(ctx, *, cancion: str):
-    try:
-        from yt_dlp import YoutubeDL
-        
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            'socket_timeout': 30,
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            },
-            'extractor_args': {'youtube': {'player_client': ['web']}},
-            'age_limit': None,
-            'no_color': True,
-            'default_search': 'ytsearch',
-            'skip_unavailable_fragments': True,
-        }
-        
-        with YoutubeDL(ydl_opts) as ydl:
-            print(f"[MÚSICA] Buscando: {cancion}")
-            info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
-            
-            if not info or not info.get('entries'):
-                embed = discord.Embed(color=0xff69b4)
-                embed.description = "❌ No se encontraron resultados"
-                await ctx.send(embed=embed)
-                return
-            
-            video = info['entries'][0]
-        
-        # Información del video
-        titulo = video.get('title', 'Sin titulo')
-        duracion = video.get('duration', 0)
-        minutos = duracion // 60
-        segundos = duracion % 60
-        canal = video.get('uploader', 'Desconocido')
-        url_video = video.get('webpage_url', '')
-        thumbnail = video.get('thumbnail', '')
-        vistas = video.get('view_count', 0)
-        fecha_subida = video.get('upload_date', 'Desconocida')
-        
-        # Formatear fecha
-        if fecha_subida != 'Desconocida':
-            try:
-                fecha_obj = datetime.strptime(fecha_subida, '%Y%m%d')
-                fecha_formateada = fecha_obj.strftime('%d/%m/%Y')
-            except:
-                fecha_formateada = fecha_subida
-        else:
-            fecha_formateada = 'Desconocida'
-        
-        # Crear embed
-        embed = discord.Embed(color=0xff69b4, title="Cancion Encontrada <:sparkles:1506394397057613864>")
-        embed.add_field(name="> Titulo", value=titulo[:100], inline=False)
-        embed.add_field(name="> Duracion", value=f"`{minutos}:{segundos:02d}`", inline=True)
-        embed.add_field(name="> Canal", value=canal[:50], inline=True)
-        embed.add_field(name="> Vistas", value=f"{vistas:,}", inline=True)
-        embed.add_field(name="> Subida", value=fecha_formateada, inline=True)
-        
-        if url_video:
-            embed.add_field(name="> Link", value=f"[Abrir en YouTube]({url_video})", inline=False)
-        
-        if thumbnail:
-            embed.set_thumbnail(url=thumbnail)
-        
-        embed.set_footer(text=f"Solicitado por {ctx.author.name}")
-        
-        await ctx.send(embed=embed)
-        print(f"[MÚSICA] Reproduciendo: {titulo}")
-        
-    except Exception as e:
-        print(f"[ERROR] Reproducir: {str(e)}")
-        embed = discord.Embed(color=0xff0000)
-        embed.title = "Error al buscar"
-        embed.description = f"```{str(e)[:200]}```"
-        embed.add_field(name="> Consejo", value="Intenta con un nombre mas especifico", inline=False)
-        await ctx.send(embed=embed)
-
 # Playlist
 @bot.tree.command(name="playlist", description="Ve tu playlist")
 async def playlist_slash(i: discord.Interaction):
@@ -1982,11 +1888,11 @@ async def lyrics_slash(i: discord.Interaction, cancion: str):
                         await i.followup.send(embed=embed)
                     else:
                         embed = discord.Embed(color=0xff69b4)
-                        embed.description = "No se encontraron resultados"
+                        embed.description = "> No se encontraron resultados"
                         await i.followup.send(embed=embed)
                 else:
                     embed = discord.Embed(color=0xff69b4)
-                    embed.description = f"Error: API no disponible (Status {resp.status})"
+                    embed.description = f"**Error: API no disponible** (Status {resp.status})"
                     await i.followup.send(embed=embed, ephemeral=True)
                     
     except Exception as e:
