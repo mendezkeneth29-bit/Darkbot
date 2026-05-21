@@ -1775,36 +1775,86 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
 async def reproducir_slash(i: discord.Interaction, cancion: str):
     await i.response.defer()
     
-  try:
-      
-from yt_dlp import YoutubeDL
-
-ydl_opts = {
-    'format': 'bestaudio/best',
-    'quiet': True,
-    'no_warnings': True,
-    'socket_timeout': 30,
-    'http_headers': {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    },
-    'extractor_args': {'youtube': {'skip': ['dash', 'hls']}},
-}
+    try:
+        from yt_dlp import YoutubeDL
+        
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+            'socket_timeout': 30,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            'extractor_args': {'youtube': {'skip': ['dash', 'hls']}},
+        }
         
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
-            video = info['entries'][0]
             
-        embed = discord.Embed(color=0xff69b4, title="Cancion Encontrada")
-        embed.add_field(name="Titulo", value=video['title'], inline=False)
-        embed.add_field(name="Duracion", value=f"{video['duration']//60}:{video['duration']%60:02d}", inline=True)
-        embed.add_field(name="Canal", value=video['uploader'], inline=True)
-        embed.set_thumbnail(url=video['thumbnail'])
+            if not info.get('entries'):
+                embed = discord.Embed(color=0xff69b4)
+                embed.description = "No se encontraron resultados"
+                await i.followup.send(embed=embed)
+                return
+            
+            video = info['entries'][0]
+        
+        embed = discord.Embed(color=0xff69b4, title="🎵 Cancion Encontrada")
+        embed.add_field(name="Titulo", value=video.get('title', 'Sin titulo'), inline=False)
+        embed.add_field(name="Duracion", value=f"{video.get('duration', 0)//60}:{video.get('duration', 0)%60:02d}", inline=True)
+        embed.add_field(name="Canal", value=video.get('uploader', 'Desconocido'), inline=True)
+        
+        if video.get('thumbnail'):
+            embed.set_thumbnail(url=video['thumbnail'])
         
         await i.followup.send(embed=embed)
+        
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"Error: {str(e)}"
-        await i.followup.send(embed=embed)
+        embed.description = f"Error: {str(e)[:100]}"
+        await i.followup.send(embed=embed, ephemeral=True)
+
+@bot.command(name="reproducir")
+async def reproducir_prefix(ctx, *, cancion: str):
+    try:
+        from yt_dlp import YoutubeDL
+        
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+            'socket_timeout': 30,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+        }
+        
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
+            
+            if not info.get('entries'):
+                embed = discord.Embed(color=0xff69b4)
+                embed.description = "No se encontraron resultados"
+                await ctx.send(embed=embed)
+                return
+            
+            video = info['entries'][0]
+        
+        embed = discord.Embed(color=0xff69b4, title="Cancion Encontrada <:sparkles:1506394397057613864>")
+        embed.add_field(name="Titulo", value=video.get('title', 'Sin titulo'), inline=False)
+        embed.add_field(name="Duracion", value=f"{video.get('duration', 0)//60}:{video.get('duration', 0)%60:02d}", inline=True)
+        embed.add_field(name="Canal", value=video.get('uploader', 'Desconocido'), inline=True)
+        
+        if video.get('thumbnail'):
+            embed.set_thumbnail(url=video['thumbnail'])
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)[:100]}"
+        await ctx.send(embed=embed)
 
 # Playlist
 @bot.tree.command(name="playlist", description="Ve tu playlist")
@@ -1812,6 +1862,12 @@ async def playlist_slash(i: discord.Interaction):
     embed = discord.Embed(color=0xff69b4, title="Mi Playlist")
     embed.description = "Sistema de playlist (ejemplo)"
     await i.response.send_message(embed=embed)
+
+@bot.command(name="playlist")
+async def playlist_prefix(ctx):
+    embed = discord.Embed(color=0xff69b4, title="Mi Playlist")
+    embed.description = "Sistema de playlist (ejemplo)"
+    await ctx.send(embed=embed)
 
 # Lyrics
 @bot.tree.command(name="lyrics", description="Obtén la letra de una cancion")
@@ -1824,7 +1880,7 @@ async def lyrics_slash(i: discord.Interaction, cancion: str):
             async with session.get(url) as resp:
                 data = await resp.json()
         
-        if data['data']:
+        if data.get('data'):
             cancion_data = data['data'][0]
             embed = discord.Embed(color=0xff69b4, title=cancion_data['title'])
             embed.add_field(name="Artista", value=cancion_data['artist']['name'], inline=False)
@@ -1847,7 +1903,40 @@ async def lyrics_slash(i: discord.Interaction, cancion: str):
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"Error: {str(e)}"
-        await i.followup.send(embed=embed)
+        await i.followup.send(embed=embed, ephemeral=True)
+
+@bot.command(name="lyrics")
+async def lyrics_prefix(ctx, *, cancion: str):
+    try:
+        url = f"https://api.lyrics.ovh/v1/search?q={cancion}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+        
+        if data.get('data'):
+            cancion_data = data['data'][0]
+            embed = discord.Embed(color=0xff69b4, title=cancion_data['title'])
+            embed.add_field(name="Artista", value=cancion_data['artist']['name'], inline=False)
+            
+            # Obtener letra completa
+            lyrics_url = f"https://api.lyrics.ovh/v1/{cancion_data['artist']['name']}/{cancion_data['title']}"
+            async with session.get(lyrics_url) as resp2:
+                lyrics_data = await resp2.json()
+            
+            letra = lyrics_data.get('lyrics', 'No disponible')
+            # Limitar a 2000 caracteres
+            letra = letra[:2000] if len(letra) > 2000 else letra
+            embed.description = letra
+            
+            await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(color=0xff69b4)
+            embed.description = "No se encontraron resultados"
+            await ctx.send(embed=embed)
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)}"
+        await ctx.send(embed=embed)
     
 
 # =========================================================
