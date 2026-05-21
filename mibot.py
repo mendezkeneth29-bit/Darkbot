@@ -1770,7 +1770,7 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
 # SISTEMA DE MÚSICA - REPRODUCIR
 # =========================================================
 
-@bot.hybrid_command(name="youtube", description="busca un video en YouTube")
+@bot.hybrid_command(name="youtube", description="busca un video en youtube")
 async def reproducir(ctx, *, cancion: str):
     await ctx.defer() if ctx.interaction else None
     
@@ -1823,21 +1823,30 @@ async def reproducir(ctx, *, cancion: str):
                             if thumbnail:
                                 embed.set_thumbnail(url=thumbnail)
                             
-                            embed.set_footer(text=f"Solicitado por {i.user.name}")
+                            embed.set_footer(text=f"Solicitado por {ctx.author.name}")
                             
-                            await i.followup.send(embed=embed)
+                            if ctx.interaction:
+                                await ctx.interaction.followup.send(embed=embed)
+                            else:
+                                await ctx.send(embed=embed)
                             return
         
         embed = discord.Embed(color=0xff69b4)
-        embed.description = "> No se encontraron resultados"
-        await i.followup.send(embed=embed)
+        embed.description = "**No se encontraron resultados**"
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
         
     except Exception as e:
         print(f"[ERROR] Reproducir: {str(e)}")
         embed = discord.Embed(color=0xff69b4)
         embed.title = "Error al buscar"
         embed.description = f"```{str(e)[:200]}```"
-        await i.followup.send(embed=embed, ephemeral=True)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await ctx.send(embed=embed)
         
 # =========================================================
 # PLAYLIST
