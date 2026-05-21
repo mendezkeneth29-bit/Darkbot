@@ -1776,6 +1776,7 @@ async def reproducir_slash(i: discord.Interaction, cancion: str):
     await i.response.defer()
     
   try:
+      
 from yt_dlp import YoutubeDL
 
 ydl_opts = {
