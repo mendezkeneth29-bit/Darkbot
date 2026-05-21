@@ -2341,55 +2341,6 @@ async def base64_decodificar(ctx, *, texto: str):
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
 # =========================================================
-# ENCUESTAS Y VOTACIONES
-# =========================================================
-
-encuestas_activas = {}
-
-class VotoView(discord.ui.View):
-    def __init__(self, encuesta_id, opciones):
-        super().__init__(timeout=None)
-        self.encuesta_id = encuesta_id
-        self.opciones = opciones
-        self.votos = {i: [] for i in range(len(opciones))}
-        
-        for n, opcion in enumerate(opciones):
-            button = discord.ui.Button(label=f"{opcion} (0)", style=discord.ButtonStyle.primary, custom_id=f"voto_{encuesta_id}_{n}")
-            button.callback = self.votar
-            self.add_item(button)
-    
-    async def votar(self, interaction: discord.Interaction):
-        opcion_num = int(interaction.data['custom_id'].split('_')[2])
-        
-        if interaction.user.id not in self.votos[opcion_num]:
-            self.votos[opcion_num].append(interaction.user.id)
-            embed = discord.Embed(color=0xff69b4)
-            embed.description = f"Votaste por: {self.opciones[opcion_num]}"
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            embed = discord.Embed(color=0xff69b4)
-            embed.description = f"Ya votaste"
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.hybrid_command(name="encuesta", description="Crea una encuesta")
-async def encuesta(ctx, pregunta: str, opcion1: str, opcion2: str, opcion3: str = None, opcion4: str = None):
-    opciones = [opcion1, opcion2]
-    if opcion3:
-        opciones.append(opcion3)
-    if opcion4:
-        opciones.append(opcion4)
-    
-    encuesta_id = len(encuestas_activas)
-    
-    embed = discord.Embed(color=0xff69b4, title="Encuesta")
-    embed.description = pregunta
-    
-    view = VotoView(encuesta_id, opciones)
-    encuestas_activas[encuesta_id] = view
-    
-    await ctx.send(embed=embed, view=view)
-
-# =========================================================
 # MINIJUEGOS ADICIONALES
 # =========================================================
 
@@ -2431,8 +2382,8 @@ async def adivina_numero(ctx):
         except asyncio.TimeoutError:
             break
     
-    embed = discord.Embed(color=0xff0000)
-    embed.description = f"Se acabaron los intentos! El numero era {numero_secreto}"
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"**Se acabaron los intentos! El numero era {numero_secreto}**"
     await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="ppt-mejorado", description="Piedra papel o tijera mejorado")
@@ -2450,7 +2401,7 @@ async def ppt_mejorado(ctx):
         view.add_item(button)
     
     embed = discord.Embed(color=0xff69b4, title="Piedra, Papel o Tijera")
-    embed.description = "Elige tu opcion"
+    embed.description = "> Elige tu opcion"
     
     async def ppt_seleccionar(interaction, opcion_usuario):
         opcion_bot = random.choice(opciones)
@@ -2472,13 +2423,13 @@ async def ppt_mejorado(ctx):
 
 @bot.hybrid_command(name="ahorcado", description="Juega al ahorcado")
 async def ahorcado(ctx):
-    palabras = ["python", "discord", "javascript", "programacion", "computadora", "inteligencia"]
+    palabras = ["dildo", "pene", "frutas", "mantequilla", "computadora", "celular", "país", "diva", "zorra", "bitch"]
     palabra_secreta = random.choice(palabras).upper()
     letras_adivinadas = set()
     intentos = 6
     
     embed = discord.Embed(color=0xff69b4, title="Ahorcado")
-    embed.description = f"Palabra: {' '.join(['_' if letra not in letras_adivinadas else letra for letra in palabra_secreta])}\nIntentos: {intentos}"
+    embed.description = f"**Palabra: {' '.join(['_' if letra not in letras_adivinadas else letra for letra in palabra_secreta])}\nIntentos: {intentos}**"
     
     await ctx.send(embed=embed)
     
@@ -2492,7 +2443,7 @@ async def ahorcado(ctx):
             
             if letra in letras_adivinadas:
                 embed = discord.Embed(color=0xff69b4)
-                embed.description = "Ya adivinaste esa letra"
+                embed.description = "> Ya adivinaste esa letra"
                 await ctx.send(embed=embed)
                 continue
             
@@ -2503,17 +2454,17 @@ async def ahorcado(ctx):
             
             palabra_mostrada = ' '.join(['_' if l not in letras_adivinadas else l for l in palabra_secreta])
             embed = discord.Embed(color=0xff69b4)
-            embed.description = f"Palabra: {palabra_mostrada}\nIntentos: {intentos}"
+            embed.description = f"> Palabra: {palabra_mostrada}\nIntentos: {intentos}"
             await ctx.send(embed=embed)
         except asyncio.TimeoutError:
             break
     
     if set(palabra_secreta) == letras_adivinadas:
-        embed = discord.Embed(color=0x00ff00)
-        embed.description = f"GANASTE! La palabra era: {palabra_secreta}"
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"**GANASTE! La palabra era: {palabra_secreta}**"
     else:
-        embed = discord.Embed(color=0xff0000)
-        embed.description = f"PERDISTE! La palabra era: {palabra_secreta}"
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"**PERDISTE! La palabra era: {palabra_secreta}**"
     
     await ctx.send(embed=embed)
 
@@ -2536,7 +2487,7 @@ async def crear_cupon(ctx, codigo: str, recompensa: int):
     }
     
     embed = discord.Embed(color=0xff69b4)
-    embed.description = f"Cupon '{codigo.upper()}' creado\nRecompensa: ${recompensa:,}"
+    embed.description = f"> Cupon '{codigo.upper()}' creado\nRecompensa: ${recompensa:,}"
     await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="canjear-cupon", description="Canjea un cupon")
@@ -2545,7 +2496,7 @@ async def canjear_cupon(ctx, codigo: str):
     
     if gid not in cupones_data or codigo.upper() not in cupones_data[gid]:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = "Cupon invalido"
+        embed.description = "> Cupon invalido"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
     
@@ -2562,7 +2513,7 @@ async def canjear_cupon(ctx, codigo: str):
     eco_data["coins"] += cupon["recompensa"]
     
     embed = discord.Embed(color=0xff69b4)
-    embed.description = f"Cupon canjeado!\nGanaste: ${cupon['recompensa']:,}"
+    embed.description = f"> Cupon canjeado!\nGanaste: ${cupon['recompensa']:,}"
     await ctx.send(embed=embed)
     
 
