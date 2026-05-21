@@ -1776,14 +1776,18 @@ async def reproducir_slash(i: discord.Interaction, cancion: str):
     await i.response.defer()
     
     try:
-        # Buscar en YouTube
-        from yt_dlp import YoutubeDL
-        
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-        }
+from yt_dlp import YoutubeDL
+
+ydl_opts = {
+    'format': 'bestaudio/best',
+    'quiet': True,
+    'no_warnings': True,
+    'socket_timeout': 30,
+    'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    },
+    'extractor_args': {'youtube': {'skip': ['dash', 'hls']}},
+}
         
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
