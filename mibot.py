@@ -1765,6 +1765,84 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     embed = discord.Embed(color=0xff69b4)
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
+
+# =========================================================
+# SISTEMA DE MÚSICA AVANZADO
+# =========================================================
+
+# Reproducir música
+@bot.tree.command(name="reproducir", description="Reproduce una cancion de YouTube")
+async def reproducir_slash(i: discord.Interaction, cancion: str):
+    await i.response.defer()
+    
+    try:
+        # Buscar en YouTube
+        from yt_dlp import YoutubeDL
+        
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+        }
+        
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
+            video = info['entries'][0]
+            
+        embed = discord.Embed(color=0xff69b4, title="Cancion Encontrada")
+        embed.add_field(name="Titulo", value=video['title'], inline=False)
+        embed.add_field(name="Duracion", value=f"{video['duration']//60}:{video['duration']%60:02d}", inline=True)
+        embed.add_field(name="Canal", value=video['uploader'], inline=True)
+        embed.set_thumbnail(url=video['thumbnail'])
+        
+        await i.followup.send(embed=embed)
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)}"
+        await i.followup.send(embed=embed)
+
+# Playlist
+@bot.tree.command(name="playlist", description="Ve tu playlist")
+async def playlist_slash(i: discord.Interaction):
+    embed = discord.Embed(color=0xff69b4, title="Mi Playlist")
+    embed.description = "Sistema de playlist (ejemplo)"
+    await i.response.send_message(embed=embed)
+
+# Lyrics
+@bot.tree.command(name="lyrics", description="Obtén la letra de una cancion")
+async def lyrics_slash(i: discord.Interaction, cancion: str):
+    await i.response.defer()
+    
+    try:
+        url = f"https://api.lyrics.ovh/v1/search?q={cancion}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+        
+        if data['data']:
+            cancion_data = data['data'][0]
+            embed = discord.Embed(color=0xff69b4, title=cancion_data['title'])
+            embed.add_field(name="Artista", value=cancion_data['artist']['name'], inline=False)
+            
+            # Obtener letra completa
+            lyrics_url = f"https://api.lyrics.ovh/v1/{cancion_data['artist']['name']}/{cancion_data['title']}"
+            async with session.get(lyrics_url) as resp2:
+                lyrics_data = await resp2.json()
+            
+            letra = lyrics_data.get('lyrics', 'No disponible')
+            # Limitar a 2000 caracteres
+            letra = letra[:2000] if len(letra) > 2000 else letra
+            embed.description = letra
+            
+            await i.followup.send(embed=embed)
+        else:
+            embed = discord.Embed(color=0xff69b4)
+            embed.description = "No se encontraron resultados"
+            await i.followup.send(embed=embed)
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)}"
+        await i.followup.send(embed=embed)
     
 
 # =========================================================
