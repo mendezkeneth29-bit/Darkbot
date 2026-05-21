@@ -1513,7 +1513,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
         perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
 
         # Crear embed con información adicional
-        embed = discord.Embed(color=0xff69b4, title="Perfil de R<:Robloxlogo:1506497694661742643>blox...")
+        embed = discord.Embed(color=0xff69b4, title="Perfil de Roblox")
         embed.add_field(name="Usuario", value=roblox_user, inline=True)
         embed.add_field(name="ID", value=user_id, inline=True)
         embed.add_field(name="Apodo", value=display_name, inline=False)
@@ -1774,7 +1774,7 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
 async def reproducir(ctx, *, cancion: str):
     await ctx.defer() if ctx.interaction else None
     
-    try:
+     try:
         import aiohttp
         
         # Usar innertube API (más confiable)
@@ -1813,7 +1813,7 @@ async def reproducir(ctx, *, cancion: str):
                             
                             url_video = f"https://www.youtube.com/watch?v={video_id}"
                             
-                            embed = discord.Embed(color=0xff69b4, title="Cancion Encontrada")
+                            embed = discord.Embed(color=0xff69b4, title="Video Encontrado")
                             embed.add_field(name="> Titulo", value=titulo[:100], inline=False)
                             embed.add_field(name="> Duracion", value=duracion, inline=True)
                             embed.add_field(name="> Canal", value=canal[:50], inline=True)
@@ -1823,31 +1823,22 @@ async def reproducir(ctx, *, cancion: str):
                             if thumbnail:
                                 embed.set_thumbnail(url=thumbnail)
                             
-                            embed.set_footer(text=f"Solicitado por {ctx.author.name}")
+                            embed.set_footer(text=f"Solicitado por {i.user.name}")
                             
-                            if ctx.interaction:
-                                await ctx.interaction.followup.send(embed=embed)
-                            else:
-                                await ctx.send(embed=embed)
+                            await i.followup.send(embed=embed)
                             return
         
         embed = discord.Embed(color=0xff69b4)
-        embed.description = "****No se encontraron resultados****"
-        if ctx.interaction:
-            await ctx.interaction.followup.send(embed=embed)
-        else:
-            await ctx.send(embed=embed)
+        embed.description = "**No se encontraron resultados**"
+        await i.followup.send(embed=embed)
         
     except Exception as e:
         print(f"[ERROR] video: {str(e)}")
-        embed = discord.Embed(color=0xff0000)
+        embed = discord.Embed(color=0xff69b4)
         embed.title = "Error al buscar"
         embed.description = f"```{str(e)[:200]}```"
-        if ctx.interaction:
-            await ctx.interaction.followup.send(embed=embed, ephemeral=True)
-        else:
-            await ctx.send(embed=embed)
-
+        await i.followup.send(embed=embed, ephemeral=True)
+        
 # =========================================================
 # PLAYLIST
 # =========================================================
