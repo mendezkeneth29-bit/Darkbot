@@ -1776,18 +1776,19 @@ async def reproducir_slash(i: discord.Interaction, cancion: str):
     await i.response.defer()
     
     try:
-        from yt_dlp import YoutubeDL
-        
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            'socket_timeout': 30,
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            },
-            'extractor_args': {'youtube': {'skip': ['dash', 'hls']}},
-        }
+      from yt_dlp import YoutubeDL
+
+ydl_opts = {
+    'format': 'bestaudio/best',
+    'quiet': True,
+    'no_warnings': True,
+    'socket_timeout': 30,
+    'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    },
+    'extractor_args': {'youtube': {'player_client': ['web']}},
+    'age_limit': None,
+}
         
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
@@ -1875,68 +1876,702 @@ async def lyrics_slash(i: discord.Interaction, cancion: str):
     await i.response.defer()
     
     try:
-        url = f"https://api.lyrics.ovh/v1/search?q={cancion}"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                data = await resp.json()
+        # Opción 1: Usar genius.com
+        genius_url = f"https://api.genius.com/search?q={cancion}&access_token=YOUR_GENIUS_TOKEN"
         
-        if data.get('data'):
-            cancion_data = data['data'][0]
-            embed = discord.Embed(color=0xff69b4, title=cancion_data['title'])
-            embed.add_field(name="Artista", value=cancion_data['artist']['name'], inline=False)
-            
-            # Obtener letra completa
-            lyrics_url = f"https://api.lyrics.ovh/v1/{cancion_data['artist']['name']}/{cancion_data['title']}"
-            async with session.get(lyrics_url) as resp2:
-                lyrics_data = await resp2.json()
-            
-            letra = lyrics_data.get('lyrics', 'No disponible')
-            # Limitar a 2000 caracteres
-            letra = letra[:2000] if len(letra) > 2000 else letra
-            embed.description = letra
-            
-            await i.followup.send(embed=embed)
-        else:
-            embed = discord.Embed(color=0xff69b4)
-            embed.description = "No se encontraron resultados"
-            await i.followup.send(embed=embed)
+        # Opción 2: Usar alternativa
+        url = f"https://api.lyrics.ovh/v1/search?q={cancion.replace(' ', '%20')}"
+        
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            async with session.get(url, headers=headers, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    
+                    if data.get('data'):
+                        cancion_data = data['data'][0]
+                        embed = discord.Embed(color=0xff69b4, title=cancion_data['title'])
+                        embed.add_field(name="Artista", value=cancion_data['artist']['name'], inline=False)
+                        
+                        # Obtener letra completa
+                        lyrics_url = f"https://api.lyrics.ovh/v1/{cancion_data['artist']['name'].replace(' ', '%20')}/{cancion_data['title'].replace(' ', '%20')}"
+                        async with session.get(lyrics_url, headers=headers) as resp2:
+                            if resp2.status == 200:
+                                lyrics_data = await resp2.json()
+                                letra = lyrics_data.get('lyrics', 'Letra no disponible')
+                                letra = letra[:2000] if len(letra) > 2000 else letra
+                                embed.description = letra
+                        
+                        await i.followup.send(embed=embed)
+                    else:
+                        embed = discord.Embed(color=0xff69b4)
+                        embed.description = "No se encontraron resultados"
+                        await i.followup.send(embed=embed)
+                else:
+                    embed = discord.Embed(color=0xff69b4)
+                    embed.description = f"Error: API no disponible (Status {resp.status})"
+                    await i.followup.send(embed=embed, ephemeral=True)
+                    
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = f"Error: {str(e)}"
+        embed.description = f"Error: {str(e)[:100]}"
         await i.followup.send(embed=embed, ephemeral=True)
 
-@bot.command(name="lyrics")
-async def lyrics_prefix(ctx, *, cancion: str):
+# =========================================================
+# GENERADOR DE IMÁGENES
+# =========================================================
+
+# Tarjeta de presentación
+@bot.tree.command(name="tarjeta", description="Genera una tarjeta de presentacion")
+async def tarjeta_slash(i: discord.Interaction, titulo: str, descripcion: str = None):
+    W, H = 800, 400
+    FONDO = (20, 20, 30)
+    TEXTO = (255, 255, 255)
+    SECUNDARIO = (100, 200, 255)
+    
+    img = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+    
+    # Fondo gradiente simple
+    for i_grad in range(H):
+        alpha = int(50 * (1 - i_grad / H))
+        overlay = Image.new("RGBA", (W, 1), (100, 200, 255, alpha))
+        img.paste(overlay, (0, i_grad), overlay)
+    
+    # Borde
+    draw.rectangle([(0, 0), (W-1, H-1)], outline=SECUNDARIO, width=3)
+    
+    # Titulo
+    draw.text((40, 50), titulo, font=fuente(32, bold=True), fill=SECUNDARIO)
+    
+    # Descripcion
+    if descripcion:
+        draw.text((40, 120), descripcion, font=fuente(16), fill=TEXTO)
+    
+    # Pie
+    draw.text((40, H-40), f"Generado por {i.user.name}", font=fuente(12), fill=(150, 150, 150))
+    
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    
+    await i.response.send_message(file=discord.File(buf, "tarjeta.png"))
+
+# Meme generador
+@bot.tree.command(name="meme", description="Genera un meme")
+async def meme_slash(i: discord.Interaction, texto_arriba: str, texto_abajo: str):
+    W, H = 500, 500
+    FONDO = (0, 0, 0)
+    TEXTO = (255, 255, 255)
+    
+    img = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+    
+    # Rectangulo de texto arriba
+    draw.rectangle([(20, 20), (W-20, 80)], fill=(0, 0, 0, 200))
+    draw.text((W//2, 50), texto_arriba, font=fuente(20, bold=True), fill=TEXTO, anchor="mm")
+    
+    # Rectangulo de texto abajo
+    draw.rectangle([(20, H-80), (W-20, H-20)], fill=(0, 0, 0, 200))
+    draw.text((W//2, H-50), texto_abajo, font=fuente(20, bold=True), fill=TEXTO, anchor="mm")
+    
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    
+    await i.response.send_message(file=discord.File(buf, "meme.png"))
+
+# Editor de imagen simple
+@bot.tree.command(name="pixelar", description="Pixela una imagen")
+async def pixelar_slash(i: discord.Interaction):
+    if not i.message.attachments:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "Debes adjuntar una imagen"
+        await i.response.send_message(embed=embed, ephemeral=True)
+        return
+    
     try:
-        url = f"https://api.lyrics.ovh/v1/search?q={cancion}"
+        img_url = i.message.attachments[0].url
+        img = await descargar_imagen(img_url)
+        
+        # Pixelar
+        img_small = img.resize((img.width // 10, img.height // 10))
+        img_pixelada = img_small.resize((img.width, img.height), Image.NEAREST)
+        
+        buf = io.BytesIO()
+        img_pixelada.save(buf, format="PNG")
+        buf.seek(0)
+        
+        await i.response.send_message(file=discord.File(buf, "pixelada.png"))
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)}"
+        await i.response.send_message(embed=embed, ephemeral=True)
+
+# =========================================================
+# SISTEMA DE BIBLIOTECA
+# =========================================================
+
+biblioteca_data = {}
+
+@bot.tree.command(name="buscar-libro", description="Busca un libro")
+async def buscar_libro_slash(i: discord.Interaction, titulo: str):
+    await i.response.defer()
+    
+    try:
+        url = f"https://www.googleapis.com/books/v1/volumes?q={titulo}&maxResults=5"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 data = await resp.json()
         
-        if data.get('data'):
-            cancion_data = data['data'][0]
-            embed = discord.Embed(color=0xff69b4, title=cancion_data['title'])
-            embed.add_field(name="Artista", value=cancion_data['artist']['name'], inline=False)
+        if data.get('items'):
+            embed = discord.Embed(color=0xff69b4, title="Libros Encontrados")
             
-            # Obtener letra completa
-            lyrics_url = f"https://api.lyrics.ovh/v1/{cancion_data['artist']['name']}/{cancion_data['title']}"
-            async with session.get(lyrics_url) as resp2:
-                lyrics_data = await resp2.json()
+            for n, book in enumerate(data['items'][:5], 1):
+                info = book['volumeInfo']
+                titulo_libro = info.get('title', 'Sin titulo')
+                autor = ', '.join(info.get('authors', ['Desconocido']))
+                año = info.get('publishedDate', 'N/A')[:4]
+                
+                embed.add_field(
+                    name=f"{n}. {titulo_libro[:50]}",
+                    value=f"Autor: {autor}\nAño: {año}",
+                    inline=False
+                )
             
-            letra = lyrics_data.get('lyrics', 'No disponible')
-            # Limitar a 2000 caracteres
-            letra = letra[:2000] if len(letra) > 2000 else letra
-            embed.description = letra
-            
-            await ctx.send(embed=embed)
+            await i.followup.send(embed=embed)
         else:
             embed = discord.Embed(color=0xff69b4)
-            embed.description = "No se encontraron resultados"
-            await ctx.send(embed=embed)
+            embed.description = "No se encontraron libros"
+            await i.followup.send(embed=embed)
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"Error: {str(e)}"
-        await ctx.send(embed=embed)
+        await i.followup.send(embed=embed)
+
+@bot.tree.command(name="mi-biblioteca", description="Ve tu biblioteca personal")
+async def mi_biblioteca_slash(i: discord.Interaction):
+    gid, uid = str(i.guild.id), str(i.user.id)
+    
+    if gid not in biblioteca_data or uid not in biblioteca_data[gid]:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "Tu biblioteca esta vacia"
+        await i.response.send_message(embed=embed)
+        return
+    
+    libros = biblioteca_data[gid][uid]
+    embed = discord.Embed(color=0xff69b4, title="Mi Biblioteca")
+    
+    for libro in libros:
+        embed.add_field(name=libro['titulo'], value=f"Autor: {libro['autor']}", inline=False)
+    
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# CLIMA Y TIEMPO
+# =========================================================
+
+@bot.tree.command(name="clima", description="Ver el clima de una ciudad")
+async def clima_slash(i: discord.Interaction, ciudad: str):
+    await i.response.defer()
+    
+    try:
+        url = f"https://wttr.in/{ciudad}?format=j1"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    
+                    clima_actual = data['current_condition'][0]
+                    temperatura = clima_actual['temp_C']
+                    sensacion = clima_actual['FeelsLikeC']
+                    humedad = clima_actual['humidity']
+                    descripcion = clima_actual['weatherDesc'][0]['value']
+                    
+                    embed = discord.Embed(color=0xff69b4, title=f"Clima en {ciudad}")
+                    embed.add_field(name="Temperatura", value=f"{temperatura}°C", inline=True)
+                    embed.add_field(name="Sensacion Termica", value=f"{sensacion}°C", inline=True)
+                    embed.add_field(name="Humedad", value=f"{humedad}%", inline=True)
+                    embed.add_field(name="Condicion", value=descripcion, inline=False)
+                    
+                    await i.followup.send(embed=embed)
+                else:
+                    embed = discord.Embed(color=0xff69b4)
+                    embed.description = f"Ciudad no encontrada"
+                    await i.followup.send(embed=embed)
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)}"
+        await i.followup.send(embed=embed)
+
+@bot.tree.command(name="pronostico", description="Pronostico de 3 dias")
+async def pronostico_slash(i: discord.Interaction, ciudad: str):
+    await i.response.defer()
+    
+    try:
+        url = f"https://wttr.in/{ciudad}?format=j1"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    
+                    embed = discord.Embed(color=0xff69b4, title=f"Pronostico de {ciudad}")
+                    
+                    for n, dia in enumerate(data['weather'][:3], 1):
+                        fecha = dia['date']
+                        max_temp = dia['maxtempC']
+                        min_temp = dia['mintempC']
+                        condicion = dia['hourly'][0]['weatherDesc'][0]['value']
+                        
+                        embed.add_field(
+                            name=f"Dia {n} - {fecha}",
+                            value=f"Max: {max_temp}°C | Min: {min_temp}°C\n{condicion}",
+                            inline=False
+                        )
+                    
+                    await i.followup.send(embed=embed)
+                else:
+                    embed = discord.Embed(color=0xff69b4)
+                    embed.description = "Ciudad no encontrada"
+                    await i.followup.send(embed=embed)
+    except Exception as e:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Error: {str(e)}"
+        await i.followup.send(embed=embed)
+
+# =========================================================
+# TRADUCCIÓN
+# =========================================================
+
+@bot.tree.command(name="traducir", description="Traduce un texto")
+async def traducir_slash(i: discord.Interaction, idioma: str, texto: str):
+    await i.response.defer()
+    
+    try:
+        from google.cloud import translate_v2
+        # Nota: Requiere Google Cloud credentials
+        
+        client = translate_v2.Client()
+        resultado = client.translate_text(text=texto, target_language=idioma)
+        
+        embed = discord.Embed(color=0xff69b4)
+        embed.add_field(name="Texto Original", value=texto, inline=False)
+        embed.add_field(name="Traduccion", value=resultado['translatedText'], inline=False)
+        
+        await i.followup.send(embed=embed)
+    except:
+        # Alternativa sin Google Cloud
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "Servicio de traduccion no disponible"
+        await i.followup.send(embed=embed)
+
+# Detectar idioma
+@bot.tree.command(name="detectar-idioma", description="Detecta el idioma de un texto")
+async def detectar_idioma_slash(i: discord.Interaction, texto: str):
+    try:
+        from textblob import TextBlob
+        
+        blob = TextBlob(texto)
+        idioma = blob.detect_language()
+        
+        idiomas = {
+            'es': 'Español',
+            'en': 'Ingles',
+            'fr': 'Frances',
+            'de': 'Aleman',
+            'it': 'Italiano',
+            'pt': 'Portugues',
+            'ru': 'Ruso',
+            'ja': 'Japones',
+            'zh': 'Chino',
+            'ko': 'Coreano',
+        }
+        
+        idioma_nombre = idiomas.get(idioma, idioma)
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"Idioma detectado: **{idioma_nombre}** ({idioma})"
+        await i.response.send_message(embed=embed)
+    except:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "Error al detectar idioma"
+        await i.response.send_message(embed=embed, ephemeral=True)
+
+# =========================================================
+# QUIZ Y TRIVIA
+# =========================================================
+
+PREGUNTAS_TRIVIA = [
+    {"pregunta": "Cual es la capital de Francia?", "respuestas": ["Paris", "Londres", "Berlin"], "correcta": 0},
+    {"pregunta": "Cual es el planeta mas grande?", "respuestas": ["Jupiter", "Saturno", "Tierra"], "correcta": 0},
+    {"pregunta": "En que año termino la 2da Guerra Mundial?", "respuestas": ["1943", "1944", "1945"], "correcta": 2},
+    {"pregunta": "Cual es el elemento quimico con simbolo Au?", "respuestas": ["Plata", "Oro", "Aluminio"], "correcta": 1},
+    {"pregunta": "Quien escribio Don Quijote?", "respuestas": ["Borges", "Cervantes", "Garcia Marquez"], "correcta": 1},
+]
+
+puntuaciones_trivia = {}
+
+class TriviaView(discord.ui.View):
+    def __init__(self, pregunta_data, user_id):
+        super().__init__(timeout=30)
+        self.pregunta_data = pregunta_data
+        self.user_id = user_id
+        self.respondio = False
+        
+        for n, respuesta in enumerate(pregunta_data['respuestas']):
+            button = discord.ui.Button(
+                label=respuesta,
+                style=discord.ButtonStyle.primary,
+                custom_id=f"trivia_{n}"
+            )
+            button.callback = self.responder
+            self.add_item(button)
+    
+    async def responder(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("Esta no es tu trivia", ephemeral=True)
+            return
+        
+        if self.respondio:
+            return
+        
+        self.respondio = True
+        respuesta_num = int(interaction.data['custom_id'].split('_')[1])
+        correcta = respuesta_num == self.pregunta_data['correcta']
+        
+        gid = str(interaction.guild.id)
+        uid = str(self.user_id)
+        
+        if gid not in puntuaciones_trivia:
+            puntuaciones_trivia[gid] = {}
+        if uid not in puntuaciones_trivia[gid]:
+            puntuaciones_trivia[gid][uid] = 0
+        
+        if correcta:
+            puntuaciones_trivia[gid][uid] += 10
+            embed = discord.Embed(color=0x00ff00)
+            embed.description = f"Correcto! +10 puntos"
+        else:
+            embed = discord.Embed(color=0xff0000)
+            respuesta_correcta = self.pregunta_data['respuestas'][self.pregunta_data['correcta']]
+            embed.description = f"Incorrecto! La respuesta era: {respuesta_correcta}"
+        
+        embed.add_field(name="Puntos Totales", value=puntuaciones_trivia[gid][uid])
+        await interaction.response.edit_message(embed=embed, view=None)
+
+@bot.tree.command(name="trivia", description="Juega una trivia")
+async def trivia_slash(i: discord.Interaction):
+    pregunta_data = random.choice(PREGUNTAS_TRIVIA)
+    
+    embed = discord.Embed(color=0xff69b4, title="Trivia")
+    embed.description = pregunta_data['pregunta']
+    
+    view = TriviaView(pregunta_data, i.user.id)
+    await i.response.send_message(embed=embed, view=view)
+
+@bot.command(name="trivia")
+async def trivia_prefix(ctx):
+    pregunta_data = random.choice(PREGUNTAS_TRIVIA)
+    
+    embed = discord.Embed(color=0xff69b4, title="Trivia")
+    embed.description = pregunta_data['pregunta']
+    
+    view = TriviaView(pregunta_data, ctx.author.id)
+    await ctx.send(embed=embed, view=view)
+
+@bot.tree.command(name="mi-puntuacion-trivia", description="Ver tu puntuacion en trivia")
+async def mi_puntuacion_trivia_slash(i: discord.Interaction):
+    gid = str(i.guild.id)
+    uid = str(i.user.id)
+    
+    puntos = puntuaciones_trivia.get(gid, {}).get(uid, 0)
+    
+    embed = discord.Embed(color=0xff69b4, title="Tu Puntuacion de Trivia")
+    embed.description = f"Puntos: {puntos}"
+    await i.response.send_message(embed=embed)
+
+# =========================================================
+# COMANDOS AVANZADOS
+# =========================================================
+
+# Calculadora
+@bot.tree.command(name="calcular", description="Calcula una operacion matematica")
+async def calcular_slash(i: discord.Interaction, operacion: str):
+    try:
+        resultado = eval(operacion)
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = f"**Operacion:** {operacion}\n**Resultado:** {resultado}"
+        await i.response.send_message(embed=embed)
+    except:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "Operacion invalida"
+        await i.response.send_message(embed=embed, ephemeral=True)
+
+# Generador de contraseña segura
+@bot.tree.command(name="generar-password", description="Genera una contraseña segura")
+async def generar_password_slash(i: discord.Interaction, longitud: int = 16):
+    import string
+    caracteres = string.ascii_letters + string.digits + string.punctuation
+    password = ''.join(random.choice(caracteres) for _ in range(longitud))
+    
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"Contraseña: `{password}`"
+    await i.response.send_message(embed=embed, ephemeral=True)
+
+# Codificar/Decodificar
+@bot.tree.command(name="base64-codificar", description="Codifica un texto en base64")
+async def base64_codificar_slash(i: discord.Interaction, texto: str):
+    import base64
+    codificado = base64.b64encode(texto.encode()).decode()
+    
+    embed = discord.Embed(color=0xff69b4)
+    embed.add_field(name="Original", value=texto, inline=False)
+    embed.add_field(name="Base64", value=f"`{codificado}`", inline=False)
+    await i.response.send_message(embed=embed)
+
+@bot.tree.command(name="base64-decodificar", description="Decodifica un texto base64")
+async def base64_decodificar_slash(i: discord.Interaction, texto: str):
+    try:
+        import base64
+        decodificado = base64.b64decode(texto).decode()
+        
+        embed = discord.Embed(color=0xff69b4)
+        embed.add_field(name="Base64", value=texto, inline=False)
+        embed.add_field(name="Original", value=decodificado, inline=False)
+        await i.response.send_message(embed=embed)
+    except:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "Texto base64 invalido"
+        await i.response.send_message(embed=embed, ephemeral=True)
+
+# =========================================================
+# ENCUESTAS Y VOTACIONES
+# =========================================================
+
+encuestas_activas = {}
+
+class VotoView(discord.ui.View):
+    def __init__(self, encuesta_id, opciones):
+        super().__init__(timeout=None)
+        self.encuesta_id = encuesta_id
+        self.opciones = opciones
+        self.votos = {i: [] for i in range(len(opciones))}
+        
+        for n, opcion in enumerate(opciones):
+            button = discord.ui.Button(label=f"{opcion} (0)", style=discord.ButtonStyle.primary, custom_id=f"voto_{encuesta_id}_{n}")
+            button.callback = self.votar
+            self.add_item(button)
+    
+    async def votar(self, interaction: discord.Interaction):
+        opcion_num = int(interaction.data['custom_id'].split('_')[2])
+        
+        if interaction.user.id not in self.votos[opcion_num]:
+            self.votos[opcion_num].append(interaction.user.id)
+            embed = discord.Embed(color=0xff69b4)
+            embed.description = f"Votaste por: {self.opciones[opcion_num]}"
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            embed = discord.Embed(color=0xff69b4)
+            embed.description = f"Ya votaste"
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="encuesta", description="Crea una encuesta")
+async def encuesta_slash(i: discord.Interaction, pregunta: str, opcion1: str, opcion2: str, opcion3: str = None, opcion4: str = None):
+    opciones = [opcion1, opcion2]
+    if opcion3:
+        opciones.append(opcion3)
+    if opcion4:
+        opciones.append(opcion4)
+    
+    encuesta_id = len(encuestas_activas)
+    
+    embed = discord.Embed(color=0xff69b4, title="Encuesta")
+    embed.description = pregunta
+    
+    view = VotoView(encuesta_id, opciones)
+    encuestas_activas[encuesta_id] = view
+    
+    await i.response.send_message(embed=embed, view=view)
+
+# =========================================================
+# MINIJUEGOS ADICIONALES
+# =========================================================
+
+# Encuentra el numero
+@bot.tree.command(name="adivina-numero", description="Adivina un numero del 1 al 100")
+async def adivina_numero_slash(i: discord.Interaction):
+    numero_secreto = random.randint(1, 100)
+    intentos = 0
+    
+    embed = discord.Embed(color=0xff69b4, title="Adivina el Numero")
+    embed.description = "Piensa un numero entre 1 y 100. Tienes 10 intentos"
+    
+    await i.response.send_message(embed=embed)
+    
+    def check(m):
+        return m.author == i.user and i.channel == m.channel
+    
+    for intento in range(10):
+        try:
+            mensaje = await bot.wait_for('message', check=check, timeout=60)
+            numero = int(mensaje.content)
+            
+            if numero == numero_secreto:
+                embed = discord.Embed(color=0x00ff00)
+                embed.description = f"Correcto! El numero era {numero_secreto}\nIntentaste {intento + 1} veces"
+                await i.channel.send(embed=embed)
+                return
+            elif numero < numero_secreto:
+                embed = discord.Embed(color=0xff69b4)
+                embed.description = f"El numero es mayor ({intento + 1}/10)"
+                await i.channel.send(embed=embed)
+            else:
+                embed = discord.Embed(color=0xff69b4)
+                embed.description = f"El numero es menor ({intento + 1}/10)"
+                await i.channel.send(embed=embed)
+        except ValueError:
+            embed = discord.Embed(color=0xff69b4)
+            embed.description = "Debes escribir un numero"
+            await i.channel.send(embed=embed)
+        except asyncio.TimeoutError:
+            break
+    
+    embed = discord.Embed(color=0xff0000)
+    embed.description = f"Se acabaron los intentos! El numero era {numero_secreto}"
+    await i.channel.send(embed=embed)
+
+# Piedra, papel, tijera mejorado
+@bot.tree.command(name="ppt-mejorado", description="Piedra papel o tijera mejorado")
+async def ppt_mejorado_slash(i: discord.Interaction):
+    opciones = ["Piedra", "Papel", "Tijera"]
+    
+    buttons = []
+    for opcion in opciones:
+        button = discord.ui.Button(label=opcion, style=discord.ButtonStyle.primary)
+        button.callback = lambda interaction, op=opcion: ppt_seleccionar(interaction, op)
+        buttons.append(button)
+    
+    view = discord.ui.View()
+    for button in buttons:
+        view.add_item(button)
+    
+    embed = discord.Embed(color=0xff69b4, title="Piedra, Papel o Tijera")
+    embed.description = "Elige tu opcion"
+    
+    async def ppt_seleccionar(interaction, opcion_usuario):
+        opcion_bot = random.choice(opciones)
+        
+        if opcion_usuario == opcion_bot:
+            resultado = "EMPATE"
+        elif (opcion_usuario == "Piedra" and opcion_bot == "Tijera") or \
+             (opcion_usuario == "Papel" and opcion_bot == "Piedra") or \
+             (opcion_usuario == "Tijera" and opcion_bot == "Papel"):
+            resultado = "GANASTE"
+        else:
+            resultado = "PERDISTE"
+        
+        embed2 = discord.Embed(color=0xff69b4)
+        embed2.description = f"Tu: {opcion_usuario}\nBot: {opcion_bot}\n{resultado}"
+        await interaction.response.send_message(embed=embed2, ephemeral=True)
+    
+    await i.response.send_message(embed=embed, view=view)
+
+# Ahorcado
+@bot.tree.command(name="ahorcado", description="Juega al ahorcado")
+async def ahorcado_slash(i: discord.Interaction):
+    palabras = ["python", "discord", "javascript", "programacion", "computadora", "inteligencia"]
+    palabra_secreta = random.choice(palabras).upper()
+    letras_adivinadas = set()
+    intentos = 6
+    
+    embed = discord.Embed(color=0xff69b4, title="Ahorcado")
+    embed.description = f"Palabra: {' '.join(['_' if letra not in letras_adivinadas else letra for letra in palabra_secreta])}\nIntentos: {intentos}"
+    
+    await i.response.send_message(embed=embed)
+    
+    def check(m):
+        return m.author == i.user and i.channel == m.channel and len(m.content) == 1
+    
+    while intentos > 0 and set(palabra_secreta) != letras_adivinadas:
+        try:
+            mensaje = await bot.wait_for('message', check=check, timeout=60)
+            letra = mensaje.content.upper()
+            
+            if letra in letras_adivinadas:
+                embed = discord.Embed(color=0xff69b4)
+                embed.description = "Ya adivinaste esa letra"
+                await i.channel.send(embed=embed)
+                continue
+            
+            letras_adivinadas.add(letra)
+            
+            if letra not in palabra_secreta:
+                intentos -= 1
+            
+            palabra_mostrada = ' '.join(['_' if l not in letras_adivinadas else l for l in palabra_secreta])
+            embed = discord.Embed(color=0xff69b4)
+            embed.description = f"Palabra: {palabra_mostrada}\nIntentos: {intentos}"
+            await i.channel.send(embed=embed)
+        except asyncio.TimeoutError:
+            break
+    
+    if set(palabra_secreta) == letras_adivinadas:
+        embed = discord.Embed(color=0x00ff00)
+        embed.description = f"GANASTE! La palabra era: {palabra_secreta}"
+    else:
+        embed = discord.Embed(color=0xff0000)
+        embed.description = f"PERDISTE! La palabra era: {palabra_secreta}"
+    
+    await i.channel.send(embed=embed)
+
+# =========================================================
+# SISTEMA DE CUPONES
+# =========================================================
+
+cupones_data = {}
+
+@bot.tree.command(name="crear-cupon", description="Crea un cupon (ADMIN)")
+@app_commands.checks.has_permissions(administrator=True)
+async def crear_cupon_slash(i: discord.Interaction, codigo: str, recompensa: int):
+    gid = str(i.guild.id)
+    if gid not in cupones_data:
+        cupones_data[gid] = {}
+    
+    cupones_data[gid][codigo.upper()] = {
+        "recompensa": recompensa,
+        "usado_por": []
+    }
+    
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"Cupon '{codigo.upper()}' creado\nRecompensa: ${recompensa:,}"
+    await i.response.send_message(embed=embed)
+
+@bot.tree.command(name="canjear-cupon", description="Canjea un cupon")
+async def canjear_cupon_slash(i: discord.Interaction, codigo: str):
+    gid = str(i.guild.id)
+    
+    if gid not in cupones_data or codigo.upper() not in cupones_data[gid]:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "Cupon invalido"
+        await i.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    cupon = cupones_data[gid][codigo.upper()]
+    
+    if i.user.id in cupon["usado_por"]:
+        embed = discord.Embed(color=0xff69b4)
+        embed.description = "Ya usaste este cupon"
+        await i.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    cupon["usado_por"].append(i.user.id)
+    eco_data = get_user_eco(i.guild.id, i.user.id)
+    eco_data["coins"] += cupon["recompensa"]
+    
+    embed = discord.Embed(color=0xff69b4)
+    embed.description = f"Cupon canjeado!\nGanaste: ${cupon['recompensa']:,}"
+    await i.response.send_message(embed=embed)
     
 
 # =========================================================
