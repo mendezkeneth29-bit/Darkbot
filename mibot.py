@@ -1775,7 +1775,7 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
 async def reproducir_slash(i: discord.Interaction, cancion: str):
     await i.response.defer()
     
-    try:
+  try:
 from yt_dlp import YoutubeDL
 
 ydl_opts = {
