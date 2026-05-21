@@ -1770,9 +1770,9 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
 # SISTEMA DE MÚSICA - REPRODUCIR
 # =========================================================
 
-@bot.tree.command(name="reproducir", description="Reproduce una cancion de YouTube")
-async def reproducir_slash(i: discord.Interaction, cancion: str):
-    await i.response.defer()
+@bot.hybrid_command(name="youtube", description="busca un video en YouTube")
+async def reproducir(ctx, *, cancion: str):
+    await ctx.defer() if ctx.interaction else None
     
     try:
         import aiohttp
@@ -1787,7 +1787,7 @@ async def reproducir_slash(i: discord.Interaction, cancion: str):
                     "clientVersion": "2.20230101.00.00"
                 }
             },
-            "query": cancion,
+            "query": video,
             "params": "EgIQAQ%3D%3D"
         }
         
@@ -1823,44 +1823,52 @@ async def reproducir_slash(i: discord.Interaction, cancion: str):
                             if thumbnail:
                                 embed.set_thumbnail(url=thumbnail)
                             
-                            embed.set_footer(text=f"Solicitado por {i.user.name}")
+                            embed.set_footer(text=f"Solicitado por {ctx.author.name}")
                             
-                            await i.followup.send(embed=embed)
+                            if ctx.interaction:
+                                await ctx.interaction.followup.send(embed=embed)
+                            else:
+                                await ctx.send(embed=embed)
                             return
         
         embed = discord.Embed(color=0xff69b4)
-        embed.description = "**No se encontraron resultados**"
-        await i.followup.send(embed=embed)
+        embed.description = "****No se encontraron resultados****"
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
         
     except Exception as e:
-        print(f"[ERROR] Reproducir: {str(e)}")
+        print(f"[ERROR] video: {str(e)}")
         embed = discord.Embed(color=0xff0000)
         embed.title = "Error al buscar"
         embed.description = f"```{str(e)[:200]}```"
-        await i.followup.send(embed=embed, ephemeral=True)
-# Playlist
-@bot.tree.command(name="playlist", description="Ve tu playlist")
-async def playlist_slash(i: discord.Interaction):
-    embed = discord.Embed(color=0xff69b4, title="Mi Playlist")
-    embed.description = "Sistema de playlist (ejemplo)"
-    await i.response.send_message(embed=embed)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await ctx.send(embed=embed)
 
-@bot.command(name="playlist")
-async def playlist_prefix(ctx):
+# =========================================================
+# PLAYLIST
+# =========================================================
+
+@bot.hybrid_command(name="playlist", description="Ve tu playlist")
+async def playlist(ctx):
     embed = discord.Embed(color=0xff69b4, title="Mi Playlist")
     embed.description = "Sistema de playlist (ejemplo)"
     await ctx.send(embed=embed)
 
-# Lyrics
-@bot.tree.command(name="lyrics", description="Obtén la letra de una cancion")
-async def lyrics_slash(i: discord.Interaction, cancion: str):
-    await i.response.defer()
+# =========================================================
+# LYRICS
+# =========================================================
+
+@bot.hybrid_command(name="lyrics", description="Obtén la letra de una cancion")
+async def lyrics(ctx, *, cancion: str):
+    await ctx.defer() if ctx.interaction else None
     
     try:
-        # Opción 1: Usar genius.com
-        genius_url = f"https://api.genius.com/search?q={cancion}&access_token=YOUR_GENIUS_TOKEN"
+        import aiohttp
         
-        # Opción 2: Usar alternativa
         url = f"https://api.lyrics.ovh/v1/search?q={cancion.replace(' ', '%20')}"
         
         async with aiohttp.ClientSession() as session:
@@ -1885,28 +1893,39 @@ async def lyrics_slash(i: discord.Interaction, cancion: str):
                                 letra = letra[:2000] if len(letra) > 2000 else letra
                                 embed.description = letra
                         
-                        await i.followup.send(embed=embed)
+                        if ctx.interaction:
+                            await ctx.interaction.followup.send(embed=embed)
+                        else:
+                            await ctx.send(embed=embed)
                     else:
                         embed = discord.Embed(color=0xff69b4)
                         embed.description = "> No se encontraron resultados"
-                        await i.followup.send(embed=embed)
+                        if ctx.interaction:
+                            await ctx.interaction.followup.send(embed=embed)
+                        else:
+                            await ctx.send(embed=embed)
                 else:
                     embed = discord.Embed(color=0xff69b4)
                     embed.description = f"**Error: API no disponible** (Status {resp.status})"
-                    await i.followup.send(embed=embed, ephemeral=True)
+                    if ctx.interaction:
+                        await ctx.interaction.followup.send(embed=embed, ephemeral=True)
+                    else:
+                        await ctx.send(embed=embed)
                     
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"Error: {str(e)[:100]}"
-        await i.followup.send(embed=embed, ephemeral=True)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await ctx.send(embed=embed)
 
 # =========================================================
 # GENERADOR DE IMÁGENES
 # =========================================================
 
-# Tarjeta de presentación
-@bot.tree.command(name="tarjeta", description="Genera una tarjeta de presentacion")
-async def tarjeta_slash(i: discord.Interaction, titulo: str, descripcion: str = None):
+@bot.hybrid_command(name="tarjeta", description="Genera una tarjeta personalizada")
+async def tarjeta(ctx, titulo: str, descripcion: str = None):
     W, H = 800, 400
     FONDO = (20, 20, 30)
     TEXTO = (255, 255, 255)
@@ -1932,17 +1951,16 @@ async def tarjeta_slash(i: discord.Interaction, titulo: str, descripcion: str = 
         draw.text((40, 120), descripcion, font=fuente(16), fill=TEXTO)
     
     # Pie
-    draw.text((40, H-40), f"Generado por {i.user.name}", font=fuente(12), fill=(150, 150, 150))
+    draw.text((40, H-40), f"Generado por {ctx.author.name}", font=fuente(12), fill=(150, 150, 150))
     
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     
-    await i.response.send_message(file=discord.File(buf, "tarjeta.png"))
+    await ctx.send(file=discord.File(buf, "tarjeta.png"))
 
-# Meme generador
-@bot.tree.command(name="meme", description="Genera un meme")
-async def meme_slash(i: discord.Interaction, texto_arriba: str, texto_abajo: str):
+@bot.hybrid_command(name="meme", description="Genera un meme")
+async def meme(ctx, texto_arriba: str, texto_abajo: str):
     W, H = 500, 500
     FONDO = (0, 0, 0)
     TEXTO = (255, 255, 255)
@@ -1962,19 +1980,18 @@ async def meme_slash(i: discord.Interaction, texto_arriba: str, texto_abajo: str
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     
-    await i.response.send_message(file=discord.File(buf, "meme.png"))
+    await ctx.send(file=discord.File(buf, "meme.png"))
 
-# Editor de imagen simple
-@bot.tree.command(name="pixelar", description="Pixela una imagen")
-async def pixelar_slash(i: discord.Interaction):
-    if not i.message.attachments:
+@bot.hybrid_command(name="pixelar", description="Pixela una imagen")
+async def pixelar(ctx):
+    if not ctx.message.attachments:
         embed = discord.Embed(color=0xff69b4)
         embed.description = "Debes adjuntar una imagen"
-        await i.response.send_message(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
     
     try:
-        img_url = i.message.attachments[0].url
+        img_url = ctx.message.attachments[0].url
         img = await descargar_imagen(img_url)
         
         # Pixelar
@@ -1985,11 +2002,11 @@ async def pixelar_slash(i: discord.Interaction):
         img_pixelada.save(buf, format="PNG")
         buf.seek(0)
         
-        await i.response.send_message(file=discord.File(buf, "pixelada.png"))
+        await ctx.send(file=discord.File(buf, "pixelada.png"))
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"Error: {str(e)}"
-        await i.response.send_message(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
 # =========================================================
 # SISTEMA DE BIBLIOTECA
@@ -1997,11 +2014,13 @@ async def pixelar_slash(i: discord.Interaction):
 
 biblioteca_data = {}
 
-@bot.tree.command(name="buscar-libro", description="Busca un libro")
-async def buscar_libro_slash(i: discord.Interaction, titulo: str):
-    await i.response.defer()
+@bot.hybrid_command(name="buscar-libro", description="Busca un libro")
+async def buscar_libro(ctx, *, titulo: str):
+    await ctx.defer() if ctx.interaction else None
     
     try:
+        import aiohttp
+        
         url = f"https://www.googleapis.com/books/v1/volumes?q={titulo}&maxResults=5"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -2022,24 +2041,33 @@ async def buscar_libro_slash(i: discord.Interaction, titulo: str):
                     inline=False
                 )
             
-            await i.followup.send(embed=embed)
+            if ctx.interaction:
+                await ctx.interaction.followup.send(embed=embed)
+            else:
+                await ctx.send(embed=embed)
         else:
             embed = discord.Embed(color=0xff69b4)
             embed.description = "No se encontraron libros"
-            await i.followup.send(embed=embed)
+            if ctx.interaction:
+                await ctx.interaction.followup.send(embed=embed)
+            else:
+                await ctx.send(embed=embed)
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"Error: {str(e)}"
-        await i.followup.send(embed=embed)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
 
-@bot.tree.command(name="mi-biblioteca", description="Ve tu biblioteca personal")
-async def mi_biblioteca_slash(i: discord.Interaction):
-    gid, uid = str(i.guild.id), str(i.user.id)
+@bot.hybrid_command(name="mi-biblioteca", description="Ve tu biblioteca personal")
+async def mi_biblioteca(ctx):
+    gid, uid = str(ctx.guild.id), str(ctx.author.id)
     
     if gid not in biblioteca_data or uid not in biblioteca_data[gid]:
         embed = discord.Embed(color=0xff69b4)
         embed.description = "Tu biblioteca esta vacia"
-        await i.response.send_message(embed=embed)
+        await ctx.send(embed=embed)
         return
     
     libros = biblioteca_data[gid][uid]
@@ -2048,17 +2076,19 @@ async def mi_biblioteca_slash(i: discord.Interaction):
     for libro in libros:
         embed.add_field(name=libro['titulo'], value=f"Autor: {libro['autor']}", inline=False)
     
-    await i.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
 
 # =========================================================
 # CLIMA Y TIEMPO
 # =========================================================
 
-@bot.tree.command(name="clima", description="Ver el clima de una ciudad")
-async def clima_slash(i: discord.Interaction, ciudad: str):
-    await i.response.defer()
+@bot.hybrid_command(name="clima", description="Ver el clima de una ciudad")
+async def clima(ctx, *, ciudad: str):
+    await ctx.defer() if ctx.interaction else None
     
     try:
+        import aiohttp
+        
         url = f"https://wttr.in/{ciudad}?format=j1"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -2077,21 +2107,32 @@ async def clima_slash(i: discord.Interaction, ciudad: str):
                     embed.add_field(name="Humedad", value=f"{humedad}%", inline=True)
                     embed.add_field(name="Condicion", value=descripcion, inline=False)
                     
-                    await i.followup.send(embed=embed)
+                    if ctx.interaction:
+                        await ctx.interaction.followup.send(embed=embed)
+                    else:
+                        await ctx.send(embed=embed)
                 else:
                     embed = discord.Embed(color=0xff69b4)
                     embed.description = f"Ciudad no encontrada"
-                    await i.followup.send(embed=embed)
+                    if ctx.interaction:
+                        await ctx.interaction.followup.send(embed=embed)
+                    else:
+                        await ctx.send(embed=embed)
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"Error: {str(e)}"
-        await i.followup.send(embed=embed)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
 
-@bot.tree.command(name="pronostico", description="Pronostico de 3 dias")
-async def pronostico_slash(i: discord.Interaction, ciudad: str):
-    await i.response.defer()
+@bot.hybrid_command(name="pronostico", description="Pronostico de 3 dias")
+async def pronostico(ctx, *, ciudad: str):
+    await ctx.defer() if ctx.interaction else None
     
     try:
+        import aiohttp
+        
         url = f"https://wttr.in/{ciudad}?format=j1"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -2112,45 +2153,31 @@ async def pronostico_slash(i: discord.Interaction, ciudad: str):
                             inline=False
                         )
                     
-                    await i.followup.send(embed=embed)
+                    if ctx.interaction:
+                        await ctx.interaction.followup.send(embed=embed)
+                    else:
+                        await ctx.send(embed=embed)
                 else:
                     embed = discord.Embed(color=0xff69b4)
                     embed.description = "Ciudad no encontrada"
-                    await i.followup.send(embed=embed)
+                    if ctx.interaction:
+                        await ctx.interaction.followup.send(embed=embed)
+                    else:
+                        await ctx.send(embed=embed)
     except Exception as e:
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"Error: {str(e)}"
-        await i.followup.send(embed=embed)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
 
 # =========================================================
 # TRADUCCIÓN
 # =========================================================
 
-@bot.tree.command(name="traducir", description="Traduce un texto")
-async def traducir_slash(i: discord.Interaction, idioma: str, texto: str):
-    await i.response.defer()
-    
-    try:
-        from google.cloud import translate_v2
-        # Nota: Requiere Google Cloud credentials
-        
-        client = translate_v2.Client()
-        resultado = client.translate_text(text=texto, target_language=idioma)
-        
-        embed = discord.Embed(color=0xff69b4)
-        embed.add_field(name="Texto Original", value=texto, inline=False)
-        embed.add_field(name="Traduccion", value=resultado['translatedText'], inline=False)
-        
-        await i.followup.send(embed=embed)
-    except:
-        # Alternativa sin Google Cloud
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = "Servicio de traduccion no disponible"
-        await i.followup.send(embed=embed)
-
-# Detectar idioma
-@bot.tree.command(name="detectar-idioma", description="Detecta el idioma de un texto")
-async def detectar_idioma_slash(i: discord.Interaction, texto: str):
+@bot.hybrid_command(name="detectar-idioma", description="Detecta el idioma de un texto")
+async def detectar_idioma(ctx, *, texto: str):
     try:
         from textblob import TextBlob
         
@@ -2173,11 +2200,11 @@ async def detectar_idioma_slash(i: discord.Interaction, texto: str):
         idioma_nombre = idiomas.get(idioma, idioma)
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"Idioma detectado: **{idioma_nombre}** ({idioma})"
-        await i.response.send_message(embed=embed)
+        await ctx.send(embed=embed)
     except:
         embed = discord.Embed(color=0xff69b4)
         embed.description = "Error al detectar idioma"
-        await i.response.send_message(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
 # =========================================================
 # QUIZ Y TRIVIA
@@ -2241,18 +2268,8 @@ class TriviaView(discord.ui.View):
         embed.add_field(name="Puntos Totales", value=puntuaciones_trivia[gid][uid])
         await interaction.response.edit_message(embed=embed, view=None)
 
-@bot.tree.command(name="trivia", description="Juega una trivia")
-async def trivia_slash(i: discord.Interaction):
-    pregunta_data = random.choice(PREGUNTAS_TRIVIA)
-    
-    embed = discord.Embed(color=0xff69b4, title="Trivia")
-    embed.description = pregunta_data['pregunta']
-    
-    view = TriviaView(pregunta_data, i.user.id)
-    await i.response.send_message(embed=embed, view=view)
-
-@bot.command(name="trivia")
-async def trivia_prefix(ctx):
+@bot.hybrid_command(name="trivia", description="Juega una trivia")
+async def trivia(ctx):
     pregunta_data = random.choice(PREGUNTAS_TRIVIA)
     
     embed = discord.Embed(color=0xff69b4, title="Trivia")
@@ -2261,58 +2278,55 @@ async def trivia_prefix(ctx):
     view = TriviaView(pregunta_data, ctx.author.id)
     await ctx.send(embed=embed, view=view)
 
-@bot.tree.command(name="mi-puntuacion-trivia", description="Ver tu puntuacion en trivia")
-async def mi_puntuacion_trivia_slash(i: discord.Interaction):
-    gid = str(i.guild.id)
-    uid = str(i.user.id)
+@bot.hybrid_command(name="mi-puntuacion-trivia", description="Ver tu puntuacion en trivia")
+async def mi_puntuacion_trivia(ctx):
+    gid = str(ctx.guild.id)
+    uid = str(ctx.author.id)
     
     puntos = puntuaciones_trivia.get(gid, {}).get(uid, 0)
     
     embed = discord.Embed(color=0xff69b4, title="Tu Puntuacion de Trivia")
     embed.description = f"Puntos: {puntos}"
-    await i.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
 
 # =========================================================
 # COMANDOS AVANZADOS
 # =========================================================
 
-# Calculadora
-@bot.tree.command(name="calcular", description="Calcula una operacion matematica")
-async def calcular_slash(i: discord.Interaction, operacion: str):
+@bot.hybrid_command(name="calcular", description="Calcula una operacion matematica")
+async def calcular(ctx, *, operacion: str):
     try:
         resultado = eval(operacion)
         embed = discord.Embed(color=0xff69b4)
         embed.description = f"**Operacion:** {operacion}\n**Resultado:** {resultado}"
-        await i.response.send_message(embed=embed)
+        await ctx.send(embed=embed)
     except:
         embed = discord.Embed(color=0xff69b4)
         embed.description = "Operacion invalida"
-        await i.response.send_message(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
-# Generador de contraseña segura
-@bot.tree.command(name="generar-password", description="Genera una contraseña segura")
-async def generar_password_slash(i: discord.Interaction, longitud: int = 16):
+@bot.hybrid_command(name="generar-password", description="Genera una contraseña segura")
+async def generar_password(ctx, longitud: int = 16):
     import string
     caracteres = string.ascii_letters + string.digits + string.punctuation
     password = ''.join(random.choice(caracteres) for _ in range(longitud))
     
     embed = discord.Embed(color=0xff69b4)
     embed.description = f"Contraseña: `{password}`"
-    await i.response.send_message(embed=embed, ephemeral=True)
+    await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
-# Codificar/Decodificar
-@bot.tree.command(name="base64-codificar", description="Codifica un texto en base64")
-async def base64_codificar_slash(i: discord.Interaction, texto: str):
+@bot.hybrid_command(name="base64-codificar", description="Codifica un texto en base64")
+async def base64_codificar(ctx, *, texto: str):
     import base64
     codificado = base64.b64encode(texto.encode()).decode()
     
     embed = discord.Embed(color=0xff69b4)
     embed.add_field(name="Original", value=texto, inline=False)
     embed.add_field(name="Base64", value=f"`{codificado}`", inline=False)
-    await i.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
 
-@bot.tree.command(name="base64-decodificar", description="Decodifica un texto base64")
-async def base64_decodificar_slash(i: discord.Interaction, texto: str):
+@bot.hybrid_command(name="base64-decodificar", description="Decodifica un texto base64")
+async def base64_decodificar(ctx, *, texto: str):
     try:
         import base64
         decodificado = base64.b64decode(texto).decode()
@@ -2320,11 +2334,11 @@ async def base64_decodificar_slash(i: discord.Interaction, texto: str):
         embed = discord.Embed(color=0xff69b4)
         embed.add_field(name="Base64", value=texto, inline=False)
         embed.add_field(name="Original", value=decodificado, inline=False)
-        await i.response.send_message(embed=embed)
+        await ctx.send(embed=embed)
     except:
         embed = discord.Embed(color=0xff69b4)
         embed.description = "Texto base64 invalido"
-        await i.response.send_message(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
 # =========================================================
 # ENCUESTAS Y VOTACIONES
@@ -2357,8 +2371,8 @@ class VotoView(discord.ui.View):
             embed.description = f"Ya votaste"
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="encuesta", description="Crea una encuesta")
-async def encuesta_slash(i: discord.Interaction, pregunta: str, opcion1: str, opcion2: str, opcion3: str = None, opcion4: str = None):
+@bot.hybrid_command(name="encuesta", description="Crea una encuesta")
+async def encuesta(ctx, pregunta: str, opcion1: str, opcion2: str, opcion3: str = None, opcion4: str = None):
     opciones = [opcion1, opcion2]
     if opcion3:
         opciones.append(opcion3)
@@ -2373,25 +2387,24 @@ async def encuesta_slash(i: discord.Interaction, pregunta: str, opcion1: str, op
     view = VotoView(encuesta_id, opciones)
     encuestas_activas[encuesta_id] = view
     
-    await i.response.send_message(embed=embed, view=view)
+    await ctx.send(embed=embed, view=view)
 
 # =========================================================
 # MINIJUEGOS ADICIONALES
 # =========================================================
 
-# Encuentra el numero
-@bot.tree.command(name="adivina-numero", description="Adivina un numero del 1 al 100")
-async def adivina_numero_slash(i: discord.Interaction):
+@bot.hybrid_command(name="adivina-numero", description="Adivina un numero del 1 al 100")
+async def adivina_numero(ctx):
     numero_secreto = random.randint(1, 100)
     intentos = 0
     
     embed = discord.Embed(color=0xff69b4, title="Adivina el Numero")
     embed.description = "Piensa un numero entre 1 y 100. Tienes 10 intentos"
     
-    await i.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
     
     def check(m):
-        return m.author == i.user and i.channel == m.channel
+        return m.author == ctx.author and ctx.channel == m.channel
     
     for intento in range(10):
         try:
@@ -2401,30 +2414,29 @@ async def adivina_numero_slash(i: discord.Interaction):
             if numero == numero_secreto:
                 embed = discord.Embed(color=0x00ff00)
                 embed.description = f"Correcto! El numero era {numero_secreto}\nIntentaste {intento + 1} veces"
-                await i.channel.send(embed=embed)
+                await ctx.send(embed=embed)
                 return
             elif numero < numero_secreto:
                 embed = discord.Embed(color=0xff69b4)
                 embed.description = f"El numero es mayor ({intento + 1}/10)"
-                await i.channel.send(embed=embed)
+                await ctx.send(embed=embed)
             else:
                 embed = discord.Embed(color=0xff69b4)
                 embed.description = f"El numero es menor ({intento + 1}/10)"
-                await i.channel.send(embed=embed)
+                await ctx.send(embed=embed)
         except ValueError:
             embed = discord.Embed(color=0xff69b4)
             embed.description = "Debes escribir un numero"
-            await i.channel.send(embed=embed)
+            await ctx.send(embed=embed)
         except asyncio.TimeoutError:
             break
     
     embed = discord.Embed(color=0xff0000)
     embed.description = f"Se acabaron los intentos! El numero era {numero_secreto}"
-    await i.channel.send(embed=embed)
+    await ctx.send(embed=embed)
 
-# Piedra, papel, tijera mejorado
-@bot.tree.command(name="ppt-mejorado", description="Piedra papel o tijera mejorado")
-async def ppt_mejorado_slash(i: discord.Interaction):
+@bot.hybrid_command(name="ppt-mejorado", description="Piedra papel o tijera mejorado")
+async def ppt_mejorado(ctx):
     opciones = ["Piedra", "Papel", "Tijera"]
     
     buttons = []
@@ -2456,11 +2468,10 @@ async def ppt_mejorado_slash(i: discord.Interaction):
         embed2.description = f"Tu: {opcion_usuario}\nBot: {opcion_bot}\n{resultado}"
         await interaction.response.send_message(embed=embed2, ephemeral=True)
     
-    await i.response.send_message(embed=embed, view=view)
+    await ctx.send(embed=embed, view=view)
 
-# Ahorcado
-@bot.tree.command(name="ahorcado", description="Juega al ahorcado")
-async def ahorcado_slash(i: discord.Interaction):
+@bot.hybrid_command(name="ahorcado", description="Juega al ahorcado")
+async def ahorcado(ctx):
     palabras = ["python", "discord", "javascript", "programacion", "computadora", "inteligencia"]
     palabra_secreta = random.choice(palabras).upper()
     letras_adivinadas = set()
@@ -2469,10 +2480,10 @@ async def ahorcado_slash(i: discord.Interaction):
     embed = discord.Embed(color=0xff69b4, title="Ahorcado")
     embed.description = f"Palabra: {' '.join(['_' if letra not in letras_adivinadas else letra for letra in palabra_secreta])}\nIntentos: {intentos}"
     
-    await i.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
     
     def check(m):
-        return m.author == i.user and i.channel == m.channel and len(m.content) == 1
+        return m.author == ctx.author and ctx.channel == m.channel and len(m.content) == 1
     
     while intentos > 0 and set(palabra_secreta) != letras_adivinadas:
         try:
@@ -2482,7 +2493,7 @@ async def ahorcado_slash(i: discord.Interaction):
             if letra in letras_adivinadas:
                 embed = discord.Embed(color=0xff69b4)
                 embed.description = "Ya adivinaste esa letra"
-                await i.channel.send(embed=embed)
+                await ctx.send(embed=embed)
                 continue
             
             letras_adivinadas.add(letra)
@@ -2493,7 +2504,7 @@ async def ahorcado_slash(i: discord.Interaction):
             palabra_mostrada = ' '.join(['_' if l not in letras_adivinadas else l for l in palabra_secreta])
             embed = discord.Embed(color=0xff69b4)
             embed.description = f"Palabra: {palabra_mostrada}\nIntentos: {intentos}"
-            await i.channel.send(embed=embed)
+            await ctx.send(embed=embed)
         except asyncio.TimeoutError:
             break
     
@@ -2504,7 +2515,7 @@ async def ahorcado_slash(i: discord.Interaction):
         embed = discord.Embed(color=0xff0000)
         embed.description = f"PERDISTE! La palabra era: {palabra_secreta}"
     
-    await i.channel.send(embed=embed)
+    await ctx.send(embed=embed)
 
 # =========================================================
 # SISTEMA DE CUPONES
@@ -2512,10 +2523,10 @@ async def ahorcado_slash(i: discord.Interaction):
 
 cupones_data = {}
 
-@bot.tree.command(name="crear-cupon", description="Crea un cupon (ADMIN)")
-@app_commands.checks.has_permissions(administrator=True)
-async def crear_cupon_slash(i: discord.Interaction, codigo: str, recompensa: int):
-    gid = str(i.guild.id)
+@bot.hybrid_command(name="crear-cupon", description="Crea un cupon (ADMIN)")
+@commands.has_permissions(administrator=True)
+async def crear_cupon(ctx, codigo: str, recompensa: int):
+    gid = str(ctx.guild.id)
     if gid not in cupones_data:
         cupones_data[gid] = {}
     
@@ -2526,33 +2537,33 @@ async def crear_cupon_slash(i: discord.Interaction, codigo: str, recompensa: int
     
     embed = discord.Embed(color=0xff69b4)
     embed.description = f"Cupon '{codigo.upper()}' creado\nRecompensa: ${recompensa:,}"
-    await i.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
 
-@bot.tree.command(name="canjear-cupon", description="Canjea un cupon")
-async def canjear_cupon_slash(i: discord.Interaction, codigo: str):
-    gid = str(i.guild.id)
+@bot.hybrid_command(name="canjear-cupon", description="Canjea un cupon")
+async def canjear_cupon(ctx, codigo: str):
+    gid = str(ctx.guild.id)
     
     if gid not in cupones_data or codigo.upper() not in cupones_data[gid]:
         embed = discord.Embed(color=0xff69b4)
         embed.description = "Cupon invalido"
-        await i.response.send_message(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
     
     cupon = cupones_data[gid][codigo.upper()]
     
-    if i.user.id in cupon["usado_por"]:
+    if ctx.author.id in cupon["usado_por"]:
         embed = discord.Embed(color=0xff69b4)
         embed.description = "Ya usaste este cupon"
-        await i.response.send_message(embed=embed, ephemeral=True)
+        await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
     
-    cupon["usado_por"].append(i.user.id)
-    eco_data = get_user_eco(i.guild.id, i.user.id)
+    cupon["usado_por"].append(ctx.author.id)
+    eco_data = get_user_eco(ctx.guild.id, ctx.author.id)
     eco_data["coins"] += cupon["recompensa"]
     
     embed = discord.Embed(color=0xff69b4)
     embed.description = f"Cupon canjeado!\nGanaste: ${cupon['recompensa']:,}"
-    await i.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
     
 
 # =========================================================
