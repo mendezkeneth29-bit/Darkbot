@@ -1774,7 +1774,7 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
 async def reproducir(ctx, *, cancion: str):
     await ctx.defer() if ctx.interaction else None
     
-     try:
+    try:
         import aiohttp
         
         # Usar innertube API (más confiable)
@@ -1829,11 +1829,11 @@ async def reproducir(ctx, *, cancion: str):
                             return
         
         embed = discord.Embed(color=0xff69b4)
-        embed.description = "**No se encontraron resultados**"
+        embed.description = "> No se encontraron resultados"
         await i.followup.send(embed=embed)
         
     except Exception as e:
-        print(f"[ERROR] video: {str(e)}")
+        print(f"[ERROR] Reproducir: {str(e)}")
         embed = discord.Embed(color=0xff69b4)
         embed.title = "Error al buscar"
         embed.description = f"```{str(e)[:200]}```"
