@@ -1835,7 +1835,7 @@ async def reproducir_slash(i: discord.Interaction, cancion: str):
     except Exception as e:
         print(f"[ERROR] Reproducir: {str(e)}")
         embed = discord.Embed(color=0xff0000)
-        embed.title = Error al buscar"
+        embed.title = "Error al buscar"
         embed.description = f"```{str(e)[:200]}```"
         await i.followup.send(embed=embed, ephemeral=True)
 # Playlist
