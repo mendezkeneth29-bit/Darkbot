@@ -2261,7 +2261,7 @@ class TriviaView(discord.ui.View):
             embed = discord.Embed(color=0x00ff00)
             embed.description = f"Correcto! +10 puntos"
         else:
-            embed = discord.Embed(color=0xff0000)
+            embed = discord.Embed(color=0xff69b4)
             respuesta_correcta = self.pregunta_data['respuestas'][self.pregunta_data['correcta']]
             embed.description = f"Incorrecto! La respuesta era: {respuesta_correcta}"
         
@@ -2363,7 +2363,7 @@ async def adivina_numero(ctx):
             numero = int(mensaje.content)
             
             if numero == numero_secreto:
-                embed = discord.Embed(color=0x00ff00)
+                embed = discord.Embed(color=0xff69b4)
                 embed.description = f"Correcto! El numero era {numero_secreto}\nIntentaste {intento + 1} veces"
                 await ctx.send(embed=embed)
                 return
