@@ -62,6 +62,7 @@ async def on_ready():
 
 # Colores globales del bot
 CELESTE = 0x48CAE4
+ROSA = 0xff69b4
 
 # =========================================================
 # HELPERS TARJETAS
