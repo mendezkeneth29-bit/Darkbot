@@ -333,7 +333,7 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
     except:
         draw.ellipse([(37, 37), (133, 133)], fill=GRIS_G)
 
-    draw.ellipse([(35, 35), (135, 135)], outline=ROSA, width=2)
+    draw.ellipse([(35, 35), (135, 135)], outline=AZUL_OSCURO, width=2)
     draw.text((158, 48), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
     draw.rectangle([(158, 90), (640, 91)], fill=GRIS_G)
     draw.text((158, 106), f"$ {coins:,} monedas", font=fuente(22, bold=True), fill=AZUL_OSCURO)
@@ -433,7 +433,7 @@ async def generar_afk(usuario: discord.Member, motivo: str, color_barra=None) ->
     draw.ellipse([(35, 45), (135, 145)], outline=c_barra, width=2)
     draw.text((98, 72), "z", font=fuente(17, bold=True), fill=c_barra)
     draw.text((110, 58), "z", font=fuente(14, bold=True), fill=c_barra)
-    draw.text((120, 46), "z", font=fuente(11), fill=ROSA)
+    draw.text((120, 46), "z", font=fuente(11), fill=c_barra)
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
     draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=c_barra)
     draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO_G, anchor="mt")
@@ -1140,7 +1140,7 @@ async def ask_slash(i: discord.Interaction, mensaje: str):
     try:
         if any(p in mensaje.lower() for p in ["imagen", "foto", "dibujo", "genera", "wallpaper"]):
             image_url = f"https://image.pollinations.ai/prompt/{mensaje.replace(' ', '%20')}"
-            embed = discord.Embed(title="Imagen generada", description=f"> Prompt: {mensaje}", color=0xff69b4)
+            embed = discord.Embed(title="Imagen generada", description=f"> Prompt: {mensaje}", color=0x1a237e)
             embed.set_image(url=image_url)
             await i.followup.send(embed=embed)
             return
