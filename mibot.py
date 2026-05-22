@@ -60,6 +60,9 @@ bot = DarkyBot()
 async def on_ready():
     print(f"Conectado como {bot.user}")
 
+# Colores globales del bot
+CELESTE = 0x48CAE4
+
 # =========================================================
 # HELPERS TARJETAS
 # =========================================================
@@ -1380,7 +1383,7 @@ async def embed_create(i: discord.Interaction, canal: discord.TextChannel = None
     try:
         color_final = int(color.replace("#", ""), 16) if color else 0x48CAE4
     except:
-        color_final = 0x000000
+        color_final = 0x48CAE4
 
     embed = discord.Embed(title=titulo or "", description=descripcion or "", color=color_final)
     if imagen:
