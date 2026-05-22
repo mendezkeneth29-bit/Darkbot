@@ -450,51 +450,75 @@ async def generar_afk(usuario: discord.Member, motivo: str, color_barra=None) ->
 
 
 async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -> discord.File:
-    W, H     = 680, 180
+  W, H = 340, 500
+    # Cuerpo del iPod (Azul profundo del ambiente de tu imagen)
+    CUERPO_IPOD = (20, 40, 100)
+    PANTALLA_FONDO = (173, 232, 244) # Celeste claro luminoso de fondo de pantalla retro
+    PANTALLA_TEXTO = (3, 4, 94)      # Azul marino oscuro para las letras en la pantalla
 
-    img  = Image.new("RGBA", (W, H), FONDO_G)
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
-    try:
-        portada = await descargar_imagen(actividad.album_cover_url)
-        portada = portada.resize((130, 130)).convert("RGBA")
-        mask = Image.new("L", (130, 130), 0)
-        ImageDraw.Draw(mask).rounded_rectangle([(0, 0), (130, 130)], radius=10, fill=255)
-        portada_r = Image.new("RGBA", (130, 130), (0, 0, 0, 0))
-        portada_r.paste(portada, (0, 0), mask)
-        img.paste(portada_r, (30, 25), portada_r)
-    except:
-        draw.rounded_rectangle([(30, 25), (160, 155)], radius=10, fill=GRIS_G)
+    # 1. Cuerpo metálico redondeado del iPod
+    draw.rounded_rectangle([(10, 10), (W - 10, H - 10)], radius=30, fill=AZUL_IPOD)
+    # Borde de luz metálica
+    draw.rounded_rectangle([(10, 10), (W - 10, H - 10)], radius=30, outline=BLANCO, width=2)
 
-    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=AZUL_OSCURO, width=2)
-    draw.text((182, 28), f"{usuario.display_name} esta escuchando", font=fuente(13), fill=SUB_G)
-    cancion = actividad.title[:30] + "..." if len(actividad.title) > 30 else actividad.title
-    draw.text((182, 50), cancion, font=fuente(20, bold=True), fill=TEXTO_G)
-    draw.text((182, 78), actividad.artist, font=fuente(14), fill=AZUL_OSCURO)
-    album = actividad.album[:35] + "..." if len(actividad.album) > 35 else actividad.album
-    draw.text((182, 100), album, font=fuente(12), fill=SUB_G)
-    draw.rectangle([(182, 118), (645, 119)], fill=GRIS_G)
+    # 2. Pantalla LCD Luminosa
+    draw.rounded_rectangle([(30, 30), (W - 30, 210)], radius=10, fill=PANTALLA_FONDO)
+    draw.rounded_rectangle([(30, 30), (W - 30, 210)], radius=10, outline=(100, 200, 255), width=2)
 
-    ahora        = discord.utils.utcnow()
-    duracion     = actividad.duration.total_seconds()
-    transcurrido = (ahora - actividad.start).total_seconds()
-    progreso     = min(transcurrido / duracion, 1.0) if duracion > 0 else 0
+    # Contenido de la Pantalla LCD
+    draw.text((45, 45), "Ahora Sonando", font=fuente(12, bold=True), fill=(10, 50, 120))
+    
+    # Título y Artista
+    titulo_recortado = cancion[:20] + "..." if len(cancion) > 20 else cancion
+    artista_recortado = artista[:24] + "..." if len(artista) > 24 else artista
+    draw.text((45, 75), titulo_recortado, font=fuente(18, bold=True), fill=PANTALLA_TEXTO)
+    draw.text((45, 105), artista_recortado, font=fuente(13), fill=PANTALLA_TEXTO)
 
-    draw.rounded_rectangle([(182, 128), (645, 136)], radius=4, fill=GRIS_G)
-    fill_w = int(182 + (463 * progreso))
-    if fill_w > 182:
-        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=BLANCO)
+    # Barra de reproducción estilo iPod OS
+    draw.rounded_rectangle([(45, 140), (W - 45, 148)], radius=4, fill=(210, 210, 210))
+    progreso_px = 45 + int((W - 90) * (progreso_pct / 100))
+    draw.rounded_rectangle([(45, 140), (progreso_px, 148)], radius=4, fill=AZUL_IPOD)
+    
+    # Tiempos de la canción
+    draw.text((45, 160), "0:00", font=fuente(11), fill=PANTALLA_TEXTO)
+    draw.text((W - 45, 160), duracion, font=fuente(11), fill=PANTALLA_TEXTO, anchor="ra")
 
-    fmt = lambda s: f"{int(s) // 60}:{int(s) % 60:02}"
-    draw.text((182, 148), fmt(max(transcurrido, 0)), font=fuente(11), fill=SUB_G)
-    draw.text((645, 148), fmt(duracion), font=fuente(11), fill=SUB_G, anchor="ra")
+    # Icono de batería pequeña en la esquina de la pantalla
+    draw.rectangle([(W - 65, 45), (W - 45, 55)], outline=PANTALLA_TEXTO, width=1)
+    draw.rectangle([(W - 63, 47), (W - 49, 53)], fill=PANTALLA_TEXTO)
 
+    # 3. La famosa Click Wheel de los iPods
+    centro_x, centro_y = W // 2, 350
+    radio_rueda = 90
+    draw.ellipse([(centro_x - radio_rueda, centro_y - radio_rueda), 
+                  (centro_x + radio_rueda, centro_y + radio_rueda)], 
+                 fill=(240, 240, 240))
+    
+    # Borde de sombra de la rueda
+    draw.ellipse([(centro_x - radio_rueda, centro_y - radio_rueda), 
+                  (centro_x + radio_rueda, centro_y + radio_rueda)], 
+                 outline=(200, 200, 200), width=3)
+
+    # Botón Central de Selección
+    radio_central = 30
+    draw.ellipse([(centro_x - radio_central, centro_y - radio_central), 
+                  (centro_x + radio_central, centro_y + radio_central)], 
+                 fill=(210, 210, 210))
+
+    # Textos de los botones de la rueda (MENU, >>|, |<<, >||)
+    draw.text((centro_x, centro_y - 75), "MENU", font=fuente(12, bold=True), fill=(120, 120, 120), anchor="mm")
+    draw.text((centro_x, centro_y + 70), "▶||", font=fuente(12, bold=True), fill=(120, 120, 120), anchor="mm")
+    draw.text((centro_x - 65, centro_y), "|◀◀", font=fuente(11, bold=True), fill=(120, 120, 120), anchor="mm")
+    draw.text((centro_x + 65, centro_y), "▶▶|", font=fuente(11, bold=True), fill=(120, 120, 120), anchor="mm")
+
+    # Guardar en memoria de bytes
     buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
+    img.save(buf, format="PNG")
     buf.seek(0)
-    return discord.File(buf, filename="spotify.png")
-
+    return discord.File(buf, filename="ipod.png")
 
 async def generar_warn(usuario: discord.Member, razon: str, total: int) -> discord.File:
     W, H     = 680, 180
