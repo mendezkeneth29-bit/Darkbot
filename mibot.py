@@ -14,6 +14,19 @@ from discord import app_commands
 from flask import Flask
 import threading
 
+PLAYLIST_FILE = "playlists.json"
+
+def cargar_playlists():
+    if not os.path.exists(PLAYLIST_FILE):
+        with open(PLAYLIST_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f)
+    with open(PLAYLIST_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def guardar_playlists(data):
+    with open(PLAYLIST_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
 # -------------------------
 # CLIENTES
 # -------------------------
@@ -1867,10 +1880,112 @@ async def reproducir(ctx, *, cancion: str):
 # PLAYLIST
 # =========================================================
 
-@bot.hybrid_command(name="playlist", description="Ve tu playlist")
-async def playlist(ctx):
-    embed = discord.Embed(color=0x48CAE4, title="Mi Playlist")
-    embed.description = "**en pr__oce__so** !*!*"
+async def generar_playlist_img(usuario: discord.Member, canciones: list) -> discord.File:
+    filas = len(canciones)
+    # Altura dinámica: base de 110px + 46px por cada canción guardada
+    W, H  = 680, 110 + (filas * 46)
+
+    img  = Image.new("RGBA", (W, H), FONDO_G)
+    draw = ImageDraw.Draw(img)
+    
+    # Barra lateral decorativa
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    
+    # Encabezado de la tarjeta
+    draw.text((34, 24), f"Playlist de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO_G)
+    draw.text((34, 52), f"Total: {filas}/15 canciones", font=fuente(11), fill=SUB_G)
+    draw.rectangle([(34, 68), (646, 69)], fill=GRIS_G)
+
+    # Renderizar cada canción en la lista
+    for n, cancion in enumerate(canciones):
+        y = 78 + (n * 46)
+        
+        # Fondo intercalado para las filas
+        color_fila = (26, 26, 26) if n % 2 == 0 else OSCU_G
+        draw.rounded_rectangle([(34, y), (646, y + 36)], radius=8, fill=color_fila)
+        
+        # Número de posición
+        draw.text((54, y + 10), f"#{n+1}", font=fuente(13, bold=True), fill=CELESTE)
+        
+        # Nombre de la canción (recortado si es muy largo para no salirse de la tarjeta)
+        texto_recortado = cancion[:50] + "..." if len(cancion) > 50 else cancion
+        draw.text((90, y + 10), texto_recortado, font=fuente(13), fill=TEXTO_G)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="playlist.png")
+
+@bot.hybrid_group(name="playlist", invoke_without_command=True, description="Mira las canciones de tu playlist personalizada.")
+async def playlist_group(ctx: commands.Context):
+    await ctx.defer()
+    
+    data = cargar_playlists()
+    user_id = str(ctx.author.id)
+    
+    # Si no tiene canciones, le avisamos con un Embed limpio
+    if user_id not in data or not data[user_id]:
+        embed = discord.Embed(
+            title="🎵 Mi Playlist",
+            description="Tu playlist está vacía. Agrega canciones usando el comando:\n`/playlist add <nombre de la canción>`",
+            color=0x48CAE4
+        )
+        return await ctx.send(embed=embed)
+    
+    # Si tiene canciones, llamamos al generador gráfico de Pillow
+    lista_canciones = data[user_id]
+    file = await generar_playlist_img(ctx.author, lista_canciones)
+    
+    # Enviamos la tarjeta generada
+    await ctx.send(file=file)
+
+
+@playlist_group.command(name="add", description="Agrega una canción a tu lista personal.")
+async def playlist_add(ctx: commands.Context, *, cancion: str):
+    await ctx.defer()
+    
+    data = cargar_playlists()
+    user_id = str(ctx.author.id)
+    
+    if user_id not in data:
+        data[user_id] = []
+        
+    # Límite seguro para que la tarjeta no se vuelva infinitamente larga
+    if len(data[user_id]) >= 15:
+        return await ctx.send("Tu playlist está llena. El espacio máximo es de 15 canciones.")
+        
+    data[user_id].append(cancion)
+    guardar_playlists(data)
+    
+    embed = discord.Embed(
+        title="Canción Agregada",
+        description=f"Se añadió **{cancion}** a tu playlist con éxito.",
+        color=0x48CAE4
+    )
+    await ctx.send(embed=embed)
+
+
+@playlist_group.command(name="remove", description="Quita una canción usando su número de posición (#).")
+async def playlist_remove(ctx: commands.Context, numero: int):
+    await ctx.defer()
+    
+    data = cargar_playlists()
+    user_id = str(ctx.author.id)
+    
+    if user_id not in data or not data[user_id]:
+        return await ctx.send("No tienes canciones guardadas en este momento.")
+        
+    if numero < 1 or numero > len(data[user_id]):
+        return await ctx.send(f"Posición inválida. Elige un número de canción entre 1 y {len(data[user_id])}.")
+        
+    cancion_eliminada = data[user_id].pop(numero - 1)
+    guardar_playlists(data)
+    
+    embed = discord.Embed(
+        title="Canción Eliminada",
+        description=f"Se ha quitado **{cancion_eliminada}** de tu lista.",
+        color=0x48CAE4
+    )
     await ctx.send(embed=embed)
 
 # =========================================================
