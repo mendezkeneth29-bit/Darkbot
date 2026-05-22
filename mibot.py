@@ -2343,6 +2343,197 @@ async def doctor(ctx: commands.Context):
     await ctx.send(embed=embed)
 
 # =========================================================
+# CONFIGURACIÓN DE COLORES ESTÉTICOS (IPOD AZUL VERANO)
+# =========================================================
+AZUL_IPOD = (43, 85, 181)        # RGB para Pillow (#2b55b5)
+AZUL_IPOD_NUM = 0x2B55B5         # Para Embeds de Discord
+ROSA = (255, 105, 180)           # Rosa pastel / Y2K
+BLANCO = (255, 255, 255)         # Blanco puro
+FONDO_G = (10, 10, 10)           # Fondo oscuro
+GRIS_G = (42, 42, 42)            # Gris de contraste
+SUB_G = (136, 136, 136)          # Gris secundario
+
+# =========================================================
+# NUEVOS GENERADORES DE IMÁGENES (PILLOW)
+# =========================================================
+
+async def generar_ipod_player_img(cancion: str, artista: str, duracion: str, progreso_pct: int) -> discord.File:
+    """
+    Dibuja un iPod Classic retro azul en formato vertical (340x500)
+    con su pantalla luminosa, rueda de clic táctil (Scroll Wheel) y barra de progreso.
+    """
+    W, H = 340, 500
+    # Cuerpo del iPod (Azul profundo del ambiente de tu imagen)
+    CUERPO_IPOD = (20, 40, 100)
+    PANTALLA_FONDO = (173, 232, 244) # Celeste claro luminoso de fondo de pantalla retro
+    PANTALLA_TEXTO = (3, 4, 94)      # Azul marino oscuro para las letras en la pantalla
+
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # 1. Cuerpo metálico redondeado del iPod
+    draw.rounded_rectangle([(10, 10), (W - 10, H - 10)], radius=30, fill=AZUL_IPOD)
+    # Borde de luz metálica
+    draw.rounded_rectangle([(10, 10), (W - 10, H - 10)], radius=30, outline=BLANCO, width=2)
+
+    # 2. Pantalla LCD Luminosa
+    draw.rounded_rectangle([(30, 30), (W - 30, 210)], radius=10, fill=PANTALLA_FONDO)
+    draw.rounded_rectangle([(30, 30), (W - 30, 210)], radius=10, outline=(100, 200, 255), width=2)
+
+    # Contenido de la Pantalla LCD
+    draw.text((45, 45), "Ahora Sonando", font=fuente(12, bold=True), fill=(10, 50, 120))
+    
+    # Título y Artista
+    titulo_recortado = cancion[:20] + "..." if len(cancion) > 20 else cancion
+    artista_recortado = artista[:24] + "..." if len(artista) > 24 else artista
+    draw.text((45, 75), titulo_recortado, font=fuente(18, bold=True), fill=PANTALLA_TEXTO)
+    draw.text((45, 105), artista_recortado, font=fuente(13), fill=PANTALLA_TEXTO)
+
+    # Barra de reproducción estilo iPod OS
+    draw.rounded_rectangle([(45, 140), (W - 45, 148)], radius=4, fill=(210, 210, 210))
+    progreso_px = 45 + int((W - 90) * (progreso_pct / 100))
+    draw.rounded_rectangle([(45, 140), (progreso_px, 148)], radius=4, fill=AZUL_IPOD)
+    
+    # Tiempos de la canción
+    draw.text((45, 160), "0:00", font=fuente(11), fill=PANTALLA_TEXTO)
+    draw.text((W - 45, 160), duracion, font=fuente(11), fill=PANTALLA_TEXTO, anchor="ra")
+
+    # Icono de batería pequeña en la esquina de la pantalla
+    draw.rectangle([(W - 65, 45), (W - 45, 55)], outline=PANTALLA_TEXTO, width=1)
+    draw.rectangle([(W - 63, 47), (W - 49, 53)], fill=PANTALLA_TEXTO)
+
+    # 3. La famosa Click Wheel de los iPods
+    centro_x, centro_y = W // 2, 350
+    radio_rueda = 90
+    draw.ellipse([(centro_x - radio_rueda, centro_y - radio_rueda), 
+                  (centro_x + radio_rueda, centro_y + radio_rueda)], 
+                 fill=(240, 240, 240))
+    
+    # Borde de sombra de la rueda
+    draw.ellipse([(centro_x - radio_rueda, centro_y - radio_rueda), 
+                  (centro_x + radio_rueda, centro_y + radio_rueda)], 
+                 outline=(200, 200, 200), width=3)
+
+    # Botón Central de Selección
+    radio_central = 30
+    draw.ellipse([(centro_x - radio_central, centro_y - radio_central), 
+                  (centro_x + radio_central, centro_y + radio_central)], 
+                 fill=(210, 210, 210))
+
+    # Textos de los botones de la rueda (MENU, >>|, |<<, >||)
+    draw.text((centro_x, centro_y - 75), "MENU", font=fuente(12, bold=True), fill=(120, 120, 120), anchor="mm")
+    draw.text((centro_x, centro_y + 70), "▶||", font=fuente(12, bold=True), fill=(120, 120, 120), anchor="mm")
+    draw.text((centro_x - 65, centro_y), "|◀◀", font=fuente(11, bold=True), fill=(120, 120, 120), anchor="mm")
+    draw.text((centro_x + 65, centro_y), "▶▶|", font=fuente(11, bold=True), fill=(120, 120, 120), anchor="mm")
+
+    # Guardar en memoria de bytes
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="ipod.png")
+
+
+async def generar_clima_card_img(ciudad: str, temp: str, condicion: str, humedad: str, sensacion: str) -> discord.File:
+    """
+    Genera una hermosa tarjeta de clima veraniega (650x200) con degradados
+    y estética refrescante basada en tu azul iPod.
+    """
+    W, H = 650, 200
+    img = Image.new("RGBA", (W, H), FONDO_G)
+    draw = ImageDraw.Draw(img)
+
+    # Barra decorativa de color
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_IPOD)
+
+    # Caja principal del clima con gradiente de azul suave
+    draw.rounded_rectangle([(24, 24), (W - 24, H - 24)], radius=15, fill=(15, 20, 35))
+    draw.rounded_rectangle([(24, 24), (W - 24, H - 24)], radius=15, outline=AZUL_IPOD, width=2)
+
+    # Nombre de la Ciudad y Condición climática
+    draw.text((45, 42), f"CLIMA EN {ciudad.upper()}", font=fuente(14, bold=True), fill=SUB_G)
+    draw.text((45, 68), condicion.capitalize(), font=fuente(20, bold=True), fill=BLANCO)
+
+    # Gran Temperatura en formato visual destacado
+    draw.text((W - 60, 42), f"{temp}°C", font=fuente(42, bold=True), fill=AZUL_IPOD, anchor="ra")
+
+    # Línea divisoria interna
+    draw.rectangle([(45, 115), (W - 45, 116)], fill=GRIS_G)
+
+    # Campos secundarios inferiores
+    draw.text((45, 134), "HUMEDAD", font=fuente(10, bold=True), fill=SUB_G)
+    draw.text((45, 152), f"{humedad}", font=fuente(15, bold=True), fill=BLANCO)
+
+    draw.text((220, 134), "SENSACIÓN TÉRMICA", font=fuente(10, bold=True), fill=SUB_G)
+    draw.text((220, 152), f"{sensacion}°C", font=fuente(15, bold=True), fill=BLANCO)
+
+    # Mensaje de ambientación refrescante veraniego
+    consejo = "¡Hora de un refresco helado! 🍹" if "sun" in condicion.lower() or "despejado" in condicion.lower() else "Día perfecto para música y relax. 🎧"
+    draw.text((W - 45, 148), consejo, font=fuente(11), fill=AZUL_IPOD, anchor="ra")
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="climacard.png")
+
+# =========================================================
+# COMANDOS DE DISCORD REESTRUCTURADOS
+# =========================================================
+
+@bot.hybrid_command(name="ipod-player", description="Genera una simulación de reproductor iPod Classic con tu música favorita.")
+async def ipod_player(ctx: commands.Context, cancion: str, artista: str, duracion: str = "3:45", progreso: int = 45):
+    """
+    Comando para presumir tu música en una tarjeta con forma de iPod Classic Y2K.
+    """
+    await ctx.defer()
+    
+    # Validar el porcentaje para que no rompa la barra
+    progreso_seguro = max(0, min(progreso, 100))
+    
+    # Generamos la tarjeta gráfica del iPod vertical
+    file = await generar_ipod_player_img(cancion, artista, duracion, progreso_seguro)
+    
+    # Enviamos el archivo
+    await ctx.send(file=file)
+
+
+@bot.hybrid_command(name="clima-card", description="Consulta el clima de una ciudad y genera una tarjeta de ambiente veraniega.")
+async def clima_card(ctx: commands.Context, *, ciudad: str):
+    """
+    Consulta meteorológica integrada directamente con Pillow para renderizar un widget gráfico.
+    """
+    await ctx.defer()
+    
+    try:
+        # Consulta a wttr.in para clima dinámico en formato JSON
+        url = f"https://wttr.in/{ciudad}?format=j1"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    
+                    clima_actual = data['current_condition'][0]
+                    temperatura = clima_actual['temp_C']
+                    sensacion = clima_actual['FeelsLikeC']
+                    humedad = f"{clima_actual['humidity']}%"
+                    descripcion = clima_actual['weatherDesc'][0]['value']
+                    
+                    # Llamamos al generador visual de clima
+                    file = await generar_clima_card_img(ciudad, temperatura, descripcion, humedad, sensacion)
+                    await ctx.send(file=file)
+                else:
+                    embed = discord.Embed(
+                        description="❌ Ciudad no encontrada. Intenta escribiendo una ciudad principal.",
+                        color=AZUL_IPOD_NUM
+                    )
+                    await ctx.send(embed=embed)
+    except Exception as e:
+        embed = discord.Embed(
+            description=f"⚠️ No pudimos conectar con el servicio meteorológico.\nDetalles: `{str(e)[:100]}`",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+
+# =========================================================
 # ERROR HANDLER
 # =========================================================
 
