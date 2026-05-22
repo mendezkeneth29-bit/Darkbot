@@ -142,7 +142,7 @@ async def get_member_from_ctx(ctx, usuario=None):
     return ctx.author
 
 # =========================================================
-# GENERADORES DE TARJETAS
+# GENERADORES DE TARJETAS (CORREGIDO)
 # =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
@@ -151,13 +151,13 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     TEXTO = (255, 255, 255)
     SUBTEXTO = (180, 180, 190)
     CAMPO_FONDO = (40, 43, 48)
-    ROSA = (255, 105, 180) # <--- Definimos el color rosa aquí
+    ROSA = (255, 105, 180) 
     CELESTE = (72, 202, 228)
 
     img = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    # BARRA IZQUIERDA DE COLOR (Ahora fija en rosa)
+    # BARRA IZQUIERDA DE COLOR
     draw.rectangle([(0, 0), (6, H)], fill=CELESTE)
 
     # AVATAR
@@ -217,8 +217,10 @@ async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) 
     SUBTEXTO    = (160, 163, 172)
     CAMPO_FONDO = (20, 20, 20)
     CAMPO_BORDE = (50, 50, 60)
+    ROSA        = (255, 105, 180) # 👈 Agregado para evitar NameError
+    CELESTE     = (72, 202, 228)  # 👈 Agregado para evitar NameError
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
     draw.rectangle([(0, 0), (6, H)], fill=CELESTE)
 
@@ -269,6 +271,7 @@ async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed:
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (170, 170, 170)
     GRIS     = (42, 42, 42)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -305,6 +308,8 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
+    ROSA     = (255, 105, 180) # 👈 Asegurado aquí
+    CELESTE  = (72, 202, 228)  # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -346,6 +351,7 @@ async def generar_ranking(guild: discord.Guild, top: list) -> discord.File:
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
     OSCURO   = (15, 15, 15)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -378,6 +384,7 @@ async def generar_ban(usuario: discord.Member, razon: str, moderador: discord.Me
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -414,6 +421,8 @@ async def generar_afk(usuario: discord.Member, motivo: str) -> discord.File:
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
+    ROSA     = (255, 105, 180) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -448,10 +457,10 @@ async def generar_afk(usuario: discord.Member, motivo: str) -> discord.File:
 async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -> discord.File:
     W, H     = 680, 180
     FONDO    = (10, 10, 10)
-    VERDE    = (29, 185, 84)
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -500,10 +509,10 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
 async def generar_warn(usuario: discord.Member, razon: str, total: int) -> discord.File:
     W, H     = 680, 180
     FONDO    = (10, 10, 10)
-    AMARILLO = (245, 158, 11)
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -530,11 +539,11 @@ async def generar_warnings(usuario: discord.Member, warns: list) -> discord.File
     filas = min(len(warns), 10)
     W, H  = 680, 90 + (filas * 44)
     FONDO    = (10, 10, 10)
-    AMARILLO = (245, 158, 11)
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
     OSCURO   = (15, 15, 15)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -560,10 +569,10 @@ async def generar_warnings(usuario: discord.Member, warns: list) -> discord.File
 async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.File:
     W, H     = 680, 170
     FONDO    = (10, 10, 10)
-    COLOR    = (239, 68, 68) if bloqueado else (34, 197, 94)
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -594,10 +603,10 @@ async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.F
 async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porcentaje: int) -> discord.File:
     W, H     = 680, 200
     FONDO    = (10, 10, 10)
-    COLOR    = (255, 92, 147)
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -650,11 +659,11 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
     filas = min(len(tracks), 4)
     W, H  = 680, 110 + (filas * 80)
     FONDO    = (10, 10, 10)
-    VERDE    = (29, 185, 84)
     TEXTO    = (255, 255, 255)
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
     OSCURO   = (15, 15, 15)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
@@ -693,6 +702,7 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
     buf.seek(0)
     return discord.File(buf, filename="spotify_search.png")
 
+
 async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.File:
     filas = min(len(claves), 8)
     W, H  = 680, 90 + (filas * 50)
@@ -701,7 +711,7 @@ async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.
     SUBTEXTO = (136, 136, 136)
     GRIS     = (42, 42, 42)
     OSCURO   = (15, 15, 15)
-    CYAN     = (0, 188, 212)
+    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
