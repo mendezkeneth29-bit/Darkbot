@@ -40,7 +40,7 @@ RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 # -------------------------
 
 ROSA = (255, 105, 180)
-AZUL_OSCURO = (3, 4, 94)
+AZUL_OSCURO = (43, 85, 181)
 BLANCO = (255, 255, 255)
 
 # -------------------------
@@ -1168,7 +1168,7 @@ Responde de forma natural, casual y con personalidad.
         agregar_memoria(i.user.id, "user", mensaje)
         agregar_memoria(i.user.id, "assistant", texto)
 
-        embed = discord.Embed(color=0x48CAE4)
+        embed = discord.Embed(color=0x1a237e)
         embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
         await i.followup.send(embed=embed)
 
@@ -1199,7 +1199,7 @@ Responde de forma natural, casual y con personalidad.
         agregar_memoria(ctx.author.id, "user", mensaje)
         agregar_memoria(ctx.author.id, "assistant", texto)
 
-        embed = discord.Embed(color=0x48CAE4)
+        embed = discord.Embed(color=0x1a237e)
         embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
         await ctx.send(embed=embed)
 
