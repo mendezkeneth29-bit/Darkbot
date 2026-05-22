@@ -2245,6 +2245,103 @@ async def canjear_cupon(ctx, codigo: str):
     embed = discord.Embed(color=0x1a237e)
     embed.description = f"> Cupon canjeado! Ganaste: **${cupon['recompensa']:,}**"
     await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="doctor", description="Verifica si el bot tiene activos todos los permisos necesarios.")
+async def doctor(ctx: commands.Context):
+    """
+    Comando Doctor para comprobar el estado de salud de los permisos del bot.
+    Verifica tanto los permisos del servidor (Guild) como los del canal actual.
+    """
+    await ctx.defer()
+
+    guild = ctx.guild
+    me = guild.me if guild else None
+
+    if not me:
+        embed_dm = discord.Embed(
+            title="Doctor - Diagnóstico",
+            description="**Este comando solo puede ser ejecutado dentro de un servidor.**",
+            color=AZUL_IPOD_NUM
+        )
+        return await ctx.send(embed=embed_dm)
+
+    # 1. Comprobación de permisos del rol en el canal actual (Contextuales)
+    channel_permissions = ctx.channel.permissions_for(me)
+
+    permisos_canal = {
+        "Ver Canal (Read Messages)": channel_permissions.view_channel,
+        "Enviar Mensajes (Send Messages)": channel_permissions.send_messages,
+        "Crear Embeds (Embed Links)": channel_permissions.embed_links,
+        "Adjuntar Archivos (Attach Files)": channel_permissions.attach_files,
+        "Usar Emojis Externos (External Emojis)": channel_permissions.use_external_emojis,
+        "Añadir Reacciones (Add Reactions)": channel_permissions.add_reactions,
+        "Leer Historial (Read Message History)": channel_permissions.read_message_history,
+    }
+
+    # 2. Comprobación de permisos generales del bot en el servidor
+    guild_permissions = me.guild_permissions
+
+    permisos_servidor = {
+        "Administrador (Administrator)": guild_permissions.administrator,
+        "Gestionar Mensajes (Manage Messages)": guild_permissions.manage_messages,
+        "Gestionar Canales (Manage Channels)": guild_permissions.manage_channels,
+        "Gestionar Roles (Manage Roles)": guild_permissions.manage_roles,
+        "Expulsar Miembros (Kick Members)": guild_permissions.kick_members,
+        "Banear Miembros (Ban Members)": guild_permissions.ban_members,
+        "Silenciar Miembros (Mute Members)": guild_permissions.mute_members,
+    }
+
+    # Construcción de las listas visuales
+    def formatear_permisos(lista_permisos):
+        texto = ""
+        for nombre, activo in lista_permisos.items():
+            emoji = "<:Check:1504584129302499399>" if activo else "<:fail:1504584129302499399>"
+            texto += f"{emoji} **{nombre}**\n"
+        return texto
+
+    embed = discord.Embed(
+        title="Diagnóstico de Salud del Bot",
+        description="A continuación se muestra el estado de los permisos requeridos para el correcto funcionamiento de todos los módulos del bot.",
+        color=AZUL_IPOD_NUM
+    )
+
+    # Añadimos los campos ordenados
+    embed.add_field(
+        name="Permisos en este Canal",
+        value=formatear_permisos(permisos_canal),
+        inline=False
+    )
+
+    embed.add_field(
+        name="Permisos Globales (Servidor)",
+        value=formatear_permisos(permisos_servidor),
+        inline=False
+    )
+
+    # Diagnóstico o conclusión rápida
+    errores_canal = [k for k, v in permisos_canal.items() if not v]
+    
+    if me.guild_permissions.administrator:
+        diagnostico = "> **Diagnóstico:** El bot tiene el permiso de **Administrador**. Todos los sistemas operan sin restricciones."
+    elif not errores_canal:
+        diagnostico = "> **Diagnóstico:** ¡Excelente! El bot cuenta con todos los permisos fundamentales para chatear, enviar embeds y adjuntar tarjetas Pillow en este canal."
+    else:
+        diagnostico = f"> **Diagnóstico:** Al bot le faltan permisos clave en este canal. Se recomienda activar especialmente: **{', '.join(errores_canal[:2])}** para evitar fallos."
+
+    embed.add_field(
+        name="Conclusión Médica",
+        value=diagnostico,
+        inline=False
+    )
+
+    # Footer estético
+    embed.set_footer(
+        text=f"Misti Doctor • Latencia: {round(bot.latency * 1000)}ms",
+        icon_url=ctx.author.display_avatar.url
+    )
+
+    await ctx.send(embed=embed)
+
 # =========================================================
 # ERROR HANDLER
 # =========================================================
