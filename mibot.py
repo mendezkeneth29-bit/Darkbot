@@ -232,7 +232,7 @@ async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) 
     else:
         nombre_x = 24
 
-    draw.ellipse([(22, 18), (116, 112)], outline=ROSA, width=2)
+    draw.ellipse([(22, 18), (116, 112)], outline=CELESTE, width=2)
     draw.text((nombre_x, 22), guild.name, font=fuente(26, bold=True), fill=TEXTO)
     draw.text((nombre_x, 56), f"ID: {guild.id}", font=fuente(14), fill=SUBTEXTO)
     draw.rectangle([(24, 126), (W - 24, 127)], fill=CELESTE)
@@ -322,7 +322,7 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
     except:
         draw.ellipse([(37, 37), (133, 133)], fill=GRIS)
 
-    draw.ellipse([(35, 35), (135, 135)], outline=ROSA, width=2)
+    draw.ellipse([(35, 35), (135, 135)], outline=CELESTE, width=2)
     draw.text((158, 48), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
     draw.rectangle([(158, 90), (640, 91)], fill=GRIS)
     draw.text((158, 106), f"$ {coins:,} monedas", font=fuente(22, bold=True), fill=CELESTE)
@@ -438,7 +438,7 @@ async def generar_afk(usuario: discord.Member, motivo: str) -> discord.File:
     draw.ellipse([(35, 45), (135, 145)], outline=CELESTE, width=2)
     draw.text((98, 72), "z", font=fuente(17, bold=True), fill=CELESTE)
     draw.text((110, 58), "z", font=fuente(14, bold=True), fill=CELESTE)
-    draw.text((120, 46), "z", font=fuente(11), fill=ROSA)
+    draw.text((120, 46), "z", font=fuente(11), fill=CELESTE)
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
     draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=CELESTE)
     draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
