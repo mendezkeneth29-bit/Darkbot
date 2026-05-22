@@ -148,12 +148,13 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     SUBTEXTO = (180, 180, 190)
     CAMPO_FONDO = (40, 43, 48)
     ROSA = (255, 105, 180) # <--- Definimos el color rosa aquí
+    CELESTE = (72, 202, 228)
 
     img = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
     # BARRA IZQUIERDA DE COLOR (Ahora fija en rosa)
-    draw.rectangle([(0, 0), (6, H)], fill=ROSA)
+    draw.rectangle([(0, 0), (6, H)], fill=CELESTE)
 
     # AVATAR
     avatar_img = await descargar_imagen(str(usuario.display_avatar.url))
@@ -215,7 +216,7 @@ async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) 
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, 0), (6, H)], fill=ROSA)
+    draw.rectangle([(0, 0), (6, H)], fill=CELESTE)
 
     if guild.icon:
         icon_img = await descargar_imagen(str(guild.icon.url))
@@ -228,12 +229,12 @@ async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) 
     draw.ellipse([(22, 18), (116, 112)], outline=ROSA, width=2)
     draw.text((nombre_x, 22), guild.name, font=fuente(26, bold=True), fill=TEXTO)
     draw.text((nombre_x, 56), f"ID: {guild.id}", font=fuente(14), fill=SUBTEXTO)
-    draw.rectangle([(24, 126), (W - 24, 127)], fill=ROSA)
+    draw.rectangle([(24, 126), (W - 24, 127)], fill=CELESTE)
 
     def campo(x, y, titulo, valor, ancho=320):
         draw.rounded_rectangle([(x, y), (x + ancho, y + 64)], radius=8, fill=CAMPO_FONDO)
         draw.rounded_rectangle([(x, y), (x + ancho, y + 64)], radius=8, outline=CAMPO_BORDE, width=1)
-        draw.rounded_rectangle([(x, y + 8), (x + 3, y + 56)], radius=2, fill=ROSA)
+        draw.rounded_rectangle([(x, y + 8), (x + 3, y + 56)], radius=2, fill=CELESTE)
         draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
         draw.text((x + 12, y + 30), str(valor), font=fuente(17, bold=True), fill=TEXTO)
 
@@ -267,7 +268,7 @@ async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed:
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
@@ -276,16 +277,16 @@ async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed:
     except:
         draw.ellipse([(38, 40), (138, 140)], fill=GRIS)
 
-    draw.ellipse([(36, 38), (140, 142)], outline=ROSA, width=2)
+    draw.ellipse([(36, 38), (140, 142)], outline=CELESTE, width=2)
     draw.text((162, 28), usuario.display_name, font=fuente(21, bold=True), fill=TEXTO)
-    draw.rounded_rectangle([(162, 62), (242, 84)], radius=11, fill=ROSA)
+    draw.rounded_rectangle([(162, 62), (242, 84)], radius=11, fill=CELESTE)
     draw.text((202, 68), f"Nivel {nivel}", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
     draw.text((162, 100), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
     draw.rounded_rectangle([(162, 118), (630, 130)], radius=6, fill=GRIS)
     progreso = min(xp / xp_needed, 1.0)
     fill_w = int(162 + (468 * progreso))
     if fill_w > 162:
-        draw.rounded_rectangle([(162, 118), (fill_w, 130)], radius=6, fill=ROSA)
+        draw.rounded_rectangle([(162, 118), (fill_w, 130)], radius=6, fill=CELESTE)
     draw.text((162, 152), f"Subiste al nivel {nivel} — sigue asi!", font=fuente(12), fill=SUBTEXTO)
 
     buf = io.BytesIO()
@@ -303,7 +304,7 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
@@ -315,7 +316,7 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
     draw.ellipse([(35, 35), (135, 135)], outline=ROSA, width=2)
     draw.text((158, 48), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
     draw.rectangle([(158, 90), (640, 91)], fill=GRIS)
-    draw.text((158, 106), f"$ {coins:,} monedas", font=fuente(22, bold=True), fill=ROSA)
+    draw.text((158, 106), f"$ {coins:,} monedas", font=fuente(22, bold=True), fill=CELESTE)
 
     if last_daily == 0:
         daily_texto = "Nunca reclamaste tu daily"
@@ -344,7 +345,7 @@ async def generar_ranking(guild: discord.Guild, top: list) -> discord.File:
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
     draw.text((34, 30), "Ranking", font=fuente(18, bold=True), fill=TEXTO)
     draw.text((34, 58), "Top usuarios con mas monedas", font=fuente(11), fill=SUBTEXTO)
     draw.rectangle([(34, 72), (646, 73)], fill=GRIS)
@@ -356,9 +357,9 @@ async def generar_ranking(guild: discord.Guild, top: list) -> discord.File:
         y = 82 + (n * 46)
         draw.rounded_rectangle([(34, y), (646, y + 36)], radius=8, fill=(26, 26, 26) if n == 0 else OSCURO)
         medalla = f"#{n+1}" if n >= 3 else str(n+1)
-        draw.text((54, y + 10), medalla, font=fuente(14, bold=True), fill=ROSA if n == 0 else SUBTEXTO)
+        draw.text((54, y + 10), medalla, font=fuente(14, bold=True), fill=CELESTE if n == 0 else SUBTEXTO)
         draw.text((90, y + 10), nombre, font=fuente(13, bold=n == 0), fill=TEXTO)
-        draw.text((620, y + 10), f"$ {data['coins']:,}", font=fuente(13), fill=ROSA if n == 0 else SUBTEXTO, anchor="ra")
+        draw.text((620, y + 10), f"$ {data['coins']:,}", font=fuente(13), fill=CELESTE if n == 0 else SUBTEXTO, anchor="ra")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -376,7 +377,7 @@ async def generar_ban(usuario: discord.Member, razon: str, moderador: discord.Me
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROJO)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
@@ -385,11 +386,11 @@ async def generar_ban(usuario: discord.Member, razon: str, moderador: discord.Me
     except:
         draw.ellipse([(37, 47), (133, 143)], fill=GRIS)
 
-    draw.ellipse([(35, 45), (135, 145)], outline=ROJO, width=2)
+    draw.ellipse([(35, 45), (135, 145)], outline=CELESTE, width=2)
     draw.line([(50, 60), (120, 130)], fill=ROJO, width=3)
     draw.line([(120, 60), (50, 130)], fill=ROJO, width=3)
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    draw.rounded_rectangle([(158, 68), (228, 90)], radius=11, fill=ROJO)
+    draw.rounded_rectangle([(158, 68), (228, 90)], radius=11, fill=CELESTE)
     draw.text((193, 74), "Baneado", font=fuente(12, bold=True), fill=TEXTO, anchor="mt")
     draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
     draw.text((158, 116), "RAZON", font=fuente(11), fill=SUBTEXTO)
@@ -412,7 +413,7 @@ async def generar_afk(usuario: discord.Member, motivo: str) -> discord.File:
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
@@ -421,12 +422,12 @@ async def generar_afk(usuario: discord.Member, motivo: str) -> discord.File:
     except:
         draw.ellipse([(37, 47), (133, 143)], fill=GRIS)
 
-    draw.ellipse([(35, 45), (135, 145)], outline=ROSA, width=2)
-    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=ROSA)
-    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=ROSA)
+    draw.ellipse([(35, 45), (135, 145)], outline=CELESTE, width=2)
+    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=CELESTE)
+    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=CELESTE)
     draw.text((120, 46), "z", font=fuente(11), fill=ROSA)
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=ROSA)
+    draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=CELESTE)
     draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
     draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
     draw.text((158, 116), "MOTIVO", font=fuente(11), fill=SUBTEXTO)
@@ -450,7 +451,7 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
 
     try:
         portada = await descargar_imagen(actividad.album_cover_url)
@@ -463,11 +464,11 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
     except:
         draw.rounded_rectangle([(30, 25), (160, 155)], radius=10, fill=GRIS)
 
-    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=ROSA, width=2)
+    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=CELESTE, width=2)
     draw.text((182, 28), f"{usuario.display_name} esta escuchando", font=fuente(13), fill=SUBTEXTO)
     cancion = actividad.title[:30] + "..." if len(actividad.title) > 30 else actividad.title
     draw.text((182, 50), cancion, font=fuente(20, bold=True), fill=TEXTO)
-    draw.text((182, 78), actividad.artist, font=fuente(14), fill=ROSA)
+    draw.text((182, 78), actividad.artist, font=fuente(14), fill=CELESTE)
     album = actividad.album[:35] + "..." if len(actividad.album) > 35 else actividad.album
     draw.text((182, 100), album, font=fuente(12), fill=SUBTEXTO)
     draw.rectangle([(182, 118), (645, 119)], fill=GRIS)
@@ -480,7 +481,7 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
     draw.rounded_rectangle([(182, 128), (645, 136)], radius=4, fill=GRIS)
     fill_w = int(182 + (463 * progreso))
     if fill_w > 182:
-        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=ROSA)
+        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=CELESTE)
 
     fmt = lambda s: f"{int(s) // 60}:{int(s) % 60:02}"
     draw.text((182, 148), fmt(max(transcurrido, 0)), font=fuente(11), fill=SUBTEXTO)
@@ -502,18 +503,18 @@ async def generar_warn(usuario: discord.Member, razon: str, total: int) -> disco
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AMARILLO)
-    draw.polygon([(80, 22), (138, 122), (22, 122)], fill=AMARILLO)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.polygon([(80, 22), (138, 122), (22, 122)], fill=CELESTE)
     draw.rounded_rectangle([(75, 44), (85, 90)], radius=5, fill=FONDO)
     draw.ellipse([(74, 102), (86, 114)], fill=FONDO)
     draw.text((162, 28), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    draw.rounded_rectangle([(162, 56), (252, 78)], radius=11, fill=AMARILLO)
+    draw.rounded_rectangle([(162, 56), (252, 78)], radius=11, fill=CELESTE)
     draw.text((207, 62), "Advertido", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
     draw.rectangle([(162, 92), (645, 93)], fill=GRIS)
     draw.text((162, 104), "RAZON", font=fuente(11), fill=SUBTEXTO)
     razon_texto = razon[:50] + "..." if len(razon) > 50 else razon
     draw.text((162, 122), razon_texto, font=fuente(15, bold=True), fill=TEXTO)
-    draw.text((162, 154), f"Total de warns: {total}", font=fuente(12), fill=AMARILLO)
+    draw.text((162, 154), f"Total de warns: {total}", font=fuente(12), fill=CELESTE)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -533,14 +534,14 @@ async def generar_warnings(usuario: discord.Member, warns: list) -> discord.File
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AMARILLO)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
     draw.text((34, 24), f"Warns de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
     draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
 
     for n, w in enumerate(warns[:10]):
         y = 54 + (n * 44)
         draw.rounded_rectangle([(34, y), (646, y + 34)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-        draw.text((54, y + 8), f"#{n+1}", font=fuente(13, bold=True), fill=AMARILLO)
+        draw.text((54, y + 8), f"#{n+1}", font=fuente(13, bold=True), fill=CELESTE)
         razon = w["razon"][:40] + "..." if len(w["razon"]) > 40 else w["razon"]
         draw.text((88, y + 10), razon, font=fuente(13), fill=TEXTO)
         mod = w["moderador"][:20] + "..." if len(w["moderador"]) > 20 else w["moderador"]
@@ -562,13 +563,13 @@ async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.F
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
-    draw.rounded_rectangle([(44, 88), (116, 144)], radius=8, fill=COLOR)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.rounded_rectangle([(44, 88), (116, 144)], radius=8, fill=CELESTE)
 
     if bloqueado:
-        draw.arc([(56, 42), (104, 98)], start=180, end=0, fill=COLOR, width=10)
+        draw.arc([(56, 42), (104, 98)], start=180, end=0, fill=CELESTE, width=10)
     else:
-        draw.arc([(68, 30), (116, 86)], start=180, end=360, fill=COLOR, width=10)
+        draw.arc([(68, 30), (116, 86)], start=180, end=360, fill=CELESTE, width=10)
 
     draw.ellipse([(71, 103), (89, 121)], fill=FONDO)
     draw.rounded_rectangle([(76, 112), (84, 126)], radius=3, fill=FONDO)
@@ -578,7 +579,7 @@ async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.F
     draw.text((144, 76), "CANAL", font=fuente(12), fill=SUBTEXTO)
     draw.text((144, 96), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO)
     msg = "Nadie puede enviar mensajes." if bloqueado else "Ya pueden enviar mensajes."
-    draw.text((144, 136), msg, font=fuente(13), fill=COLOR)
+    draw.text((144, 136), msg, font=fuente(13), fill=CELESTE)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -596,7 +597,7 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=COLOR)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
 
     try:
         av1 = await descargar_imagen(str(usuario1.display_avatar.url))
@@ -604,7 +605,7 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
         img.paste(av1, (30, 45), av1)
     except:
         draw.ellipse([(30, 45), (140, 155)], fill=GRIS)
-    draw.ellipse([(28, 43), (142, 157)], outline=COLOR, width=2)
+    draw.ellipse([(28, 43), (142, 157)], outline=CELESTE, width=2)
 
     try:
         av2 = await descargar_imagen(str(usuario2.display_avatar.url))
@@ -612,7 +613,7 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
         img.paste(av2, (540, 45), av2)
     except:
         draw.ellipse([(540, 45), (650, 155)], fill=GRIS)
-    draw.ellipse([(538, 43), (652, 157)], outline=COLOR, width=2)
+    draw.ellipse([(538, 43), (652, 157)], outline=CELESTE, width=2)
 
     nombre1 = usuario1.display_name[:14] + "..." if len(usuario1.display_name) > 14 else usuario1.display_name
     nombre2 = usuario2.display_name[:14] + "..." if len(usuario2.display_name) > 14 else usuario2.display_name
@@ -622,7 +623,7 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
     draw.rounded_rectangle([(160, 82), (520, 118)], radius=18, fill=GRIS)
     fill_w = int(160 + (360 * porcentaje / 100))
     if fill_w > 160:
-        draw.rounded_rectangle([(160, 82), (fill_w, 118)], radius=18, fill=COLOR)
+        draw.rounded_rectangle([(160, 82), (fill_w, 118)], radius=18, fill=CELESTE)
 
     draw.text((340, 100), f"{porcentaje}%", font=fuente(20, bold=True), fill=TEXTO, anchor="mm")
 
@@ -653,7 +654,7 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
     draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, fill=(18, 18, 18))
     draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS, width=1)
     draw.text((42, 24), "Spotify Search", font=fuente(11), fill=SUBTEXTO)
@@ -676,11 +677,11 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
         except:
             draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS)
 
-        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=ROSA)
+        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=CELESTE)
         nombre = track["nombre"][:38] + "..." if len(track["nombre"]) > 38 else track["nombre"]
         draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO)
         artista = track["artista"][:45] + "..." if len(track["artista"]) > 45 else track["artista"]
-        draw.text((118, y + 30), artista, font=fuente(12), fill=ROSA)
+        draw.text((118, y + 30), artista, font=fuente(12), fill=CELESTE)
         draw.text((634, y + 28), track.get("duracion", ""), font=fuente(11), fill=SUBTEXTO, anchor="ra")
 
     buf = io.BytesIO()
@@ -700,7 +701,7 @@ async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=ROSA)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
     draw.text((34, 24), f"Claves de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
     draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
 
@@ -710,7 +711,7 @@ async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.
         for n, (clave, mensaje) in enumerate(list(claves.items())[:8]):
             y = 54 + (n * 50)
             draw.rounded_rectangle([(34, y), (646, y + 38)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-            draw.text((54, y + 8), f" {clave}", font=fuente(12, bold=True), fill=ROSA)
+            draw.text((54, y + 8), f" {clave}", font=fuente(12, bold=True), fill=CELESTE)
             msg = mensaje[:45] + "..." if len(mensaje) > 45 else mensaje
             draw.text((54, y + 24), msg, font=fuente(10), fill=SUBTEXTO)
 
@@ -778,7 +779,7 @@ async def kick_slash(i: discord.Interaction, usuario: discord.Member, razon: str
     await i.response.defer()
     try:
         await usuario.kick(reason=razon)
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"> **{usuario.display_name}** fue expulsado\n> Razon: {razon}\n> Moderador: {i.user.mention}"
         await i.followup.send(embed=embed)
     except Exception as e:
@@ -793,7 +794,7 @@ async def kick_prefix(ctx, usuario: discord.Member = None, *, razon: str = "Sin 
         return
     try:
         await usuario.kick(reason=razon)
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"> **{usuario.display_name}** fue expulsado\n> Razon: {razon}"
         await ctx.send(embed=embed)
     except Exception as e:
@@ -835,7 +836,7 @@ async def avatar_slash(i: discord.Interaction, usuario: discord.Member = None):
 @bot.command(name="avatar")
 async def avatar_prefix(ctx, usuario: discord.Member = None):
     usuario = await get_member_from_ctx(ctx, usuario)
-    embed = discord.Embed(title=f"Avatar de {usuario.name}", color=0xff69b4)
+    embed = discord.Embed(title=f"Avatar de {usuario.name}", color=0x48CAE4)
     embed.set_image(url=usuario.display_avatar.url)
     await ctx.send(embed=embed)
 
@@ -976,7 +977,7 @@ async def clearwarns_slash(i: discord.Interaction, usuario: discord.Member):
     gid, uid = str(i.guild.id), str(usuario.id)
     if gid in warnings_data and uid in warnings_data[gid]:
         warnings_data[gid][uid] = []
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Warns de **{usuario.display_name}** borrados"
     await i.response.send_message(embed=embed)
 
@@ -1020,7 +1021,7 @@ async def nuke_slash(i: discord.Interaction):
     canal = i.channel
     nuevo = await canal.clone()
     await canal.delete()
-    await nuevo.send(embed=discord.Embed(title="Canal Nukeado", description="> Canal purificado exitosamente.", color=0xff69b4))
+    await nuevo.send(embed=discord.Embed(title="Canal Nukeado", description="> Canal purificado exitosamente.", color=0x48CAE4))
 
 @bot.command(name="nuke")
 @commands.has_permissions(manage_channels=True)
@@ -1028,7 +1029,7 @@ async def nuke_prefix(ctx):
     canal = ctx.channel
     nuevo = await canal.clone()
     await canal.delete()
-    await nuevo.send(embed=discord.Embed(title="Canal Nukeado", description="> Canal purificado exitosamente.", color=0xff69b4))
+    await nuevo.send(embed=discord.Embed(title="Canal Nukeado", description="> Canal purificado exitosamente.", color=0x48CAE4))
 
 @bot.tree.command(name="delete")
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -1075,14 +1076,14 @@ async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
 @bot.tree.command(name="ping", description="Latencia del bot")
 async def ping_slash(i: discord.Interaction):
     ms = round(bot.latency * 1000)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Pong! `{ms}ms`"
     await i.response.send_message(embed=embed)
 
 @bot.command(name="ping")
 async def ping_prefix(ctx):
     ms = round(bot.latency * 1000)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Pong! `{ms}ms`"
     await ctx.send(embed=embed)
 
@@ -1096,21 +1097,21 @@ async def moneda_slash(i: discord.Interaction):
 @bot.command(name="moneda")
 async def moneda_prefix(ctx):
     resultado = random.choice(["Cara", "Cruz"])
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Resultado: **{resultado}**"
     await ctx.send(embed=embed)
 
 @bot.tree.command(name="dado", description="Tira un dado de N caras")
 async def dado_slash(i: discord.Interaction, caras: int = 6):
     resultado = random.randint(1, caras)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Dado de {caras} caras: **{resultado}**"
     await i.response.send_message(embed=embed)
 
 @bot.command(name="dado")
 async def dado_prefix(ctx, caras: int = 6):
     resultado = random.randint(1, caras)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Dado de {caras} caras: **{resultado}**"
     await ctx.send(embed=embed)
 
@@ -1170,7 +1171,7 @@ Responde de forma natural, casual y con personalidad.
         agregar_memoria(i.user.id, "user", mensaje)
         agregar_memoria(i.user.id, "assistant", texto)
 
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
         await i.followup.send(embed=embed)
 
@@ -1201,7 +1202,7 @@ Responde de forma natural, casual y con personalidad.
         agregar_memoria(ctx.author.id, "user", mensaje)
         agregar_memoria(ctx.author.id, "assistant", texto)
 
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
         await ctx.send(embed=embed)
 
@@ -1215,14 +1216,14 @@ Responde de forma natural, casual y con personalidad.
 @bot.tree.command(name="forget", description="Borra la memoria que Misti tiene de ti")
 async def forget_slash(i: discord.Interaction):
     memoria_usuarios.pop(i.user.id, None)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = "> Ya no recuerdo nada de ti..."
     await i.response.send_message(embed=embed, ephemeral=True)
 
 @bot.command(name="forget")
 async def forget_prefix(ctx):
     memoria_usuarios.pop(ctx.author.id, None)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = "> Ya no recuerdo nada de ti..."
     await ctx.send(embed=embed)
 
@@ -1240,13 +1241,13 @@ async def clave_slash(i: discord.Interaction, clave: str, mensaje: str):
     clave_lower = clave.lower()
     
     if clave_lower in claves:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"> La clave **{clave}** ya existe\n> Usa `/clave-delete` para eliminarla primero"
         await i.followup.send(embed=embed)
         return
     
     claves[clave_lower] = mensaje
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
     await i.followup.send(embed=embed)
 
@@ -1265,7 +1266,7 @@ async def clave_prefix(ctx, clave: str, *, mensaje: str):
         return
     
     claves[clave_lower] = mensaje
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
     await ctx.send(embed=embed)
 
@@ -1295,13 +1296,13 @@ async def clave_delete_slash(i: discord.Interaction, clave: str):
     clave_lower = clave.lower()
     
     if clave_lower not in claves:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"> La clave **{clave}** no existe"
         await i.followup.send(embed=embed)
         return
     
     del claves[clave_lower]
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Clave **{clave}** eliminada exitosamente"
     await i.followup.send(embed=embed)
 
@@ -1312,13 +1313,13 @@ async def clave_delete_prefix(ctx, clave: str):
     clave_lower = clave.lower()
     
     if clave_lower not in claves:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"> La clave **{clave}** no existe"
         await ctx.send(embed=embed)
         return
     
     del claves[clave_lower]
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Clave **{clave}** eliminada exitosamente"
     await ctx.send(embed=embed)
 
@@ -1332,7 +1333,7 @@ async def welc(i: discord.Interaction, canal: discord.TextChannel, titulo: str =
     try:
         color_final = int(color.replace("#", ""), 16) if color else 0xFFFFFF
     except:
-        color_final = 0xFFFFFF
+        color_final = 0x48CAE4
 
     welc_config[i.guild.id] = {
         "canal": canal.id, "titulo": titulo, "desc": descripcion,
@@ -1345,9 +1346,9 @@ async def welc(i: discord.Interaction, canal: discord.TextChannel, titulo: str =
 @app_commands.checks.has_permissions(administrator=True)
 async def bye(i: discord.Interaction, canal: discord.TextChannel, titulo: str = None, descripcion: str = None, color: str = None, autor: str = None, autor_imagen: str = None, imagen: str = None, footer: str = None, footer_imagen: str = None):
     try:
-        color_final = int(color.replace("#", ""), 16) if color else 0xFFFFFF
+        color_final = int(color.replace("#", ""), 16) if color else 0x48CAE4
     except:
-        color_final = 0xFFFFFF
+        color_final = 0x48CAE4
 
     bye_config[i.guild.id] = {
         "canal": canal.id, "titulo": titulo, "desc": descripcion,
@@ -1377,7 +1378,7 @@ async def reset_bye(i: discord.Interaction):
 async def embed_create(i: discord.Interaction, canal: discord.TextChannel = None, titulo: str = None, descripcion: str = None, color: str = None, imagen: str = None, footer_texto: str = None, autor_nombre: str = None):
     canal = canal or i.channel
     try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x000000
+        color_final = int(color.replace("#", ""), 16) if color else 0x48CAE4
     except:
         color_final = 0x000000
 
@@ -1427,7 +1428,7 @@ class SpotifySearchView(discord.ui.View):
         super().__init__(timeout=None)
         for n, track in enumerate(tracks[:4]):
             nombre = track["nombre"][:40] + "..." if len(track["nombre"]) > 40 else track["nombre"]
-            self.add_item(discord.ui.Button(label=f"{n+1}. {nombre}", url=track["url"], style=discord.ButtonStyle.link, emoji="🎵"))
+            self.add_item(discord.ui.Button(label=f"{n+1}. {nombre}", url=track["url"], style=discord.ButtonStyle.link, emoji="<:music:1504691247619641404>"))
 
 @bot.tree.command(name="spotify-search", description="Busca una cancion en Spotify")
 async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
@@ -1467,7 +1468,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
             data_user = {"usernames": [usuario], "excludeBannedUsers": False}
             async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
                 if resp.status != 200:
-                    embed = discord.Embed(color=0xff69b4)
+                    embed = discord.Embed(color=0x48CAE4)
                     embed.description = "> Error al conectar con la API de Roblox"
                     if ctx.interaction:
                         await ctx.interaction.followup.send(embed=embed)
@@ -1477,7 +1478,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
                 
                 res_user = await resp.json()
                 if not res_user["data"]:
-                    embed = discord.Embed(color=0xff69b4)
+                    embed = discord.Embed(color=0x48CAE4)
                     embed.description = f"> El usuario **{usuario}** no existe en Roblox"
                     if ctx.interaction:
                         await ctx.interaction.followup.send(embed=embed)
@@ -1529,7 +1530,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
             await ctx.send(embed=embed)
         
     except Exception as e:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"Error: {str(e)}"
         if ctx.interaction:
             await ctx.interaction.followup.send(embed=embed)
@@ -1620,7 +1621,7 @@ async def on_member_join(member):
     embed = discord.Embed(
         title=parse_text(cfg.get("titulo") or f"Bienvenido {member.name}", member),
         description=parse_text(cfg.get("desc") or "", member),
-        color=cfg.get("color", 0xFFFFFF)
+        color=cfg.get("color", 0x48CAE4)
     )
     autor_n, autor_i = cfg.get("autor", (None, None))
     if autor_n:
@@ -1647,7 +1648,7 @@ async def on_member_remove(member):
     embed = discord.Embed(
         title=parse_text(cfg.get("titulo") or f"Adios {member.name}", member),
         description=parse_text(cfg.get("desc") or "", member),
-        color=cfg.get("color", 0xFFFFFF)
+        color=cfg.get("color", 0x48CAE4)
     )
     autor_n, autor_i = cfg.get("autor", (None, None))
     if autor_n:
@@ -1696,7 +1697,7 @@ async def add_nivel_slash(i: discord.Interaction, usuario: discord.Member, canti
     await i.response.defer()
     data = get_xp(i.guild.id, usuario.id)
     data["level"] += cantidad
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Se agregaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
     await i.followup.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
 
@@ -1705,7 +1706,7 @@ async def add_nivel_slash(i: discord.Interaction, usuario: discord.Member, canti
 async def add_nivel_prefix(ctx, usuario: discord.Member, cantidad: int):
     data = get_xp(ctx.guild.id, usuario.id)
     data["level"] += cantidad
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Se agregaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
     await ctx.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
 
@@ -1715,7 +1716,7 @@ async def remove_nivel_slash(i: discord.Interaction, usuario: discord.Member, ca
     await i.response.defer()
     data = get_xp(i.guild.id, usuario.id)
     data["level"] = max(1, data["level"] - cantidad)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Se quitaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
     await i.followup.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
 
@@ -1734,7 +1735,7 @@ async def add_dinero_slash(i: discord.Interaction, usuario: discord.Member, cant
     await i.response.defer()
     data = get_user_eco(i.guild.id, usuario.id)
     data["coins"] += cantidad
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Se agregaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await i.followup.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
@@ -1743,7 +1744,7 @@ async def add_dinero_slash(i: discord.Interaction, usuario: discord.Member, cant
 async def add_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     data = get_user_eco(ctx.guild.id, usuario.id)
     data["coins"] += cantidad
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Se agregaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
@@ -1753,7 +1754,7 @@ async def remove_dinero_slash(i: discord.Interaction, usuario: discord.Member, c
     await i.response.defer()
     data = get_user_eco(i.guild.id, usuario.id)
     data["coins"] = max(0, data["coins"] - cantidad)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await i.followup.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
@@ -1762,7 +1763,7 @@ async def remove_dinero_slash(i: discord.Interaction, usuario: discord.Member, c
 async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     data = get_user_eco(ctx.guild.id, usuario.id)
     data["coins"] = max(0, data["coins"] - cantidad)
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
@@ -1813,7 +1814,7 @@ async def reproducir(ctx, *, cancion: str):
                             
                             url_video = f"https://www.youtube.com/watch?v={video_id}"
                             
-                            embed = discord.Embed(color=0xff69b4, title="Video Encontrado")
+                            embed = discord.Embed(color=0x48CAE4, title="Video Encontrado")
                             embed.add_field(name="> Titulo", value=titulo[:100], inline=False)
                             embed.add_field(name="> Duracion", value=duracion, inline=True)
                             embed.add_field(name="> Canal", value=canal[:50], inline=True)
@@ -1831,7 +1832,7 @@ async def reproducir(ctx, *, cancion: str):
                                 await ctx.send(embed=embed)
                             return
         
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = "**No se encontraron resultados**"
         if ctx.interaction:
             await ctx.interaction.followup.send(embed=embed)
@@ -1840,7 +1841,7 @@ async def reproducir(ctx, *, cancion: str):
         
     except Exception as e:
         print(f"[ERROR] Reproducir: {str(e)}")
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.title = "Error al buscar"
         embed.description = f"```{str(e)[:200]}```"
         if ctx.interaction:
@@ -1854,8 +1855,8 @@ async def reproducir(ctx, *, cancion: str):
 
 @bot.hybrid_command(name="playlist", description="Ve tu playlist")
 async def playlist(ctx):
-    embed = discord.Embed(color=0xff69b4, title="Mi Playlist")
-    embed.description = "Sistema de playlist (ejemplo)"
+    embed = discord.Embed(color=0x48CAE4, title="Mi Playlist")
+    embed.description = "**en pr__oce__so** !*!*"
     await ctx.send(embed=embed)
 
 # =========================================================
@@ -1865,56 +1866,57 @@ async def playlist(ctx):
 @bot.hybrid_command(name="lyrics", description="Obtén la letra de una cancion")
 async def lyrics(ctx, *, cancion: str):
     await ctx.defer() if ctx.interaction else None
-    
+
     try:
-        import aiohttp
-        
-        url = f"https://api.lyrics.ovh/v1/search?q={cancion.replace(' ', '%20')}"
-        
+        url = f"https://lrclib.net/api/search?q={cancion.replace(' ', '+')}"
+
         async with aiohttp.ClientSession() as session:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            async with session.get(url, headers=headers, timeout=10) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    
-                    if data.get('data'):
-                        cancion_data = data['data'][0]
-                        embed = discord.Embed(color=0xff69b4, title=cancion_data['title'])
-                        embed.add_field(name="Artista", value=cancion_data['artist']['name'], inline=False)
-                        
-                        # Obtener letra completa
-                        lyrics_url = f"https://api.lyrics.ovh/v1/{cancion_data['artist']['name'].replace(' ', '%20')}/{cancion_data['title'].replace(' ', '%20')}"
-                        async with session.get(lyrics_url, headers=headers) as resp2:
-                            if resp2.status == 200:
-                                lyrics_data = await resp2.json()
-                                letra = lyrics_data.get('lyrics', 'Letra no disponible')
-                                letra = letra[:2000] if len(letra) > 2000 else letra
-                                embed.description = letra
-                        
-                        if ctx.interaction:
-                            await ctx.interaction.followup.send(embed=embed)
-                        else:
-                            await ctx.send(embed=embed)
-                    else:
-                        embed = discord.Embed(color=0xff69b4)
-                        embed.description = "> No se encontraron resultados"
-                        if ctx.interaction:
-                            await ctx.interaction.followup.send(embed=embed)
-                        else:
-                            await ctx.send(embed=embed)
-                else:
-                    embed = discord.Embed(color=0xff69b4)
-                    embed.description = f"**Error: API no disponible** (Status {resp.status})"
-                    if ctx.interaction:
-                        await ctx.interaction.followup.send(embed=embed, ephemeral=True)
-                    else:
-                        await ctx.send(embed=embed)
-                    
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    raise Exception(f"Error {resp.status}")
+                data = await resp.json()
+
+        if not data:
+            embed = discord.Embed(color=0x48CAE4)
+            embed.description = "> No se encontraron resultados para esa cancion."
+            if ctx.interaction:
+                await ctx.interaction.followup.send(embed=embed)
+            else:
+                await ctx.send(embed=embed)
+            return
+
+        resultado = data[0]
+        nombre    = resultado.get("trackName", "Sin nombre")
+        artista   = resultado.get("artistName", "Desconocido")
+        album     = resultado.get("albumName", "")
+        letra     = resultado.get("plainLyrics") or resultado.get("syncedLyrics") or "Letra no disponible"
+
+        # LIMPIAR LETRA SI ES SINCRONICA [00:00.00]
+        if letra and letra.startswith("["):
+            import re
+            letra = re.sub(r'\[\d+:\d+\.\d+\]', '', letra).strip()
+
+        # CORTAR SI ES MUY LARGA
+        if len(letra) > 4096:
+            letra = letra[:4000] + "\n\n*[Letra cortada por longitud]*"
+
+        embed = discord.Embed(
+            title=f"{nombre}",
+            description=letra,
+            color=0xff69b4
+        )
+        embed.set_author(name=artista)
+        if album:
+            embed.set_footer(text=f"Album: {album}")
+
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
+
     except Exception as e:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"Error: {str(e)[:100]}"
+        embed = discord.Embed(color=0x48CAE4)
+        embed.description = f"> Error: `{str(e)[:100]}`"
         if ctx.interaction:
             await ctx.interaction.followup.send(embed=embed, ephemeral=True)
         else:
@@ -1985,7 +1987,7 @@ async def meme(ctx, texto_arriba: str, texto_abajo: str):
 @bot.hybrid_command(name="pixelar", description="Pixela una imagen")
 async def pixelar(ctx):
     if not ctx.message.attachments:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = "Debes adjuntar una imagen"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
@@ -2004,7 +2006,7 @@ async def pixelar(ctx):
         
         await ctx.send(file=discord.File(buf, "pixelada.png"))
     except Exception as e:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"Error: {str(e)}"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
@@ -2014,67 +2016,72 @@ async def pixelar(ctx):
 
 biblioteca_data = {}
 
-@bot.hybrid_command(name="buscar-libro", description="Busca un libro")
+@bot.hybrid_command(name="buscar-libro", description="Busca un libro en Google Books")
 async def buscar_libro(ctx, *, titulo: str):
-    await ctx.defer() if ctx.interaction else None
+    # ctx.defer() funciona tanto para prefijo como para '/' de forma automática
+    await ctx.defer() 
     
     try:
-        import aiohttp
+        url = "https://www.googleapis.com/books/v1/volumes"
+        # Pasamos los parámetros aquí para que aiohttp los codifique de forma segura (maneja espacios y caracteres raros)
+        params = {"q": titulo, "maxResults": "5"}
         
-        url = f"https://www.googleapis.com/books/v1/volumes?q={titulo}&maxResults=5"
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
+            async with session.get(url, params=params) as resp:
+                if resp.status != 200:
+                    raise Exception(f"Error de la API de Google (Status: {resp.status})")
                 data = await resp.json()
         
         if data.get('items'):
-            embed = discord.Embed(color=0xff69b4, title="Libros Encontrados")
+            embed = discord.Embed(color=0x48CAE4, title="Libros Encontrados")
             
             for n, book in enumerate(data['items'][:5], 1):
                 info = book['volumeInfo']
-                titulo_libro = info.get('title', 'Sin titulo')
+                titulo_libro = info.get('title', 'Sin título')
                 autor = ', '.join(info.get('authors', ['Desconocido']))
-                año = info.get('publishedDate', 'N/A')[:4]
+                # Validamos que la fecha exista antes de recortar los primeros 4 caracteres
+                fecha = info.get('publishedDate', 'N/A')
+                año = fecha[:4] if fecha != 'N/A' else 'N/A'
                 
                 embed.add_field(
                     name=f"{n}. {titulo_libro[:50]}",
-                    value=f"Autor: {autor}\nAño: {año}",
+                    value=f"**Autor:** {autor}\n**Año:** {año}",
                     inline=False
                 )
             
-            if ctx.interaction:
-                await ctx.interaction.followup.send(embed=embed)
-            else:
-                await ctx.send(embed=embed)
-        else:
-            embed = discord.Embed(color=0xff69b4)
-            embed.description = "No se encontraron libros"
-            if ctx.interaction:
-                await ctx.interaction.followup.send(embed=embed)
-            else:
-                await ctx.send(embed=embed)
-    except Exception as e:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = f"Error: {str(e)}"
-        if ctx.interaction:
-            await ctx.interaction.followup.send(embed=embed)
-        else:
+            # Al usar ctx.defer(), ctx.send funciona perfectamente tanto en texto como en slash
             await ctx.send(embed=embed)
+            
+        else:
+            embed = discord.Embed(color=0x48CAE4, description="> No se encontraron libros con ese título.")
+            await ctx.send(embed=embed)
+            
+    except Exception as e:
+        embed = discord.Embed(color=0x48CAE4, description=f"> Ocurrió un error: {str(e)}")
+        await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="mi-biblioteca", description="Ve tu biblioteca personal")
+
+@bot.hybrid_command(name="mi-biblioteca", description="> Ve tu biblioteca personal")
 async def mi_biblioteca(ctx):
+    # También es buena práctica usar defer aquí por si la respuesta tarda
+    await ctx.defer()
+    
     gid, uid = str(ctx.guild.id), str(ctx.author.id)
     
-    if gid not in biblioteca_data or uid not in biblioteca_data[gid]:
-        embed = discord.Embed(color=0xff69b4)
-        embed.description = "Tu biblioteca esta vacia"
+    if gid not in biblioteca_data or uid not in biblioteca_data[gid] or not biblioteca_data[gid][uid]:
+        embed = discord.Embed(color=0x48CAE4, description="> Tu biblioteca está vacía.")
         await ctx.send(embed=embed)
         return
     
     libros = biblioteca_data[gid][uid]
-    embed = discord.Embed(color=0xff69b4, title="Mi Biblioteca")
+    embed = discord.Embed(color=0x48CAE4, title="Mi Biblioteca Personal")
     
     for libro in libros:
-        embed.add_field(name=libro['titulo'], value=f"Autor: {libro['autor']}", inline=False)
+        embed.add_field(
+            name=libro.get('titulo', 'Sin título'), 
+            value=f"**Autor:** {libro.get('autor', 'Desconocido')}", 
+            inline=False
+        )
     
     await ctx.send(embed=embed)
 
@@ -2112,14 +2119,14 @@ async def clima(ctx, *, ciudad: str):
                     else:
                         await ctx.send(embed=embed)
                 else:
-                    embed = discord.Embed(color=0xff69b4)
+                    embed = discord.Embed(color=0x48CAE4)
                     embed.description = f"Ciudad no encontrada"
                     if ctx.interaction:
                         await ctx.interaction.followup.send(embed=embed)
                     else:
                         await ctx.send(embed=embed)
     except Exception as e:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"Error: {str(e)}"
         if ctx.interaction:
             await ctx.interaction.followup.send(embed=embed)
@@ -2139,7 +2146,7 @@ async def pronostico(ctx, *, ciudad: str):
                 if resp.status == 200:
                     data = await resp.json()
                     
-                    embed = discord.Embed(color=0xff69b4, title=f"Pronostico de {ciudad}")
+                    embed = discord.Embed(color=0x48CAE4, title=f"Pronostico de {ciudad}")
                     
                     for n, dia in enumerate(data['weather'][:3], 1):
                         fecha = dia['date']
@@ -2158,14 +2165,14 @@ async def pronostico(ctx, *, ciudad: str):
                     else:
                         await ctx.send(embed=embed)
                 else:
-                    embed = discord.Embed(color=0xff69b4)
+                    embed = discord.Embed(color=0x48CAE4)
                     embed.description = "Ciudad no encontrada"
                     if ctx.interaction:
                         await ctx.interaction.followup.send(embed=embed)
                     else:
                         await ctx.send(embed=embed)
     except Exception as e:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"Error: {str(e)}"
         if ctx.interaction:
             await ctx.interaction.followup.send(embed=embed)
@@ -2198,12 +2205,12 @@ async def detectar_idioma(ctx, *, texto: str):
         }
         
         idioma_nombre = idiomas.get(idioma, idioma)
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"Idioma detectado: **{idioma_nombre}** ({idioma})"
         await ctx.send(embed=embed)
     except:
         embed = discord.Embed(color=0xff69b4)
-        embed.description = "Error al detectar idioma"
+        embed.description = "**Error al detectar idioma**"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
 # =========================================================
@@ -2258,10 +2265,10 @@ class TriviaView(discord.ui.View):
         
         if correcta:
             puntuaciones_trivia[gid][uid] += 10
-            embed = discord.Embed(color=0x00ff00)
+            embed = discord.Embed(color=0x48CAE4)
             embed.description = f"Correcto! +10 puntos"
         else:
-            embed = discord.Embed(color=0xff69b4)
+            embed = discord.Embed(color=0x48CAE4)
             respuesta_correcta = self.pregunta_data['respuestas'][self.pregunta_data['correcta']]
             embed.description = f"Incorrecto! La respuesta era: {respuesta_correcta}"
         
@@ -2272,7 +2279,7 @@ class TriviaView(discord.ui.View):
 async def trivia(ctx):
     pregunta_data = random.choice(PREGUNTAS_TRIVIA)
     
-    embed = discord.Embed(color=0xff69b4, title="Trivia")
+    embed = discord.Embed(color=0x48CAE4, title="Trivia")
     embed.description = pregunta_data['pregunta']
     
     view = TriviaView(pregunta_data, ctx.author.id)
@@ -2285,7 +2292,7 @@ async def mi_puntuacion_trivia(ctx):
     
     puntos = puntuaciones_trivia.get(gid, {}).get(uid, 0)
     
-    embed = discord.Embed(color=0xff69b4, title="Tu Puntuacion de Trivia")
+    embed = discord.Embed(color=0x48CAE4, title="Tu Puntuacion de Trivia")
     embed.description = f"Puntos: {puntos}"
     await ctx.send(embed=embed)
 
@@ -2297,11 +2304,11 @@ async def mi_puntuacion_trivia(ctx):
 async def calcular(ctx, *, operacion: str):
     try:
         resultado = eval(operacion)
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"**Operacion:** {operacion}\n**Resultado:** {resultado}"
         await ctx.send(embed=embed)
     except:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = "Operacion invalida"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
@@ -2311,7 +2318,7 @@ async def generar_password(ctx, longitud: int = 16):
     caracteres = string.ascii_letters + string.digits + string.punctuation
     password = ''.join(random.choice(caracteres) for _ in range(longitud))
     
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"Contraseña: `{password}`"
     await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
@@ -2320,7 +2327,7 @@ async def base64_codificar(ctx, *, texto: str):
     import base64
     codificado = base64.b64encode(texto.encode()).decode()
     
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.add_field(name="Original", value=texto, inline=False)
     embed.add_field(name="Base64", value=f"`{codificado}`", inline=False)
     await ctx.send(embed=embed)
@@ -2331,12 +2338,12 @@ async def base64_decodificar(ctx, *, texto: str):
         import base64
         decodificado = base64.b64decode(texto).decode()
         
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.add_field(name="Base64", value=texto, inline=False)
         embed.add_field(name="Original", value=decodificado, inline=False)
         await ctx.send(embed=embed)
     except:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = "Texto base64 invalido"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
@@ -2349,7 +2356,7 @@ async def adivina_numero(ctx):
     numero_secreto = random.randint(1, 100)
     intentos = 0
     
-    embed = discord.Embed(color=0xff69b4, title="Adivina el Numero")
+    embed = discord.Embed(color=0x48CAE4, title="Adivina el Numero")
     embed.description = "Piensa un numero entre 1 y 100. Tienes 10 intentos"
     
     await ctx.send(embed=embed)
@@ -2363,26 +2370,26 @@ async def adivina_numero(ctx):
             numero = int(mensaje.content)
             
             if numero == numero_secreto:
-                embed = discord.Embed(color=0xff69b4)
+                embed = discord.Embed(color=0x48CAE4)
                 embed.description = f"Correcto! El numero era {numero_secreto}\nIntentaste {intento + 1} veces"
                 await ctx.send(embed=embed)
                 return
             elif numero < numero_secreto:
-                embed = discord.Embed(color=0xff69b4)
+                embed = discord.Embed(color=0x48CAE4)
                 embed.description = f"El numero es mayor ({intento + 1}/10)"
                 await ctx.send(embed=embed)
             else:
-                embed = discord.Embed(color=0xff69b4)
+                embed = discord.Embed(color=0x48CAE4)
                 embed.description = f"El numero es menor ({intento + 1}/10)"
                 await ctx.send(embed=embed)
         except ValueError:
-            embed = discord.Embed(color=0xff69b4)
+            embed = discord.Embed(color=0x48CAE4)
             embed.description = "Debes escribir un numero"
             await ctx.send(embed=embed)
         except asyncio.TimeoutError:
             break
     
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"**Se acabaron los intentos! El numero era {numero_secreto}**"
     await ctx.send(embed=embed)
 
@@ -2400,7 +2407,7 @@ async def ppt_mejorado(ctx):
     for button in buttons:
         view.add_item(button)
     
-    embed = discord.Embed(color=0xff69b4, title="Piedra, Papel o Tijera")
+    embed = discord.Embed(color=0x48CAE4, title="Piedra, Papel o Tijera")
     embed.description = "> Elige tu opcion"
     
     async def ppt_seleccionar(interaction, opcion_usuario):
@@ -2415,7 +2422,7 @@ async def ppt_mejorado(ctx):
         else:
             resultado = "PERDISTE"
         
-        embed2 = discord.Embed(color=0xff69b4)
+        embed2 = discord.Embed(color=0x48CAE4)
         embed2.description = f"Tu: {opcion_usuario}\nBot: {opcion_bot}\n{resultado}"
         await interaction.response.send_message(embed=embed2, ephemeral=True)
     
@@ -2442,7 +2449,7 @@ async def ahorcado(ctx):
             letra = mensaje.content.upper()
             
             if letra in letras_adivinadas:
-                embed = discord.Embed(color=0xff69b4)
+                embed = discord.Embed(color=0x48CAE4)
                 embed.description = "> Ya adivinaste esa letra"
                 await ctx.send(embed=embed)
                 continue
@@ -2453,17 +2460,17 @@ async def ahorcado(ctx):
                 intentos -= 1
             
             palabra_mostrada = ' '.join(['_' if l not in letras_adivinadas else l for l in palabra_secreta])
-            embed = discord.Embed(color=0xff69b4)
+            embed = discord.Embed(color=0x48CAE4)
             embed.description = f"> Palabra: {palabra_mostrada}\nIntentos: {intentos}"
             await ctx.send(embed=embed)
         except asyncio.TimeoutError:
             break
     
     if set(palabra_secreta) == letras_adivinadas:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"**GANASTE! La palabra era: {palabra_secreta}**"
     else:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = f"**PERDISTE! La palabra era: {palabra_secreta}**"
     
     await ctx.send(embed=embed)
@@ -2486,7 +2493,7 @@ async def crear_cupon(ctx, codigo: str, recompensa: int):
         "usado_por": []
     }
     
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Cupon '{codigo.upper()}' creado\nRecompensa: ${recompensa:,}"
     await ctx.send(embed=embed)
 
@@ -2495,7 +2502,7 @@ async def canjear_cupon(ctx, codigo: str):
     gid = str(ctx.guild.id)
     
     if gid not in cupones_data or codigo.upper() not in cupones_data[gid]:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = "> Cupon invalido"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
@@ -2503,7 +2510,7 @@ async def canjear_cupon(ctx, codigo: str):
     cupon = cupones_data[gid][codigo.upper()]
     
     if ctx.author.id in cupon["usado_por"]:
-        embed = discord.Embed(color=0xff69b4)
+        embed = discord.Embed(color=0x48CAE4)
         embed.description = "Ya usaste este cupon"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
@@ -2512,7 +2519,7 @@ async def canjear_cupon(ctx, codigo: str):
     eco_data = get_user_eco(ctx.guild.id, ctx.author.id)
     eco_data["coins"] += cupon["recompensa"]
     
-    embed = discord.Embed(color=0xff69b4)
+    embed = discord.Embed(color=0x48CAE4)
     embed.description = f"> Cupon canjeado!\nGanaste: ${cupon['recompensa']:,}"
     await ctx.send(embed=embed)
     
