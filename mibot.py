@@ -159,7 +159,7 @@ async def get_member_from_ctx(ctx, usuario=None):
 # =========================================================
 # CONFIGURACIÓN GLOBAL DE COLORES PARA LAS TARJETAS
 # =========================================================
-AZUL_OSCURO = (3, 4, 94)
+AZUL_OSCURO = (43, 85, 181)
 ROSA        = (255, 105, 180)
 FONDO_G     = (10, 10, 10)
 GRIS_G      = (42, 42, 42)
@@ -471,7 +471,7 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
     draw.text((182, 28), f"{usuario.display_name} esta escuchando", font=fuente(13), fill=SUB_G)
     cancion = actividad.title[:30] + "..." if len(actividad.title) > 30 else actividad.title
     draw.text((182, 50), cancion, font=fuente(20, bold=True), fill=TEXTO_G)
-    draw.text((182, 78), actividad.artist, font=fuente(14), fill=BLANCO)
+    draw.text((182, 78), actividad.artist, font=fuente(14), fill=AZUL_OSCURO)
     album = actividad.album[:35] + "..." if len(actividad.album) > 35 else actividad.album
     draw.text((182, 100), album, font=fuente(12), fill=SUB_G)
     draw.rectangle([(182, 118), (645, 119)], fill=GRIS_G)
