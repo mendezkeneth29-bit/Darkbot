@@ -2302,7 +2302,7 @@ async def doctor(ctx: commands.Context):
     embed = discord.Embed(
         title="Diagnóstico de Salud del Bot",
         description="A continuación se muestra el estado de los permisos requeridos para el correcto funcionamiento de todos los módulos del bot.",
-        color=AZUL_IPOD_NUM
+        color=0x1a237e
     )
 
     # Añadimos los campos ordenados
