@@ -40,6 +40,8 @@ RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 # -------------------------
 
 ROSA = (255, 105, 180)
+AZUL_OSCURO = (3, 4, 94)
+BLANCO = (255, 255, 255)
 
 # -------------------------
 # DATA
@@ -155,23 +157,32 @@ async def get_member_from_ctx(ctx, usuario=None):
     return ctx.author
 
 # =========================================================
-# GENERADORES DE TARJETAS (CORREGIDO)
+# CONFIGURACIÓN GLOBAL DE COLORES PARA LAS TARJETAS
+# =========================================================
+AZUL_OSCURO = (3, 4, 94)
+ROSA        = (255, 105, 180)
+FONDO_G     = (10, 10, 10)
+GRIS_G      = (42, 42, 42)
+TEXTO_G     = (255, 255, 255)
+SUB_G       = (136, 136, 136)
+OSCU_G      = (15, 15, 15)
+
+# =========================================================
+# GENERADORES DE TARJETAS
 # =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
     W, H = 700, 340
-    FONDO = (30, 31, 34)
-    TEXTO = (255, 255, 255)
-    SUBTEXTO = (180, 180, 190)
+    FONDO_USER = (30, 31, 34)
+    TEXTO_USER = (255, 255, 255)
+    SUBTEXTO_USER = (180, 180, 190)
     CAMPO_FONDO = (40, 43, 48)
-    ROSA = (255, 105, 180) 
-    CELESTE = (72, 202, 228)
 
-    img = Image.new("RGBA", (W, H), FONDO)
+    img = Image.new("RGBA", (W, H), FONDO_USER)
     draw = ImageDraw.Draw(img)
 
     # BARRA IZQUIERDA DE COLOR
-    draw.rectangle([(0, 0), (6, H)], fill=CELESTE)
+    draw.rectangle([(0, 0), (6, H)], fill=AZUL_OSCURO)
 
     # AVATAR
     avatar_img = await descargar_imagen(str(usuario.display_avatar.url))
@@ -179,8 +190,8 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     img.paste(avatar_img, (24, 20), avatar_img)
 
     # NOMBRE
-    draw.text((128, 22), usuario.display_name, font=fuente(26, bold=True), fill=TEXTO)
-    draw.text((128, 56), f"@{usuario.name}", font=fuente(16), fill=SUBTEXTO)
+    draw.text((128, 22), usuario.display_name, font=fuente(26, bold=True), fill=TEXTO_USER)
+    draw.text((128, 56), f"@{usuario.name}", font=fuente(16), fill=SUBTEXTO_USER)
 
     # LÍNEA SEPARADORA
     draw.rectangle([(24, 126), (W - 24, 128)], fill=(60, 63, 70))
@@ -195,8 +206,8 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
             radius=8,
             fill=CAMPO_FONDO
         )
-        draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
-        draw.text((x + 12, y + 30), valor, font=fuente(17, bold=True), fill=TEXTO)
+        draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO_USER)
+        draw.text((x + 12, y + 30), valor, font=fuente(17, bold=True), fill=TEXTO_USER)
 
     # FILA 1
     campo(col1_x, y, "USUARIO", f"@{usuario.display_name}")
@@ -214,7 +225,7 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
         (24, H - 22),
         f"Solicitado por {usuario.display_name}",
         font=fuente(12),
-        fill=SUBTEXTO
+        fill=SUBTEXTO_USER
     )
 
     buf = io.BytesIO()
@@ -223,19 +234,17 @@ async def generar_userinfo(usuario: discord.Member) -> discord.File:
     return discord.File(buf, filename="userinfo.png")
     
 
-async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) -> discord.File:
+async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member, color_barra=None, color_circulo=None) -> discord.File:
+    c_barra = color_barra or AZUL_OSCURO
+    c_circulo = color_circulo or ROSA
+    
     W, H        = 700, 400
-    FONDO       = (10, 10, 10)
-    TEXTO       = (255, 255, 255)
-    SUBTEXTO    = (160, 163, 172)
     CAMPO_FONDO = (20, 20, 20)
     CAMPO_BORDE = (50, 50, 60)
-    ROSA        = (255, 105, 180) # 👈 Agregado para evitar NameError
-    CELESTE     = (72, 202, 228)  # 👈 Agregado para evitar NameError
 
-    img = Image.new("RGBA", (W, H), FONDO)
+    img = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rectangle([(0, 0), (6, H)], fill=CELESTE)
+    draw.rectangle([(0, 0), (6, H)], fill=c_barra)
 
     if guild.icon:
         icon_img = await descargar_imagen(str(guild.icon.url))
@@ -245,17 +254,17 @@ async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) 
     else:
         nombre_x = 24
 
-    draw.ellipse([(22, 18), (116, 112)], outline=CELESTE, width=2)
-    draw.text((nombre_x, 22), guild.name, font=fuente(26, bold=True), fill=TEXTO)
-    draw.text((nombre_x, 56), f"ID: {guild.id}", font=fuente(14), fill=SUBTEXTO)
-    draw.rectangle([(24, 126), (W - 24, 127)], fill=CELESTE)
+    draw.ellipse([(22, 18), (116, 112)], outline=c_circulo, width=2)
+    draw.text((nombre_x, 22), guild.name, font=fuente(26, bold=True), fill=TEXTO_G)
+    draw.text((nombre_x, 56), f"ID: {guild.id}", font=fuente(14), fill=SUB_G)
+    draw.rectangle([(24, 126), (W - 24, 127)], fill=c_barra)
 
     def campo(x, y, titulo, valor, ancho=320):
         draw.rounded_rectangle([(x, y), (x + ancho, y + 64)], radius=8, fill=CAMPO_FONDO)
         draw.rounded_rectangle([(x, y), (x + ancho, y + 64)], radius=8, outline=CAMPO_BORDE, width=1)
-        draw.rounded_rectangle([(x, y + 8), (x + 3, y + 56)], radius=2, fill=CELESTE)
-        draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUBTEXTO)
-        draw.text((x + 12, y + 30), str(valor), font=fuente(17, bold=True), fill=TEXTO)
+        draw.rounded_rectangle([(x, y + 8), (x + 3, y + 56)], radius=2, fill=c_barra)
+        draw.text((x + 12, y + 8), titulo, font=fuente(13), fill=SUB_G)
+        draw.text((x + 12, y + 30), str(valor), font=fuente(17, bold=True), fill=TEXTO_G)
 
     y = 148
     campo(24, y, "OWNER", guild.owner.display_name if guild.owner else "?")
@@ -270,7 +279,7 @@ async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) 
     campo(24 + 224, y3, "VOZ",    str(len(guild.voice_channels)), ancho=ancho3)
     campo(24 + 448, y3, "BOOSTS", f"{guild.premium_subscription_count} (nv {guild.premium_tier})", ancho=ancho3)
 
-    draw.text((24, H - 22), f"Solicitado por {solicitante.display_name}", font=fuente(12), fill=SUBTEXTO)
+    draw.text((24, H - 22), f"Solicitado por {solicitante.display_name}", font=fuente(12), fill=SUB_G)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -280,34 +289,29 @@ async def generar_serverinfo(guild: discord.Guild, solicitante: discord.Member) 
 
 async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed: int) -> discord.File:
     W, H     = 680, 180
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (170, 170, 170)
-    GRIS     = (42, 42, 42)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
         av = avatar_circular(av, 100)
         img.paste(av, (38, 40), av)
     except:
-        draw.ellipse([(38, 40), (138, 140)], fill=GRIS)
+        draw.ellipse([(38, 40), (138, 140)], fill=GRIS_G)
 
-    draw.ellipse([(36, 38), (140, 142)], outline=CELESTE, width=2)
-    draw.text((162, 28), usuario.display_name, font=fuente(21, bold=True), fill=TEXTO)
-    draw.rounded_rectangle([(162, 62), (242, 84)], radius=11, fill=CELESTE)
-    draw.text((202, 68), f"Nivel {nivel}", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
-    draw.text((162, 100), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUBTEXTO)
-    draw.rounded_rectangle([(162, 118), (630, 130)], radius=6, fill=GRIS)
+    draw.ellipse([(36, 38), (140, 142)], outline=AZUL_OSCURO, width=2)
+    draw.text((162, 28), usuario.display_name, font=fuente(21, bold=True), fill=TEXTO_G)
+    draw.rounded_rectangle([(162, 62), (242, 84)], radius=11, fill=AZUL_OSCURO)
+    draw.text((202, 68), f"Nivel {nivel}", font=fuente(12, bold=True), fill=TEXTO_G, anchor="mt")
+    draw.text((162, 100), f"{xp} / {xp_needed} XP", font=fuente(12), fill=SUB_G)
+    draw.rounded_rectangle([(162, 118), (630, 130)], radius=6, fill=GRIS_G)
     progreso = min(xp / xp_needed, 1.0)
     fill_w = int(162 + (468 * progreso))
     if fill_w > 162:
-        draw.rounded_rectangle([(162, 118), (fill_w, 130)], radius=6, fill=CELESTE)
-    draw.text((162, 152), f"Subiste al nivel {nivel} — sigue asi!", font=fuente(12), fill=SUBTEXTO)
+        draw.rounded_rectangle([(162, 118), (fill_w, 130)], radius=6, fill=AZUL_OSCURO)
+    draw.text((162, 152), f"Subiste al nivel {nivel} — sigue asi!", font=fuente(12), fill=SUB_G)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -317,28 +321,22 @@ async def generar_nivel(usuario: discord.Member, nivel: int, xp: int, xp_needed:
 
 async def generar_balance(usuario: discord.Member, coins: int, last_daily: float) -> discord.File:
     W, H     = 680, 170
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    ROSA     = (255, 105, 180) # 👈 Asegurado aquí
-    CELESTE  = (72, 202, 228)  # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
         av = avatar_circular(av, 96)
         img.paste(av, (37, 37), av)
     except:
-        draw.ellipse([(37, 37), (133, 133)], fill=GRIS)
+        draw.ellipse([(37, 37), (133, 133)], fill=GRIS_G)
 
-    draw.ellipse([(35, 35), (135, 135)], outline=CELESTE, width=2)
-    draw.text((158, 48), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    draw.rectangle([(158, 90), (640, 91)], fill=GRIS)
-    draw.text((158, 106), f"$ {coins:,} monedas", font=fuente(22, bold=True), fill=CELESTE)
+    draw.ellipse([(35, 35), (135, 135)], outline=ROSA, width=2)
+    draw.text((158, 48), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
+    draw.rectangle([(158, 90), (640, 91)], fill=GRIS_G)
+    draw.text((158, 106), f"$ {coins:,} monedas", font=fuente(22, bold=True), fill=AZUL_OSCURO)
 
     if last_daily == 0:
         daily_texto = "Nunca reclamaste tu daily"
@@ -348,7 +346,7 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
         elif hace < 86400: daily_texto = f"Ultimo daily: hace {hace // 3600} horas"
         else:              daily_texto = f"Ultimo daily: hace {hace // 86400} dias"
 
-    draw.text((158, 148), daily_texto, font=fuente(12), fill=SUBTEXTO)
+    draw.text((158, 148), daily_texto, font=fuente(12), fill=SUB_G)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -359,30 +357,24 @@ async def generar_balance(usuario: discord.Member, coins: int, last_daily: float
 async def generar_ranking(guild: discord.Guild, top: list) -> discord.File:
     filas = len(top)
     W, H  = 680, 130 + (filas * 46)
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    OSCURO   = (15, 15, 15)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
-    draw.text((34, 30), "Ranking", font=fuente(18, bold=True), fill=TEXTO)
-    draw.text((34, 58), "Top usuarios con mas monedas", font=fuente(11), fill=SUBTEXTO)
-    draw.rectangle([(34, 72), (646, 73)], fill=GRIS)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
+    draw.text((34, 30), "Ranking", font=fuente(18, bold=True), fill=TEXTO_G)
+    draw.text((34, 58), "Top usuarios con mas monedas", font=fuente(11), fill=SUB_G)
+    draw.rectangle([(34, 72), (646, 73)], fill=GRIS_G)
 
     for n, (uid, data) in enumerate(top):
         member = guild.get_member(int(uid))
         nombre = member.display_name if member else f"Usuario {uid}"
         nombre = nombre[:20] + "..." if len(nombre) > 20 else nombre
         y = 82 + (n * 46)
-        draw.rounded_rectangle([(34, y), (646, y + 36)], radius=8, fill=(26, 26, 26) if n == 0 else OSCURO)
+        draw.rounded_rectangle([(34, y), (646, y + 36)], radius=8, fill=(26, 26, 26) if n == 0 else OSCU_G)
         medalla = f"#{n+1}" if n >= 3 else str(n+1)
-        draw.text((54, y + 10), medalla, font=fuente(14, bold=True), fill=CELESTE if n == 0 else SUBTEXTO)
-        draw.text((90, y + 10), nombre, font=fuente(13, bold=n == 0), fill=TEXTO)
-        draw.text((620, y + 10), f"$ {data['coins']:,}", font=fuente(13), fill=CELESTE if n == 0 else SUBTEXTO, anchor="ra")
+        draw.text((54, y + 10), medalla, font=fuente(14, bold=True), fill=AZUL_OSCURO if n == 0 else SUB_G)
+        draw.text((90, y + 10), nombre, font=fuente(13, bold=n == 0), fill=TEXTO_G)
+        draw.text((620, y + 10), f"$ {data['coins']:,}", font=fuente(13), fill=AZUL_OSCURO if n == 0 else SUB_G, anchor="ra")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -392,35 +384,30 @@ async def generar_ranking(guild: discord.Guild, top: list) -> discord.File:
 
 async def generar_ban(usuario: discord.Member, razon: str, moderador: discord.Member) -> discord.File:
     W, H     = 680, 190
-    FONDO    = (10, 10, 10)
     ROJO     = (239, 68, 68)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
         av = avatar_circular(av, 96)
         img.paste(av, (37, 47), av)
     except:
-        draw.ellipse([(37, 47), (133, 143)], fill=GRIS)
+        draw.ellipse([(37, 47), (133, 143)], fill=GRIS_G)
 
-    draw.ellipse([(35, 45), (135, 145)], outline=CELESTE, width=2)
+    draw.ellipse([(35, 45), (135, 145)], outline=AZUL_OSCURO, width=2)
     draw.line([(50, 60), (120, 130)], fill=ROJO, width=3)
     draw.line([(120, 60), (50, 130)], fill=ROJO, width=3)
-    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    draw.rounded_rectangle([(158, 68), (228, 90)], radius=11, fill=CELESTE)
-    draw.text((193, 74), "Baneado", font=fuente(12, bold=True), fill=TEXTO, anchor="mt")
-    draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
-    draw.text((158, 116), "RAZON", font=fuente(11), fill=SUBTEXTO)
+    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
+    draw.rounded_rectangle([(158, 68), (228, 90)], radius=11, fill=AZUL_OSCURO)
+    draw.text((193, 74), "Baneado", font=fuente(12, bold=True), fill=TEXTO_G, anchor="mt")
+    draw.rectangle([(158, 104), (645, 105)], fill=GRIS_G)
+    draw.text((158, 116), "RAZON", font=fuente(11), fill=SUB_G)
     razon_texto = razon[:50] + "..." if len(razon) > 50 else razon
-    draw.text((158, 134), razon_texto, font=fuente(15, bold=True), fill=TEXTO)
-    draw.text((158, 164), f"Moderador: {moderador.display_name}", font=fuente(12), fill=SUBTEXTO)
+    draw.text((158, 134), razon_texto, font=fuente(15, bold=True), fill=TEXTO_G)
+    draw.text((158, 164), f"Moderador: {moderador.display_name}", font=fuente(12), fill=SUB_G)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -428,38 +415,33 @@ async def generar_ban(usuario: discord.Member, razon: str, moderador: discord.Me
     return discord.File(buf, filename="ban.png")
 
 
-async def generar_afk(usuario: discord.Member, motivo: str) -> discord.File:
+async def generar_afk(usuario: discord.Member, motivo: str, color_barra=None) -> discord.File:
+    c_barra = color_barra or AZUL_OSCURO
     W, H     = 680, 190
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
-    ROSA     = (255, 105, 180) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=c_barra)
 
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
         av = avatar_circular(av, 96)
         img.paste(av, (37, 47), av)
     except:
-        draw.ellipse([(37, 47), (133, 143)], fill=GRIS)
+        draw.ellipse([(37, 47), (133, 143)], fill=GRIS_G)
 
-    draw.ellipse([(35, 45), (135, 145)], outline=CELESTE, width=2)
-    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=CELESTE)
-    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=CELESTE)
-    draw.text((120, 46), "z", font=fuente(11), fill=CELESTE)
-    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=CELESTE)
-    draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
-    draw.rectangle([(158, 104), (645, 105)], fill=GRIS)
-    draw.text((158, 116), "MOTIVO", font=fuente(11), fill=SUBTEXTO)
+    draw.ellipse([(35, 45), (135, 145)], outline=c_barra, width=2)
+    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=c_barra)
+    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=c_barra)
+    draw.text((120, 46), "z", font=fuente(11), fill=ROSA)
+    draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
+    draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=c_barra)
+    draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO_G, anchor="mt")
+    draw.rectangle([(158, 104), (645, 105)], fill=GRIS_G)
+    draw.text((158, 116), "MOTIVO", font=fuente(11), fill=SUB_G)
     motivo_texto = motivo[:50] + "..." if len(motivo) > 50 else motivo
-    draw.text((158, 134), motivo_texto, font=fuente(15, bold=True), fill=TEXTO)
-    draw.text((158, 164), "Te avisare si te mencionan...", font=fuente(12), fill=SUBTEXTO)
+    draw.text((158, 134), motivo_texto, font=fuente(15, bold=True), fill=TEXTO_G)
+    draw.text((158, 164), "Te avisare si te mencionan...", font=fuente(12), fill=SUB_G)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -469,15 +451,10 @@ async def generar_afk(usuario: discord.Member, motivo: str) -> discord.File:
 
 async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -> discord.File:
     W, H     = 680, 180
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
     try:
         portada = await descargar_imagen(actividad.album_cover_url)
@@ -488,30 +465,30 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
         portada_r.paste(portada, (0, 0), mask)
         img.paste(portada_r, (30, 25), portada_r)
     except:
-        draw.rounded_rectangle([(30, 25), (160, 155)], radius=10, fill=GRIS)
+        draw.rounded_rectangle([(30, 25), (160, 155)], radius=10, fill=GRIS_G)
 
-    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=CELESTE, width=2)
-    draw.text((182, 28), f"{usuario.display_name} esta escuchando", font=fuente(13), fill=SUBTEXTO)
+    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=AZUL_OSCURO, width=2)
+    draw.text((182, 28), f"{usuario.display_name} esta escuchando", font=fuente(13), fill=SUB_G)
     cancion = actividad.title[:30] + "..." if len(actividad.title) > 30 else actividad.title
-    draw.text((182, 50), cancion, font=fuente(20, bold=True), fill=TEXTO)
-    draw.text((182, 78), actividad.artist, font=fuente(14), fill=CELESTE)
+    draw.text((182, 50), cancion, font=fuente(20, bold=True), fill=TEXTO_G)
+    draw.text((182, 78), actividad.artist, font=fuente(14), fill=AZUL_OSCURO)
     album = actividad.album[:35] + "..." if len(actividad.album) > 35 else actividad.album
-    draw.text((182, 100), album, font=fuente(12), fill=SUBTEXTO)
-    draw.rectangle([(182, 118), (645, 119)], fill=GRIS)
+    draw.text((182, 100), album, font=fuente(12), fill=SUB_G)
+    draw.rectangle([(182, 118), (645, 119)], fill=GRIS_G)
 
     ahora        = discord.utils.utcnow()
     duracion     = actividad.duration.total_seconds()
     transcurrido = (ahora - actividad.start).total_seconds()
     progreso     = min(transcurrido / duracion, 1.0) if duracion > 0 else 0
 
-    draw.rounded_rectangle([(182, 128), (645, 136)], radius=4, fill=GRIS)
+    draw.rounded_rectangle([(182, 128), (645, 136)], radius=4, fill=GRIS_G)
     fill_w = int(182 + (463 * progreso))
     if fill_w > 182:
-        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=CELESTE)
+        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=AZUL_OSCURO)
 
     fmt = lambda s: f"{int(s) // 60}:{int(s) % 60:02}"
-    draw.text((182, 148), fmt(max(transcurrido, 0)), font=fuente(11), fill=SUBTEXTO)
-    draw.text((645, 148), fmt(duracion), font=fuente(11), fill=SUBTEXTO, anchor="ra")
+    draw.text((182, 148), fmt(max(transcurrido, 0)), font=fuente(11), fill=SUB_G)
+    draw.text((645, 148), fmt(duracion), font=fuente(11), fill=SUB_G, anchor="ra")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -521,26 +498,21 @@ async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -
 
 async def generar_warn(usuario: discord.Member, razon: str, total: int) -> discord.File:
     W, H     = 680, 180
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
-    draw.polygon([(80, 22), (138, 122), (22, 122)], fill=CELESTE)
-    draw.rounded_rectangle([(75, 44), (85, 90)], radius=5, fill=FONDO)
-    draw.ellipse([(74, 102), (86, 114)], fill=FONDO)
-    draw.text((162, 28), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO)
-    draw.rounded_rectangle([(162, 56), (252, 78)], radius=11, fill=CELESTE)
-    draw.text((207, 62), "Advertido", font=fuente(12, bold=True), fill=FONDO, anchor="mt")
-    draw.rectangle([(162, 92), (645, 93)], fill=GRIS)
-    draw.text((162, 104), "RAZON", font=fuente(11), fill=SUBTEXTO)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
+    draw.polygon([(80, 22), (138, 122), (22, 122)], fill=AZUL_OSCURO)
+    draw.rounded_rectangle([(75, 44), (85, 90)], radius=5, fill=FONDO_G)
+    draw.ellipse([(74, 102), (86, 114)], fill=FONDO_G)
+    draw.text((162, 28), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
+    draw.rounded_rectangle([(162, 56), (252, 78)], radius=11, fill=AZUL_OSCURO)
+    draw.text((207, 62), "Advertido", font=fuente(12, bold=True), fill=FONDO_G, anchor="mt")
+    draw.rectangle([(162, 92), (645, 93)], fill=GRIS_G)
+    draw.text((162, 104), "RAZON", font=fuente(11), fill=SUB_G)
     razon_texto = razon[:50] + "..." if len(razon) > 50 else razon
-    draw.text((162, 122), razon_texto, font=fuente(15, bold=True), fill=TEXTO)
-    draw.text((162, 154), f"Total de warns: {total}", font=fuente(12), fill=CELESTE)
+    draw.text((162, 122), razon_texto, font=fuente(15, bold=True), fill=TEXTO_G)
+    draw.text((162, 154), f"Total de warns: {total}", font=fuente(12), fill=AZUL_OSCURO)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -551,27 +523,21 @@ async def generar_warn(usuario: discord.Member, razon: str, total: int) -> disco
 async def generar_warnings(usuario: discord.Member, warns: list) -> discord.File:
     filas = min(len(warns), 10)
     W, H  = 680, 90 + (filas * 44)
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    OSCURO   = (15, 15, 15)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
-    draw.text((34, 24), f"Warns de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
-    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
+    draw.text((34, 24), f"Warns de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO_G)
+    draw.rectangle([(34, 44), (646, 45)], fill=GRIS_G)
 
     for n, w in enumerate(warns[:10]):
         y = 54 + (n * 44)
-        draw.rounded_rectangle([(34, y), (646, y + 34)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-        draw.text((54, y + 8), f"#{n+1}", font=fuente(13, bold=True), fill=CELESTE)
+        draw.rounded_rectangle([(34, y), (646, y + 34)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCU_G)
+        draw.text((54, y + 8), f"#{n+1}", font=fuente(13, bold=True), fill=AZUL_OSCURO)
         razon = w["razon"][:40] + "..." if len(w["razon"]) > 40 else w["razon"]
-        draw.text((88, y + 10), razon, font=fuente(13), fill=TEXTO)
+        draw.text((88, y + 10), razon, font=fuente(13), fill=TEXTO_G)
         mod = w["moderador"][:20] + "..." if len(w["moderador"]) > 20 else w["moderador"]
-        draw.text((634, y + 10), mod, font=fuente(11), fill=SUBTEXTO, anchor="ra")
+        draw.text((634, y + 10), mod, font=fuente(11), fill=SUB_G, anchor="ra")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -581,31 +547,26 @@ async def generar_warnings(usuario: discord.Member, warns: list) -> discord.File
 
 async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.File:
     W, H     = 680, 170
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
-    draw.rounded_rectangle([(44, 88), (116, 144)], radius=8, fill=CELESTE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
+    draw.rounded_rectangle([(44, 88), (116, 144)], radius=8, fill=AZUL_OSCURO)
 
     if bloqueado:
-        draw.arc([(56, 42), (104, 98)], start=180, end=0, fill=CELESTE, width=10)
+        draw.arc([(56, 42), (104, 98)], start=180, end=0, fill=AZUL_OSCURO, width=10)
     else:
-        draw.arc([(68, 30), (116, 86)], start=180, end=360, fill=CELESTE, width=10)
+        draw.arc([(68, 30), (116, 86)], start=180, end=360, fill=AZUL_OSCURO, width=10)
 
-    draw.ellipse([(71, 103), (89, 121)], fill=FONDO)
-    draw.rounded_rectangle([(76, 112), (84, 126)], radius=3, fill=FONDO)
+    draw.ellipse([(71, 103), (89, 121)], fill=FONDO_G)
+    draw.rounded_rectangle([(76, 112), (84, 126)], radius=3, fill=FONDO_G)
     titulo = "Canal Bloqueado" if bloqueado else "Canal Desbloqueado"
-    draw.text((144, 32), titulo, font=fuente(22, bold=True), fill=TEXTO)
-    draw.rectangle([(144, 62), (654, 63)], fill=GRIS)
-    draw.text((144, 76), "CANAL", font=fuente(12), fill=SUBTEXTO)
-    draw.text((144, 96), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO)
+    draw.text((144, 32), titulo, font=fuente(22, bold=True), fill=TEXTO_G)
+    draw.rectangle([(144, 62), (654, 63)], fill=GRIS_G)
+    draw.text((144, 76), "CANAL", font=fuente(12), fill=SUB_G)
+    draw.text((144, 96), f"# {canal.name}", font=fuente(15, bold=True), fill=TEXTO_G)
     msg = "Nadie puede enviar mensajes." if bloqueado else "Ya pueden enviar mensajes."
-    draw.text((144, 136), msg, font=fuente(13), fill=CELESTE)
+    draw.text((144, 136), msg, font=fuente(13), fill=AZUL_OSCURO)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -615,43 +576,38 @@ async def generar_lock(canal: discord.TextChannel, bloqueado: bool) -> discord.F
 
 async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porcentaje: int) -> discord.File:
     W, H     = 680, 200
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
     try:
         av1 = await descargar_imagen(str(usuario1.display_avatar.url))
         av1 = avatar_circular(av1, 110)
         img.paste(av1, (30, 45), av1)
     except:
-        draw.ellipse([(30, 45), (140, 155)], fill=GRIS)
-    draw.ellipse([(28, 43), (142, 157)], outline=CELESTE, width=2)
+        draw.ellipse([(30, 45), (140, 155)], fill=GRIS_G)
+    draw.ellipse([(28, 43), (142, 157)], outline=AZUL_OSCURO, width=2)
 
     try:
         av2 = await descargar_imagen(str(usuario2.display_avatar.url))
         av2 = avatar_circular(av2, 110)
         img.paste(av2, (540, 45), av2)
     except:
-        draw.ellipse([(540, 45), (650, 155)], fill=GRIS)
-    draw.ellipse([(538, 43), (652, 157)], outline=CELESTE, width=2)
+        draw.ellipse([(540, 45), (650, 155)], fill=GRIS_G)
+    draw.ellipse([(538, 43), (652, 157)], outline=AZUL_OSCURO, width=2)
 
     nombre1 = usuario1.display_name[:14] + "..." if len(usuario1.display_name) > 14 else usuario1.display_name
     nombre2 = usuario2.display_name[:14] + "..." if len(usuario2.display_name) > 14 else usuario2.display_name
-    draw.text((85, 162), nombre1, font=fuente(13, bold=True), fill=TEXTO, anchor="mt")
-    draw.text((595, 162), nombre2, font=fuente(13, bold=True), fill=TEXTO, anchor="mt")
+    draw.text((85, 162), nombre1, font=fuente(13, bold=True), fill=TEXTO_G, anchor="mt")
+    draw.text((595, 162), nombre2, font=fuente(13, bold=True), fill=TEXTO_G, anchor="mt")
 
-    draw.rounded_rectangle([(160, 82), (520, 118)], radius=18, fill=GRIS)
+    draw.rounded_rectangle([(160, 82), (520, 118)], radius=18, fill=GRIS_G)
     fill_w = int(160 + (360 * porcentaje / 100))
     if fill_w > 160:
-        draw.rounded_rectangle([(160, 82), (fill_w, 118)], radius=18, fill=CELESTE)
+        draw.rounded_rectangle([(160, 82), (fill_w, 118)], radius=18, fill=AZUL_OSCURO)
 
-    draw.text((340, 100), f"{porcentaje}%", font=fuente(20, bold=True), fill=TEXTO, anchor="mm")
+    draw.text((340, 100), f"{porcentaje}%", font=fuente(20, bold=True), fill=TEXTO_G, anchor="mm")
 
     if porcentaje >= 90:   frase = "Almas gemelas de otra dimension"
     elif porcentaje >= 75: frase = "El amor es inevitable entre estos dos"
@@ -660,7 +616,7 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
     elif porcentaje >= 20: frase = "Mejor como amigos"
     else:                  frase = "Incompatibles al maximo nivel"
 
-    draw.text((340, 140), frase, font=fuente(12), fill=SUBTEXTO, anchor="mt")
+    draw.text((340, 140), frase, font=fuente(12), fill=SUB_G, anchor="mt")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -671,27 +627,21 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
 async def generar_spotify_search(tracks: list, query: str) -> discord.File:
     filas = min(len(tracks), 4)
     W, H  = 680, 110 + (filas * 80)
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    OSCURO   = (15, 15, 15)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
     draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, fill=(18, 18, 18))
-    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS, width=1)
-    draw.text((42, 24), "Spotify Search", font=fuente(11), fill=SUBTEXTO)
+    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS_G, width=1)
+    draw.text((42, 24), "Spotify Search", font=fuente(11), fill=SUB_G)
     query_texto = query[:55] + "..." if len(query) > 55 else query
-    draw.text((42, 42), query_texto, font=fuente(15, bold=True), fill=TEXTO)
-    draw.rectangle([(24, 86), (656, 87)], fill=GRIS)
+    draw.text((42, 42), query_texto, font=fuente(15, bold=True), fill=TEXTO_G)
+    draw.rectangle([(24, 86), (656, 87)], fill=GRIS_G)
 
     for n, track in enumerate(tracks[:4]):
         y = 96 + (n * 80)
-        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, fill=(20, 20, 20) if n % 2 == 0 else OSCURO)
-        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, outline=GRIS, width=1)
+        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, fill=(20, 20, 20) if n % 2 == 0 else OSCU_G)
+        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, outline=GRIS_G, width=1)
         try:
             cover = await descargar_imagen(track["cover"])
             cover = cover.resize((52, 52)).convert("RGBA")
@@ -701,14 +651,14 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
             cover_r.paste(cover, (0, 0), mask)
             img.paste(cover_r, (36, y + 8), cover_r)
         except:
-            draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS)
+            draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS_G)
 
-        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=CELESTE)
+        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=AZUL_OSCURO)
         nombre = track["nombre"][:38] + "..." if len(track["nombre"]) > 38 else track["nombre"]
-        draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO)
+        draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO_G)
         artista = track["artista"][:45] + "..." if len(track["artista"]) > 45 else track["artista"]
-        draw.text((118, y + 30), artista, font=fuente(12), fill=CELESTE)
-        draw.text((634, y + 28), track.get("duracion", ""), font=fuente(11), fill=SUBTEXTO, anchor="ra")
+        draw.text((118, y + 30), artista, font=fuente(12), fill=AZUL_OSCURO)
+        draw.text((634, y + 28), track.get("duracion", ""), font=fuente(11), fill=SUB_G, anchor="ra")
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -719,33 +669,53 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
 async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.File:
     filas = min(len(claves), 8)
     W, H  = 680, 90 + (filas * 50)
-    FONDO    = (10, 10, 10)
-    TEXTO    = (255, 255, 255)
-    SUBTEXTO = (136, 136, 136)
-    GRIS     = (42, 42, 42)
-    OSCURO   = (15, 15, 15)
-    CELESTE  = (72, 202, 228) # 👈 Asegurado aquí
 
-    img  = Image.new("RGBA", (W, H), FONDO)
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=CELESTE)
-    draw.text((34, 24), f"Claves de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO)
-    draw.rectangle([(34, 44), (646, 45)], fill=GRIS)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
+    draw.text((34, 24), f"Claves de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO_G)
+    draw.rectangle([(34, 44), (646, 45)], fill=GRIS_G)
 
     if not claves:
-        draw.text((340, H//2), "No tienes claves configuradas", font=fuente(14), fill=SUBTEXTO, anchor="mm")
+        draw.text((340, H//2), "No tienes claves configuradas", font=fuente(14), fill=SUB_G, anchor="mm")
     else:
         for n, (clave, mensaje) in enumerate(list(claves.items())[:8]):
             y = 54 + (n * 50)
-            draw.rounded_rectangle([(34, y), (646, y + 38)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCURO)
-            draw.text((54, y + 8), f" {clave}", font=fuente(12, bold=True), fill=CELESTE)
+            draw.rounded_rectangle([(34, y), (646, y + 38)], radius=8, fill=(26, 26, 26) if n % 2 == 0 else OSCU_G)
+            draw.text((54, y + 8), f" {clave}", font=fuente(12, bold=True), fill=AZUL_OSCURO)
             msg = mensaje[:45] + "..." if len(mensaje) > 45 else mensaje
-            draw.text((54, y + 24), msg, font=fuente(10), fill=SUBTEXTO)
+            draw.text((54, y + 24), msg, font=fuente(10), fill=SUB_G)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return discord.File(buf, filename="claves_list.png")
+
+
+async def generar_playlist_img(usuario: discord.Member, canciones: list) -> discord.File:
+    filas = len(canciones)
+    W, H  = 680, 110 + (filas * 46)
+
+    img  = Image.new("RGBA", (W, H), FONDO_G)
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
+    
+    draw.text((34, 24), f"Playlist de {usuario.display_name}", font=fuente(18, bold=True), fill=TEXTO_G)
+    draw.text((34, 52), f"Total: {filas}/15 canciones", font=fuente(11), fill=SUB_G)
+    draw.rectangle([(34, 68), (646, 69)], fill=GRIS_G)
+
+    for n, cancion in enumerate(canciones):
+        y = 78 + (n * 46)
+        color_fila = (26, 26, 26) if n % 2 == 0 else OSCU_G
+        draw.rounded_rectangle([(34, y), (646, y + 36)], radius=8, fill=color_fila)
+        draw.text((54, y + 10), f"#{n+1}", font=fuente(13, bold=True), fill=AZUL_OSCURO)
+        texto_recortado = cancion[:50] + "..." if len(cancion) > 50 else cancion
+        draw.text((90, y + 10), texto_recortado, font=fuente(13), fill=TEXTO_G)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="playlist.png")
 
 # =========================================================
 # COMANDOS
