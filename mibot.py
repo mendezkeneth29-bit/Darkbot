@@ -1528,7 +1528,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
         perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
 
         # Crear embed con información adicional
-        embed = discord.Embed(color=0xff69b4, title="Perfil de Roblox")
+        embed = discord.Embed(color=0x48CAE4, title="Perfil de Roblox")
         embed.add_field(name="Usuario", value=roblox_user, inline=True)
         embed.add_field(name="ID", value=user_id, inline=True)
         embed.add_field(name="Apodo", value=display_name, inline=False)
@@ -2030,49 +2030,89 @@ async def pixelar(ctx):
 
 biblioteca_data = {}
 
-@bot.hybrid_command(name="buscar-libro", description="Busca un libro en Google Books")
-async def buscar_libro(ctx, *, titulo: str):
-    # ctx.defer() funciona tanto para prefijo como para '/' de forma automática
-    await ctx.defer() 
-    
+@commands.hybrid_command(name="buscar-libro", description="Busca información de un libro en Google Books")
+async def buscar_libro(ctx: commands.Context, *, query: str):
+    # Avisamos al canal que el bot está procesando la solicitud
+    await ctx.defer()
+
+    url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=1"
+
     try:
-        url = "https://www.googleapis.com/books/v1/volumes"
-        # Pasamos los parámetros aquí para que aiohttp los codifique de forma segura (maneja espacios y caracteres raros)
-        params = {"q": titulo, "maxResults": "5"}
-        
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params) as resp:
-                if resp.status != 200:
-                    raise Exception(f"Error de la API de Google (Status: {resp.status})")
-                data = await resp.json()
-        
-        if data.get('items'):
-            embed = discord.Embed(color=0x48CAE4, title="Libros Encontrados")
-            
-            for n, book in enumerate(data['items'][:5], 1):
-                info = book['volumeInfo']
-                titulo_libro = info.get('title', 'Sin título')
-                autor = ', '.join(info.get('authors', ['Desconocido']))
-                # Validamos que la fecha exista antes de recortar los primeros 4 caracteres
-                fecha = info.get('publishedDate', 'N/A')
-                año = fecha[:4] if fecha != 'N/A' else 'N/A'
+            async with session.get(url) as response:
+                # Manejo específico del error de límite de peticiones (Too Many Requests)
+                if response.status == 429:
+                    embed_error = discord.Embed(
+                        title="API Saturada",
+                        description="Has alcanzado el límite de búsquedas permitidas por Google Books. Por favor, espera un par de minutos antes de intentarlo otra vez.",
+                        color=discord.Color.red()
+                    )
+                    return await ctx.send(embed=embed_error)
                 
-                embed.add_field(
-                    name=f"{n}. {titulo_libro[:50]}",
-                    value=f"**Autor:** {autor}\n**Año:** {año}",
-                    inline=False
-                )
-            
-            # Al usar ctx.defer(), ctx.send funciona perfectamente tanto en texto como en slash
-            await ctx.send(embed=embed)
-            
-        else:
-            embed = discord.Embed(color=0x48CAE4, description="> No se encontraron libros con ese título.")
-            await ctx.send(embed=embed)
-            
-    except Exception as e:
-        embed = discord.Embed(color=0x48CAE4, description=f"> Ocurrió un error: {str(e)}")
+                # Manejo de cualquier otro código de error que no sea exitoso (200 OK)
+                if response.status != 200:
+                    embed_error = discord.Embed(
+                        title="Error de Conexión",
+                        description=f"No se pudo conectar con la API de Google (Código de estado: {response.status}).",
+                        color=discord.Color.red()
+                    )
+                    return await ctx.send(embed=embed_error)
+
+                data = await response.json()
+
+        # Si la búsqueda no arrojó ningún elemento en la lista
+        if "items" not in data or len(data["items"]) == 0:
+            embed_vacio = discord.Embed(
+                title="Sin Resultados",
+                description=f"No encontré ningún libro que coincida con: **{query}**",
+                color=CELESTE
+            )
+            return await ctx.send(embed=embed_vacio)
+
+        # Extraemos la información del primer resultado
+        volume_info = data["items"][0]["volumeInfo"]
+        
+        titulo = volume_info.get("title", "Título no disponible")
+        autores = ", ".join(volume_info.get("authors", ["Autor desconocido"]))
+        descripcion = volume_info.get("description", "Sin descripción disponible.")
+        fecha = volume_info.get("publishedDate", "Fecha desconocida")
+        paginas = volume_info.get("pageCount", "N/A")
+        
+        # Intentamos obtener la miniatura de la portada
+        portada_url = volume_info.get("imageLinks", {}).get("thumbnail")
+
+        # Recortar la descripción si es sumamente larga para no romper el Embed
+        if len(descripcion) > 500:
+            descripcion = descripcion[:500] + "..."
+
+        # Construcción del Embed estético
+        embed = discord.Embed(
+            title=titulo,
+            description=descripcion,
+            color=CELESTE
+        )
+        embed.add_field(name="> Autor(es)", value=autores, inline=True)
+        embed.add_field(name="> Publicación", value=fecha, inline=True)
+        embed.add_field(name="> Páginas", value=str(paginas), inline=True)
+        
+        if portada_url:
+            # Reemplazar http por https para evitar problemas de carga en Discord
+            portada_url = portada_url.replace("http://", "https://")
+            embed.set_thumbnail(url=portada_url)
+
+        embed.set_footer(text=f"Solicitado por {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+
         await ctx.send(embed=embed)
+
+    except Exception as e:
+        # Captura cualquier imprevisto de red o de parseo de datos
+        print(f"Error en comando buscar-libro: {e}")
+        embed_critico = discord.Embed(
+            title="Error Inesperado",
+            description="**Ocurrió un problema interno al procesar tu búsqueda. Inténtalo de nuevo más tarde**.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed_critico)
 
 
 @bot.hybrid_command(name="mi-biblioteca", description="> Ve tu biblioteca personal")
