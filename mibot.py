@@ -450,7 +450,8 @@ async def generar_afk(usuario: discord.Member, motivo: str, color_barra=None) ->
 
 
 async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -> discord.File:
-     W, H     = 680, 180
+   
+    W, H     = 680, 180
 
     img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
