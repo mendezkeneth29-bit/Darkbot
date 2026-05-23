@@ -1769,13 +1769,13 @@ async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
 # =========================================================
 
 @bot.hybrid_command(name="youtube", description="busca un video en youtube")
-async def reproducir(ctx, *, cancion: str):
+async def reproducir(ctx, *, busqueda: str):
     await ctx.defer() if ctx.interaction else None
     try:
         url = "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO90d0o_cqFbnSa2Bx0-Dmp5BaM9aW0uM"
         payload = {
             "context": {"client": {"clientName": "WEB", "clientVersion": "2.20230101.00.00"}},
-            "query": video,
+            "query": musica,
             "params": "EgIQAQ%3D%3D"
         }
         async with aiohttp.ClientSession() as session:
