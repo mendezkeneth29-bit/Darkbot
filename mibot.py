@@ -2666,7 +2666,7 @@ async def pokemon(ctx: commands.Context, *, nombre: str):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             if resp.status != 200:
-                await ctx.send(f"**No se encontró el Pokémon: **{nombre}****")
+                await ctx.send(f"**No se encontró el Pokémon: **{nombre}**")
                 return
             
             data = await resp.json()
@@ -2714,7 +2714,7 @@ async def pokemon(ctx: commands.Context, *, nombre: str):
     await ctx.send(embed=embed)
 
 # =========================================================
-# COMANDO NASA - Foto astronómica del día
+# COMANDO NASA - Foto astronómica del día (Español + Aleatorio)
 # =========================================================
 
 @bot.hybrid_command(name="nasa", description="Foto astronómica del día (NASA APOD)")
@@ -2722,35 +2722,257 @@ async def nasa(ctx: commands.Context):
     
     await ctx.defer() if ctx.interaction else None
     
-    url = "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY"
+    # Diccionario de traducciones manuales (ya que la API no tiene español)
+    traducciones = {
+        "Earth": "Tierra",
+        "Moon": "Luna",
+        "Sun": "Sol",
+        "Mars": "Marte",
+        "Jupiter": "Júpiter",
+        "Saturn": "Saturno",
+        "Neptune": "Neptuno",
+        "Uranus": "Urano",
+        "Venus": "Venus",
+        "Mercury": "Mercurio",
+        "Galaxy": "Galaxia",
+        "Star": "Estrella",
+        "Stars": "Estrellas",
+        "Nebula": "Nebulosa",
+        "Nebulae": "Nebulosas",
+        "Black Hole": "Agujero Negro",
+        "Black Hole": "Agujero Negro",
+        "Supernova": "Supernova",
+        "Comet": "Cometa",
+        "Asteroid": "Asteroide",
+        "Space": "Espacio",
+        "Telescope": "Telescopio",
+        "Astronaut": "Astronauta",
+        "Planet": "Planeta",
+        "Planets": "Planetas",
+        "Constellation": "Constelación",
+        "Cluster": "Cúmulo",
+        "Orbit": "Órbita",
+        "Milky Way": "Vía Láctea",
+        "Solar System": "Sistema Solar",
+        "International Space Station": "Estación Espacial Internacional",
+        "ISS": "EEI",
+        "Hubble": "Hubble",
+        "James Webb": "James Webb",
+        "Galileo": "Galileo",
+        "Apollo": "Apolo",
+        "Artemis": "Artemisa",
+        "Rocket": "Cohete",
+        "Launch": "Lanzamiento",
+        "Spacecraft": "Nave Espacial",
+        "Satellite": "Satélite",
+        "Observatory": "Observatorio",
+    }
+    
+    def traducir_texto(texto):
+        """Traduce palabras clave al español"""
+        resultado = texto
+        for en, es in traducciones.items():
+            if en.lower() in resultado.lower():
+                resultado = resultado.replace(en, es)
+                resultado = resultado.replace(en.lower(), es.lower())
+        return resultado
+    
+    # Usar fecha actual para obtener la foto del día
+    fecha_actual = datetime.now().strftime("%Y-%m-%d")
+    
+    # Opciones de años para fotos aleatorias (1995-2024)
+    años = list(range(1995, 2025))
+    mes = random.randint(1, 12)
+    dia = random.randint(1, 28)
+    fecha_aleatoria = f"{random.choice(años)}-{mes:02d}-{dia:02d}"
+    
+    # 50% chance de foto del día, 50% foto aleatoria
+    usar_fecha_actual = random.choice([True, False])
+    
+    if usar_fecha_actual:
+        fecha = fecha_actual
+        tipo = "Imagen del Día"
+    else:
+        fecha = fecha_aleatoria
+        tipo = "Imagen Aleatoria (Archivo NASA)"
+    
+    url = f"https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date={fecha}"
     
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             if resp.status != 200:
-                await ctx.send("**Error al obtener imagen de la NASA.**")
+                await ctx.send("Error al obtener imagen de la NASA. Probando con otra fecha...")
                 return
             
             data = await resp.json()
     
-    titulo = data.get('title', 'Imagen del día')
-    explicacion = data.get('explanation', 'Sin explicación')
+    # Verificar si hay error
+    if 'error' in data:
+        await ctx.send(f"{data.get('error', {}).get('message', 'Error desconocido')}")
+        return
+    
+    # Extraer datos
+    titulo_original = data.get('title', 'Imagen del día')
+    titulo = traducir_texto(titulo_original)
+    
+    explicacion_original = data.get('explanation', 'Sin explicación disponible')
+    explicacion = traducir_texto(explicacion_original)
+    
+    # Limitar longitud
+    if len(explicacion) > 500:
+        explicacion = explicacion[:500] + "..."
+    
     imagen = data.get('url', '')
-    fecha = data.get('date', '')
+    fecha_nasa = data.get('date', fecha)
+    copyright_original = data.get('copyright', 'NASA')
+    copyright_traducido = traducir_texto(copyright_original)
     
-    if len(explicacion) > 400:
-        explicacion = explicacion[:400] + "..."
+    # Verificar si es video (APOD a veces es video)
+    if imagen.endswith('.mp4') or 'youtube' in imagen or 'vimeo' in imagen:
+        embed = discord.Embed(
+            title=f"{titulo}",
+            description=f"**Video del día**\n\n{explicacion}",
+            color=0x1a237e
+        )
+        embed.add_field(name="**Ver video**", value=f"[Haz clic aquí para ver el video]({imagen})", inline=False)
+    else:
+        embed = discord.Embed(
+            title=f"{titulo}",
+            description=explicacion,
+            color=0x1a237e,
+            url=imagen
+        )
+        embed.set_image(url=imagen)
     
-    embed = discord.Embed(
-        title=f"{titulo}",
-        description=explicacion,
-        color=0x1a237e,
-        url=imagen
-    )
+    # Agregar campos de información
+    embed.add_field(name="> Fecha", value=f"{fecha_nasa}", inline=True)
+    embed.add_field(name="> Crédito", value=f"{copyright_traducido}", inline=True)
+    embed.add_field(name="> Tipo", value=tipo, inline=True)
     
-    embed.set_image(url=imagen)
-    embed.set_footer(text=f"> {fecha} | NASA Astronomy Picture of the Day")
+    embed.set_footer(text=f"Solicitado por {ctx.author.display_name} | NASA Astronomy Picture of the Day")
     
     await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO TRADUCIR - Traductor con Google Translate
+# =========================================================
+
+@bot.hybrid_command(name="traducir", description="Traduce texto a cualquier idioma")
+async def traducir(ctx: commands.Context, idioma: str, *, texto: str):
+    """
+    Uso: >traducir en Hola mundo
+    Uso: >traducir es Hello world
+    Uso: >traducir fr Comment ça va?
+    
+    Códigos de idioma:
+    es = Español
+    en = Inglés
+    fr = Francés
+    de = Alemán
+    it = Italiano
+    pt = Portugués
+    ja = Japonés
+    ko = Coreano
+    zh = Chino
+    ru = Ruso
+    ar = Árabe
+    """
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    # Diccionario de nombres de idiomas
+    idiomas_nombres = {
+        "es": "Español",
+        "en": "Inglés",
+        "fr": "Francés",
+        "de": "Alemán",
+        "it": "Italiano",
+        "pt": "Portugués",
+        "ja": "Japonés",
+        "ko": "Coreano",
+        "zh": "Chino",
+        "ru": "Ruso",
+        "ar": "Árabe",
+        "hi": "Hindi",
+        "nl": "Holandés",
+        "pl": "Polaco",
+        "tr": "Turco",
+        "vi": "Vietnamita",
+        "th": "Tailandés",
+        "el": "Griego",
+        "he": "Hebreo",
+        "sv": "Sueco",
+        "no": "Noruego",
+        "da": "Danés",
+        "fi": "Finlandés",
+    }
+    
+    # Verificar que el idioma sea válido
+    idioma = idioma.lower()
+    if idioma not in idiomas_nombres:
+        codigos = ", ".join(list(idiomas_nombres.keys())[:15])
+        await ctx.send(f"> Idioma **{idioma}** no válido.\nCódigos disponibles: {codigos}...\nUsa `>traducir en texto` para inglés, `>traducir es texto` para español, etc.")
+        return
+    
+    # Detectar automáticamente el idioma original
+    url_detectar = f"https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dt=ld&dt=rm&dj=1&q={urllib.parse.quote(texto)}&sl=auto&tl={idioma}"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url_detectar) as resp:
+                if resp.status != 200:
+                    await ctx.send("**Error al conectar con el traductor.**")
+                    return
+                
+                data = await resp.json()
+        
+        # Extraer la traducción
+        traduccion = ""
+        idioma_detectado = ""
+        
+        if 'sentences' in data:
+            for sentence in data['sentences']:
+                if 'trans' in sentence:
+                    traduccion += sentence['trans']
+        
+        # Obtener idioma detectado
+        if 'src' in data:
+            idioma_detectado = data['src']
+        
+        # Si no se encontró traducción
+        if not traduccion:
+            await ctx.send("**No se pudo traducir el texto.**")
+            return
+        
+        # Limitar longitud
+        texto_original = texto[:500] + "..." if len(texto) > 500 else texto
+        texto_traducido = traduccion[:500] + "..." if len(traduccion) > 500 else traduccion
+        
+        # Obtener nombres de idiomas
+        idioma_origen_nombre = idiomas_nombres.get(idioma_detectado, idioma_detectado.upper())
+        idioma_destino_nombre = idiomas_nombres.get(idioma, idioma.upper())
+        
+        # Crear embed con el resultado
+        embed = discord.Embed(
+            title="Traductor de Google",
+            color=0x1a237e
+        )
+        embed.add_field(
+            name=f"Texto original ({idioma_origen_nombre})",
+            value=f"```{texto_original}```",
+            inline=False
+        )
+        embed.add_field(
+            name=f"> Traducción ({idioma_destino_nombre})",
+            value=f"```{texto_traducido}```",
+            inline=False
+        )
+        embed.set_footer(text=f"Solicitado por {ctx.author.display_name}")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"**Error al traducir**: ```{str(e)}```")
 
 # -------------------------
 # FLASK WEB
