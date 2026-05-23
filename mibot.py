@@ -2410,7 +2410,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
         embed = discord.Embed(
             title="Error de configuración",
             description="> El comando clima no está configurado correctamente.\nEl administrador debe agregar WEATHER_API_KEY en Render.",
-            color=0x1a237e()
+            color=AZUL_IPOD_NUM()
         )
         await ctx.send(embed=embed)
         return
@@ -2432,7 +2432,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
                     embed = discord.Embed(
                         title="Ciudad no encontrada",
                         description=f"> No se encontró la ciudad **{ciudad}**.\nVerifica el nombre e intenta de nuevo.",
-                        color=0x1a237e()
+                        color=AZUL_IPOD_NUM()
                     )
                     await ctx.send(embed=embed)
                     return
@@ -2443,7 +2443,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
                     embed = discord.Embed(
                         title="Error",
                         description=f"> Error al obtener el clima. Código: {respuesta.status}",
-                        color=0x1a237e()
+                        color=AZUL_IPOD_NUM()
                     )
                     await ctx.send(embed=embed)
                     return
@@ -2456,7 +2456,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
         embed = discord.Embed(
             title="Error de conexión",
             description=f"> No se pudo conectar con el servicio del clima.\n```{str(e)}```",
-            color=0x1a237e()
+            color=AZUL_IPOD_NUM()
         )
         await ctx.send(embed=embed)
         return
@@ -2477,7 +2477,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
     # Crear el embed bonito
     embed = discord.Embed(
         title=f" Clima en {nombre_ciudad}, {pais}",
-        color=0x1a237e()
+        color=AZUL_IPOD_NUM()
     )
     
     # Agregar campos
