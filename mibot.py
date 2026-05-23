@@ -2743,9 +2743,10 @@ async def nasa(ctx: commands.Context):
     embed = discord.Embed(
         title=f"{titulo}",
         description=explicacion,
-        color=0x1a237e
+        color=0x1a237e,
         url=imagen
     )
+    
     embed.set_image(url=imagen)
     embed.set_footer(text=f"> {fecha} | NASA Astronomy Picture of the Day")
     
