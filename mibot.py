@@ -432,9 +432,9 @@ async def generar_afk(usuario: discord.Member, motivo: str, color_barra=None) ->
         draw.ellipse([(37, 47), (133, 143)], fill=GRIS_G)
 
     draw.ellipse([(35, 45), (135, 145)], outline=c_barra, width=2)
-    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=BLANCO)
-    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=BLANCO)
-    draw.text((120, 46), "z", font=fuente(11), fill=BLANCO)
+    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=c_barra)
+    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=c_barra)
+    draw.text((120, 46), "z", font=fuente(11), fill=c_barra)
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
     draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=c_barra)
     draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO_G, anchor="mt")
