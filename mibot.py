@@ -2409,7 +2409,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
         embed = discord.Embed(
             title="Error de configuración",
             description="> El administrador no ha configurado WEATHER_API_KEY.",
-            color=AZUL_IPOD_NUM()
+            color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
@@ -2427,7 +2427,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
                     await ctx.send(embed=discord.Embed(
                         title="Ciudad no encontrada",
                         description=f"> No se encontró: **{ciudad}**.",
-                        color=AZUL_IPOD_NUM()
+                        color=AZUL_IPOD_NUM
                     ))
                     return
                 
@@ -2435,7 +2435,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
                     await ctx.send(embed=discord.Embed(
                         title="Error",
                         description=f"> Error {respuesta.status}: {datos.get('message', 'Sin detalles')}",
-                        color=AZUL_IPOD_NUM()
+                        color=AZUL_IPOD_NUM
                     ))
                     return
 
