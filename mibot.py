@@ -1775,7 +1775,7 @@ async def reproducir(ctx, *, busqueda: str):
         url = "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO90d0o_cqFbnSa2Bx0-Dmp5BaM9aW0uM"
         payload = {
             "context": {"client": {"clientName": "WEB", "clientVersion": "2.20230101.00.00"}},
-            "query": musica,
+            "query": cancion,
             "params": "EgIQAQ%3D%3D"
         }
         async with aiohttp.ClientSession() as session:
