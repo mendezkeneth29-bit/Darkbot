@@ -2974,6 +2974,348 @@ async def traducir(ctx: commands.Context, idioma: str, *, texto: str):
     except Exception as e:
         await ctx.send(f"**Error al traducir**: ```{str(e)}```")
 
+# =========================================================
+# COMANDO DEFINIR - Buscar significado de palabras
+# =========================================================
+
+@bot.hybrid_command(name="definir", description="Busca el significado de una palabra")
+async def definir(ctx: commands.Context, *, palabra: str):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{palabra}"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send(f"> No se encontró la palabra **{palabra}**")
+                return
+            
+            data = await resp.json()
+    
+    if not data:
+        await ctx.send(f"> No se encontró la palabra **{palabra}**")
+        return
+    
+    palabra_info = data[0]
+    palabra_nombre = palabra_info.get('word', palabra)
+    significados = palabra_info.get('meanings', [])
+    
+    embed = discord.Embed(
+        title=f"{palabra_nombre.capitalize()}",
+        color=0x1a237e
+    )
+    
+    for significado in significados[:3]:
+        tipo = significado.get('partOfSpeech', 'Desconocido')
+        definiciones = significado.get('definitions', [])
+        
+        if definiciones:
+            definicion = definiciones[0].get('definition', 'Sin definición')
+            ejemplo = definiciones[0].get('example', '')
+            
+            texto = f"**{tipo}**\n{definicion[:200]}"
+            if ejemplo:
+                texto += f"\n*Ejemplo: {ejemplo[:100]}*"
+            
+            embed.add_field(name=f"{tipo.capitalize()}", value=texto[:250], inline=False)
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO STEAM - Buscar info de juegos en Steam
+# =========================================================
+
+@bot.hybrid_command(name="steam", description="Busca información de un juego en Steam")
+async def steam(ctx: commands.Context, *, juego: str):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    # Buscar el juego
+    url_buscar = f"https://steamcommunity.com/api/ISteamApps/GetAppList/v2/"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url_buscar) as resp:
+            if resp.status != 200:
+                await ctx.send("> Error al conectar con Steam")
+                return
+            
+            data = await resp.json()
+            apps = data.get('applist', {}).get('apps', [])
+    
+    # Buscar coincidencias
+    juego_lower = juego.lower()
+    resultados = [app for app in apps if juego_lower in app['name'].lower()]
+    
+    if not resultados:
+        await ctx.send(f"> No se encontró el juego: **{juego}**")
+        return
+    
+    juego_info = resultados[0]
+    app_id = juego_info['appid']
+    nombre = juego_info['name']
+    
+    # Obtener detalles del juego
+    url_detalles = f"https://store.steampowered.com/api/appdetails?appids={app_id}"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url_detalles) as resp:
+            data = await resp.json()
+    
+    detalles = data.get(str(app_id), {})
+    
+    if not detalles.get('success'):
+        await ctx.send(f"**No se pudieron obtener detalles de** `{nombre}`")
+        return
+    
+    info = detalles.get('data', {})
+    
+    # Extraer datos
+    descripcion = info.get('short_description', 'Sin descripción')
+    precio = info.get('price_overview', {})
+    precio_final = precio.get('final_formatted', 'Gratis') if precio else 'No disponible'
+    plataformas = []
+    
+    if info.get('platforms', {}).get('windows'): plataformas.append("🪟 Windows")
+    if info.get('platforms', {}).get('mac'): plataformas.append("🍎 Mac")
+    if info.get('platforms', {}).get('linux'): plataformas.append("🐧 Linux")
+    
+    plataformas_texto = ", ".join(plataformas) if plataformas else "No disponible"
+    
+    generos = [g['description'] for g in info.get('genres', [])]
+    generos_texto = ", ".join(generos[:3]) if generos else "No disponible"
+    
+    puntaje = info.get('metacritic', {}).get('score', 'No disponible')
+    url_imagen = info.get('header_image', '')
+    
+    embed = discord.Embed(
+        title=f"{nombre}",
+        description=descripcion[:200] + "..." if len(descripcion) > 200 else descripcion,
+        color=0x1a237e,
+        url=f"https://store.steampowered.com/app/{app_id}"
+    )
+    
+    embed.add_field(name="> Precio", value=precio_final, inline=True)
+    embed.add_field(name="> Metacritic", value=f"{puntaje}/100" if puntaje != 'No disponible' else puntaje, inline=True)
+    embed.add_field(name="> Géneros", value=generos_texto, inline=False)
+    embed.add_field(name="> Plataformas", value=plataformas_texto, inline=True)
+    
+    if url_imagen:
+        embed.set_thumbnail(url=url_imagen)
+    
+    embed.set_footer(text=f"ID: {app_id} | Steam Store")
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO QR - Generar código QR
+# =========================================================
+
+@bot.hybrid_command(name="qr", description="Genera un código QR")
+async def generar_qr(ctx: commands.Context, *, texto: str):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    # API gratuita para generar QR
+    url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(texto)}"
+    
+    embed = discord.Embed(
+        title="Código QR Generado",
+        description=f"**Contenido:** {texto[:100]}{'...' if len(texto) > 100 else ''}",
+        color=discord.Color.green()
+    )
+    embed.set_image(url=url)
+    embed.set_footer(text=f"Solicitado por {ctx.author.display_name}")
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO COLOR - Genera un color aleatorio con código HEX
+# =========================================================
+
+@bot.hybrid_command(name="color", description="Genera un color aleatorio")
+async def color_random(ctx: commands.Context):
+    
+    # Generar color aleatorio
+    r = random.randint(0, 255)
+    g = random.randint(0, 255)
+    b = random.randint(0, 255)
+    hex_color = f"#{r:02x}{g:02x}{b:02x}".upper()
+    
+    # Crear imagen del color
+    img = Image.new("RGB", (400, 200), (r, g, b))
+    draw = ImageDraw.Draw(img)
+    
+    # Agregar texto del color
+    draw.text((200, 100), hex_color, font=fuente(24, bold=True), fill=(255, 255, 255), anchor="mm")
+    
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    archivo = discord.File(buf, filename="color.png")
+    
+    # Calcular color complementario
+    r_comp = 255 - r
+    g_comp = 255 - g
+    b_comp = 255 - b
+    hex_comp = f"#{r_comp:02x}{g_comp:02x}{b_comp:02x}".upper()
+    
+    embed = discord.Embed(
+        title="Generador de Colores",
+        color=discord.Color.from_rgb(r, g, b)
+    )
+    embed.add_field(name="Código HEX", value=hex_color, inline=True)
+    embed.add_field(name="RGB", value=f"({r}, {g}, {b})", inline=True)
+    embed.add_field(name="Complementario", value=hex_comp, inline=True)
+    embed.set_image(url="attachment://color.png")
+    
+    await ctx.send(embed=embed, file=archivo)
+
+# =========================================================
+# COMANDO IP - Información de una dirección IP
+# =========================================================
+
+@bot.hybrid_command(name="ip", description="Obtiene información de una dirección IP")
+async def ip_info(ctx: commands.Context, direccion_ip: str):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    url = f"http://ip-api.com/json/{direccion_ip}?lang=es"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send("> Error al obtener información de la IP")
+                return
+            
+            data = await resp.json()
+    
+    if data.get('status') == 'fail':
+        await ctx.send(f"> IP **{direccion_ip}** no válida o no encontrada")
+        return
+    
+    embed = discord.Embed(
+        title=f"Información de IP: {direccion_ip}",
+        color=0x1a237e
+    )
+    embed.add_field(name="> País", value=data.get('country', 'Desconocido'), inline=True)
+    embed.add_field(name="> Ciudad", value=data.get('city', 'Desconocida'), inline=True)
+    embed.add_field(name="> ISP", value=data.get('isp', 'Desconocido'), inline=True)
+    embed.add_field(name="> Región", value=data.get('regionName', 'Desconocida'), inline=True)
+    embed.add_field(name="> Código Postal", value=data.get('zip', 'Desconocido'), inline=True)
+    embed.add_field(name="> Código de Área", value=data.get('mobile', False) and "Móvil" or "Fijo", inline=True)
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO ACERTIJO - Adivinanza
+# =========================================================
+
+acertijos = [
+    {"pregunta": "Blanco por dentro, verde por fuera. Si quieres que te lo diga, espera.", "respuesta": "pera"},
+    {"pregunta": "Oro parece, plata no es. Abre las cortinas y verás lo que es.", "respuesta": "plátano"},
+    {"pregunta": "Tiene dientes pero no come, tiene cabeza pero no es hombre.", "respuesta": "ajo"},
+    {"pregunta": "Viste de verde y vive en el mar, si te pilla te hará llorar.", "respuesta": "cebolla"},
+    {"pregunta": "¿Qué cosa es que cuanto más le quitas, más grande se hace?", "respuesta": "agujero"},
+    {"pregunta": "Vuelo sin alas, lloro sin ojos. ¿Quién soy?", "respuesta": "nube"},
+    {"pregunta": "Siempre en la boca pero nunca se come.", "respuesta": "sonrisa"},
+]
+
+@bot.hybrid_command(name="acertijo", description="Resuelve un acertijo")
+async def acertijo(ctx: commands.Context):
+    
+    acertijo_actual = random.choice(acertijos)
+    
+    embed = discord.Embed(
+        title="Acertijo",
+        description=f"**{acertijo_actual['pregunta']}**",
+        color=0x1a237e
+    )
+    embed.set_footer(text="Responde con >respuesta [tu respuesta] (tienes 30 segundos)")
+    
+    await ctx.send(embed=embed)
+    
+    def check(m):
+        return m.author == ctx.author and m.content.startswith(">respuesta")
+    
+    try:
+        msg = await bot.wait_for("message", timeout=30.0, check=check)
+        respuesta_usuario = msg.content.replace(">respuesta", "").strip().lower()
+        
+        if respuesta_usuario == acertijo_actual["respuesta"]:
+            # Dar recompensa
+            data = get_user_eco(ctx.guild.id, ctx.author.id)
+            recompensa = random.randint(50, 150)
+            data["coins"] += recompensa
+            
+            await msg.reply(f"> **¡Correcto!** \nGanaste **${recompensa}**")
+        else:
+            await msg.reply(f"> **Incorrecto**\nLa respuesta era: **{acertijo_actual['respuesta']}**")
+            
+    except:
+        await ctx.send(f"> Tiempo agotado. La respuesta era: **{acertijo_actual['respuesta']}**")
+
+# =========================================================
+# COMANDO COVID - Datos de COVID-19 por país
+# =========================================================
+
+@bot.hybrid_command(name="covid", description="Datos actualizados de COVID-19")
+async def covid(ctx: commands.Context, pais: str = "mexico"):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    url = f"https://disease.sh/v3/covid-19/countries/{pais}"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send(f"**No se encontraron datos para:** {pais}")
+                return
+            
+            data = await resp.json()
+    
+    nombre = data.get('country', pais.capitalize())
+    casos = data.get('cases', 0)
+    casos_hoy = data.get('todayCases', 0)
+    muertes = data.get('deaths', 0)
+    muertes_hoy = data.get('todayDeaths', 0)
+    recuperados = data.get('recovered', 0)
+    activos = data.get('active', 0)
+    criticos = data.get('critical', 0)
+    pruebas = data.get('tests', 0)
+    poblacion = data.get('population', 0)
+    bandera = data.get('countryInfo', {}).get('flag', '')
+    
+    # Calcular porcentajes
+    tasa_mortalidad = (muertes / casos * 100) if casos > 0 else 0
+    tasa_recuperacion = (recuperados / casos * 100) if casos > 0 else 0
+    casos_por_millon = (casos / poblacion * 1000000) if poblacion > 0 else 0
+    
+    embed = discord.Embed(
+        title=f"COVID-19: {nombre}",
+        color=discord.Color.red()
+    )
+    
+    if bandera:
+        embed.set_thumbnail(url=bandera)
+    
+    embed.add_field(name="> Casos totales", value=f"{casos:,}", inline=True)
+    embed.add_field(name="> Casos hoy", value=f"+{casos_hoy:,}", inline=True)
+    embed.add_field(name="> Muertes", value=f"{muertes:,}", inline=True)
+    embed.add_field(name="> Muertes hoy", value=f"+{muertes_hoy:,}", inline=True)
+    embed.add_field(name="> Recuperados", value=f"{recuperados:,}", inline=True)
+    embed.add_field(name="> Activos", value=f"{activos:,}", inline=True)
+    embed.add_field(name="> Críticos", value=f"{críticos:,}", inline=True)
+    embed.add_field(name="> Pruebas", value=f"{pruebas:,}", inline=True)
+    embed.add_field(name="> Tasa mortalidad", value=f"{tasa_mortalidad:.2f}%", inline=True)
+    embed.add_field(name="> Tasa recuperación", value=f"{tasa_recuperacion:.2f}%", inline=True)
+    embed.add_field(name="> Población", value=f"{poblacion:,}", inline=True)
+    embed.add_field(name="> Casos/1M", value=f"{casos_por_millon:.0f}", inline=True)
+    
+    embed.set_footer(text=f"Actualizado | disease.sh API")
+    
+    await ctx.send(embed=embed)
+
 # -------------------------
 # FLASK WEB
 # -------------------------
