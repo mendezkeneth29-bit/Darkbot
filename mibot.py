@@ -2392,21 +2392,123 @@ async def ipod_player(ctx: commands.Context, cancion: str, artista: str, duracio
     # Enviamos el archivo
     await ctx.send(file=file)
 
-# Configuración del idioma de Wikipedia
-wikipedia.set_lang("es")
+# =========================================================
+# COMANDO CLIMA
+# =========================================================
 
-bot.hybrid_command(name="definir", description="Busca la definición de un término en Wikipedia.")
-async def definir(ctx, *, termino: str):
-    """Busca un término y devuelve el resumen de Wikipedia."""
-    await ctx.defer()
-    try:
-        resultado = wikipedia.summary(termino, sentences=2)
-        embed = discord.Embed(title=termino.capitalize(), description=resultado, color=0x2ecc71)
+@bot.hybrid_command(name="clima", description="Muestra el clima actual de una ciudad")
+async def clima(ctx: commands.Context, *, ciudad: str):
+    """
+    Uso: >clima Buenos Aires
+    """
+    
+    # Obtener la API Key de las variables de entorno
+    API_KEY = os.getenv("WEATHER_API_KEY")
+    
+    # Verificar si la API Key existe
+    if not API_KEY or API_KEY == "":
+        embed = discord.Embed(
+            title="❌ Error de configuración",
+            description="El comando clima no está configurado correctamente.\nEl administrador debe agregar WEATHER_API_KEY en Render.",
+            color=discord.Color.red()
+        )
         await ctx.send(embed=embed)
-    except wikipedia.DisambiguationError:
-        await ctx.send("**El término es muy ambiguo, intenta ser más específico.**")
-    except Exception:
-        await ctx.send("**No encontré información sobre ese término.**")
+        return
+    
+    # Mensaje de "cargando"
+    await ctx.defer() if ctx.interaction else None
+    mensaje_carga = await ctx.send("🌍 Buscando información del clima...")
+    
+    # Construir la URL para la API
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={API_KEY}&units=metric&lang=es"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as respuesta:
+                
+                # Si la ciudad no existe
+                if respuesta.status == 404:
+                    await mensaje_carga.delete()
+                    embed = discord.Embed(
+                        title="❌ Ciudad no encontrada",
+                        description=f"No se encontró la ciudad **{ciudad}**.\nVerifica el nombre e intenta de nuevo.",
+                        color=discord.Color.red()
+                    )
+                    await ctx.send(embed=embed)
+                    return
+                
+                # Si hay otro error
+                if respuesta.status != 200:
+                    await mensaje_carga.delete()
+                    embed = discord.Embed(
+                        title="❌ Error",
+                        description=f"Error al obtener el clima. Código: {respuesta.status}",
+                        color=discord.Color.red()
+                    )
+                    await ctx.send(embed=embed)
+                    return
+                
+                # Obtener los datos en JSON
+                datos = await respuesta.json()
+    
+    except Exception as e:
+        await mensaje_carga.delete()
+        embed = discord.Embed(
+            title="❌ Error de conexión",
+            description=f"No se pudo conectar con el servicio del clima.\n```{str(e)}```",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    # Extraer los datos importantes
+    nombre_ciudad = datos['name']
+    pais = datos['sys']['country']
+    temperatura = datos['main']['temp']
+    sensacion_termica = datos['main']['feels_like']
+    humedad = datos['main']['humidity']
+    descripcion = datos['weather'][0]['description']
+    viento = datos['wind']['speed']
+    icono = datos['weather'][0]['icon']
+    
+    # Formatear la descripción (primera letra mayúscula)
+    descripcion = descripcion.capitalize()
+    
+    # Emojis según la temperatura
+    if temperatura <= 0:
+        emoji_temp = "🥶"
+    elif temperatura <= 15:
+        emoji_temp = "🥶"
+    elif temperatura <= 25:
+        emoji_temp = "😊"
+    elif temperatura <= 35:
+        emoji_temp = "🥵"
+    else:
+        emoji_temp = "🔥"
+    
+    # Crear el embed bonito
+    embed = discord.Embed(
+        title=f" Clima en {nombre_ciudad}, {pais}",
+        color=discord.Color.blue()
+    )
+    
+    # Agregar campos
+    embed.add_field(name=f"> {emoji_temp} Temperatura", value=f"{temperatura}°C", inline=True)
+    embed.add_field(name="> Sensación", value=f"{sensacion_termica}°C", inline=True)
+    embed.add_field(name="> Humedad", value=f"{humedad}%", inline=True)
+    embed.add_field(name="> Viento", value=f"{viento} m/s", inline=True)
+    embed.add_field(name="> Descripción", value=descripcion, inline=False)
+    
+    # Agregar ícono del clima
+    icono_url = f"http://openweathermap.org/img/wn/{icono}@2x.png"
+    embed.set_thumbnail(url=icono_url)
+    
+    # Agregar footer con el usuario que solicitó
+    embed.set_footer(text=f"Solicitado por {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+    
+    # Eliminar mensaje de carga y enviar resultado
+    await mensaje_carga.delete()
+    await ctx.send(embed=embed)
 
 # =========================================================
 # ERROR HANDLER
