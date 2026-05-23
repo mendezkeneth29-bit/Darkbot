@@ -2399,72 +2399,105 @@ async def ipod_player(ctx: commands.Context, cancion: str, artista: str, duracio
 
 @bot.hybrid_command(name="clima", description="Muestra el clima actual de una ciudad")
 async def clima(ctx: commands.Context, *, ciudad: str):
-    # 1. Preparar la respuesta inicial
-    # defer() evita que el comando falle si tarda más de 3 segundos
-    await ctx.defer()
+    """
+    Uso: >clima Buenos Aires
+    """
     
+    # Obtener la API Key de las variables de entorno
     API_KEY = os.getenv("WEATHER_API_KEY")
     
-    if not API_KEY:
+    # Verificar si la API Key existe
+    if not API_KEY or API_KEY == "":
         embed = discord.Embed(
             title="Error de configuración",
-            description="> El administrador no ha configurado WEATHER_API_KEY.",
-            color=AZUL_IPOD_NUM
+            description="> El comando clima no está configurado correctamente.\nEl administrador debe agregar WEATHER_API_KEY en Render.",
+            color=0x1a237e
         )
         await ctx.send(embed=embed)
         return
-
-    # 2. Codificar la ciudad para la URL (maneja espacios y tildes)
-    ciudad_encoded = urllib.parse.quote(ciudad)
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad_encoded}&appid={API_KEY}&units=metric&lang=es"
+    
+    # Mensaje de "cargando"
+    await ctx.defer() if ctx.interaction else None
+    mensaje_carga = await ctx.send("> Buscando información del clima...<:sparkles:1506394397057613864>")
+    
+    # Construir la URL para la API
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={API_KEY}&units=metric&lang=es"
     
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as respuesta:
-                datos = await respuesta.json()
                 
+                # Si la ciudad no existe
                 if respuesta.status == 404:
-                    await ctx.send(embed=discord.Embed(
+                    await mensaje_carga.delete()
+                    embed = discord.Embed(
                         title="Ciudad no encontrada",
-                        description=f"> No se encontró: **{ciudad}**.",
-                        color=AZUL_IPOD_NUM
-                    ))
+                        description=f"> No se encontró la ciudad **{ciudad}**.\nVerifica el nombre e intenta de nuevo.",
+                        color=0x1a237e
+                    )
+                    await ctx.send(embed=embed)
                     return
                 
+                # Si hay otro error
                 if respuesta.status != 200:
-                    await ctx.send(embed=discord.Embed(
+                    await mensaje_carga.delete()
+                    embed = discord.Embed(
                         title="Error",
-                        description=f"> Error {respuesta.status}: {datos.get('message', 'Sin detalles')}",
-                        color=AZUL_IPOD_NUM
-                    ))
+                        description=f"> Error al obtener el clima. Código: {respuesta.status}",
+                        color=0x1a237e
+                    )
+                    await ctx.send(embed=embed)
                     return
-
-                # 3. Extraer datos
-                nombre_ciudad = datos['name']
-                pais = datos['sys']['country']
-                temp = datos['main']['temp']
-                sensacion = datos['main']['feels_like']
-                humedad = datos['main']['humidity']
-                desc = datos['weather'][0]['description'].capitalize()
-                viento = datos['wind']['speed']
-                icono = datos['weather'][0]['icon']
                 
-                # 4. Crear Embed
-                embed = discord.Embed(title=f"Clima en {nombre_ciudad}, {pais}", color=AZUL_IPOD_NUM())
-                embed.add_field(name="> Temperatura", value=f"{temp}°C", inline=True)
-                embed.add_field(name="> Sensación", value=f"{sensacion}°C", inline=True)
-                embed.add_field(name="> Humedad", value=f"{humedad}%", inline=True)
-                embed.add_field(name="> Viento", value=f"{viento} m/s", inline=True)
-                embed.add_field(name="> Descripción", value=desc, inline=False)
-                
-                embed.set_thumbnail(url=f"http://openweathermap.org/img/wn/{icono}@2x.png")
-                embed.set_footer(text=f"Solicitado por {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
-                
-                # Enviar resultado
-                await ctx.send(embed=embed)
-
+                # Obtener los datos en JSON
+                datos = await respuesta.json()
+    
     except Exception as e:
-        await ctx.send(f"> Ocurrió un error inesperado al conectar con el servicio: `{e}`")
+        await mensaje_carga.delete()
+        embed = discord.Embed(
+            title="Error de conexión",
+            description=f"> No se pudo conectar con el servicio del clima.\n```{str(e)}```",
+            color=0x1a237e
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    # Extraer los datos importantes
+    nombre_ciudad = datos['name']
+    pais = datos['sys']['country']
+    temperatura = datos['main']['temp']
+    sensacion_termica = datos['main']['feels_like']
+    humedad = datos['main']['humidity']
+    descripcion = datos['weather'][0]['description']
+    viento = datos['wind']['speed']
+    icono = datos['weather'][0]['icon']
+    
+    # Formatear la descripción (primera letra mayúscula)
+    descripcion = descripcion.capitalize()
+    
+    # Crear el embed bonito
+    embed = discord.Embed(
+        title=f" Clima en {nombre_ciudad}, {pais}",
+        color=0x1a237e
+    )
+    
+    # Agregar campos
+    embed.add_field(name=f"> Temperatura", value=f"{temperatura}°C", inline=True)
+    embed.add_field(name="> Sensación", value=f"{sensacion_termica}°C", inline=True)
+    embed.add_field(name="> Humedad", value=f"{humedad}%", inline=True)
+    embed.add_field(name="> Viento", value=f"{viento} m/s", inline=True)
+    embed.add_field(name="> Descripción", value=descripcion, inline=False)
+    
+    # Agregar ícono del clima
+    icono_url = f"http://openweathermap.org/img/wn/{icono}@2x.png"
+    embed.set_thumbnail(url=icono_url)
+    
+    # Agregar footer con el usuario que solicitó
+    embed.set_footer(text=f"Solicitado por {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+    
+    # Eliminar mensaje de carga y enviar resultado
+    await mensaje_carga.delete()
+    await ctx.send(embed=embed)
 
 # =========================================================
 # ERROR HANDLER
