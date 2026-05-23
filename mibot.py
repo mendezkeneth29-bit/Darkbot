@@ -432,9 +432,9 @@ async def generar_afk(usuario: discord.Member, motivo: str, color_barra=None) ->
         draw.ellipse([(37, 47), (133, 143)], fill=GRIS_G)
 
     draw.ellipse([(35, 45), (135, 145)], outline=c_barra, width=2)
-    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=c_barra)
-    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=c_barra)
-    draw.text((120, 46), "z", font=fuente(11), fill=c_barra)
+    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=BLANCO)
+    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=BLANCO)
+    draw.text((120, 46), "z", font=fuente(11), fill=BLANCO)
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
     draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=c_barra)
     draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO_G, anchor="mt")
@@ -2497,6 +2497,100 @@ async def clima(ctx: commands.Context, *, ciudad: str):
     
     # Eliminar mensaje de carga y enviar resultado
     await mensaje_carga.delete()
+    await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO PAÍS - Información de cualquier país
+# =========================================================
+
+@bot.hybrid_command(name="goole-maps", description="Muestra información de un país")
+async def pais(ctx: commands.Context, *, nombre: str):
+    """
+    Uso: >pais España
+    Uso: >pais México
+    """
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    url = f"https://restcountries.com/v3.1/name/{nombre}"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send(f"**País **{nombre}** no encontrado.**")
+                return
+            
+            data = await resp.json()
+            pais_data = data[0]
+    
+    # Extraer información
+    nombre_oficial = pais_data.get('name', {}).get('official', 'Desconocido')
+    capital = ", ".join(pais_data.get('capital', ['Desconocida']))
+    poblacion = f"{pais_data.get('population', 0):,}"
+    area = f"{pais_data.get('area', 0):,} km²"
+    idiomas = ", ".join(pais_data.get('languages', {}).values())
+    moneda = list(pais_data.get('currencies', {}).values())[0].get('name', 'Desconocida') if pais_data.get('currencies') else 'Desconocida'
+    bandera = pais_data.get('flags', {}).get('png', '')
+    mapa = pais_data.get('maps', {}).get('googleMaps', '')
+    
+    # Crear embed
+    embed = discord.Embed(
+        title=f"{nombre_oficial}",
+        color=0x1a237e
+    )
+    embed.add_field(name="> Capital", value=capital, inline=True)
+    embed.add_field(name="> Población", value=poblacion, inline=True)
+    embed.add_field(name="> Área", value=area, inline=True)
+    embed.add_field(name="> Idiomas", value=idiomas[:50], inline=True)
+    embed.add_field(name="> Moneda", value=moneda, inline=True)
+    
+    if mapa:
+        embed.add_field(name="Google Maps", value=f"[Ver mapa]({mapa})", inline=False)
+    
+    if bandera:
+        embed.set_thumbnail(url=bandera)
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO JUEGOS - Juegos gratis del momento
+# =========================================================
+
+@bot.hybrid_command(name="Juegos", description="Muestra una lista de juegos grautitos.")
+async def juegos_gratis(ctx: commands.Context):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    url = "https://www.freetogame.com/api/games?sort-by=release-date"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send("**Error al obtener juegos.**")
+                return
+            
+            juegos = await resp.json()
+            juegos = juegos[:5]
+    
+    embed = discord.Embed(
+        title="Juegos Gratis Recomendados",
+        color=0x1a237e
+    )
+    
+    for juego in juegos:
+        titulo = juego.get('title', 'Sin título')
+        genero = juego.get('genre', 'Desconocido')
+        plataforma = juego.get('platform', 'PC')
+        url_juego = juego.get('game_url', '')
+        
+        embed.add_field(
+            name=f"{titulo}",
+            value=f" {genero} |  {plataforma}\n [Descargar]({url_juego})",
+            inline=False
+        )
+    
+    embed.set_footer(text="Juegos gratis de FreeToGame.com")
+    
     await ctx.send(embed=embed)
 
 # =========================================================
