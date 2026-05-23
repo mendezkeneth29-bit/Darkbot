@@ -2392,6 +2392,22 @@ async def ipod_player(ctx: commands.Context, cancion: str, artista: str, duracio
     # Enviamos el archivo
     await ctx.send(file=file)
 
+# Configuración del idioma de Wikipedia
+wikipedia.set_lang("es")
+
+bot.hybrid_command(name="definir", description="Busca la definición de un término en Wikipedia.")
+async def definir(ctx, *, termino: str):
+    """Busca un término y devuelve el resumen de Wikipedia."""
+    await ctx.defer()
+    try:
+        resultado = wikipedia.summary(termino, sentences=2)
+        embed = discord.Embed(title=termino.capitalize(), description=resultado, color=0x2ecc71)
+        await ctx.send(embed=embed)
+    except wikipedia.DisambiguationError:
+        await ctx.send("**El término es muy ambiguo, intenta ser más específico.**")
+    except Exception:
+        await ctx.send("**No encontré información sobre ese término.**")
+
 # =========================================================
 # ERROR HANDLER
 # =========================================================
