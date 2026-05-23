@@ -2408,16 +2408,16 @@ async def clima(ctx: commands.Context, *, ciudad: str):
     # Verificar si la API Key existe
     if not API_KEY or API_KEY == "":
         embed = discord.Embed(
-            title="❌ Error de configuración",
-            description="El comando clima no está configurado correctamente.\nEl administrador debe agregar WEATHER_API_KEY en Render.",
-            color=discord.Color.red()
+            title="Error de configuración",
+            description="> El comando clima no está configurado correctamente.\nEl administrador debe agregar WEATHER_API_KEY en Render.",
+            color=0x1a237e()
         )
         await ctx.send(embed=embed)
         return
     
     # Mensaje de "cargando"
     await ctx.defer() if ctx.interaction else None
-    mensaje_carga = await ctx.send("🌍 Buscando información del clima...")
+    mensaje_carga = await ctx.send("> Buscando información del clima...<:sparkles:1506394397057613864>")
     
     # Construir la URL para la API
     url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={API_KEY}&units=metric&lang=es"
@@ -2430,9 +2430,9 @@ async def clima(ctx: commands.Context, *, ciudad: str):
                 if respuesta.status == 404:
                     await mensaje_carga.delete()
                     embed = discord.Embed(
-                        title="❌ Ciudad no encontrada",
-                        description=f"No se encontró la ciudad **{ciudad}**.\nVerifica el nombre e intenta de nuevo.",
-                        color=discord.Color.red()
+                        title="Ciudad no encontrada",
+                        description=f"> No se encontró la ciudad **{ciudad}**.\nVerifica el nombre e intenta de nuevo.",
+                        color=0x1a237e()
                     )
                     await ctx.send(embed=embed)
                     return
@@ -2441,9 +2441,9 @@ async def clima(ctx: commands.Context, *, ciudad: str):
                 if respuesta.status != 200:
                     await mensaje_carga.delete()
                     embed = discord.Embed(
-                        title="❌ Error",
-                        description=f"Error al obtener el clima. Código: {respuesta.status}",
-                        color=discord.Color.red()
+                        title="Error",
+                        description=f"> Error al obtener el clima. Código: {respuesta.status}",
+                        color=0x1a237e()
                     )
                     await ctx.send(embed=embed)
                     return
@@ -2454,9 +2454,9 @@ async def clima(ctx: commands.Context, *, ciudad: str):
     except Exception as e:
         await mensaje_carga.delete()
         embed = discord.Embed(
-            title="❌ Error de conexión",
-            description=f"No se pudo conectar con el servicio del clima.\n```{str(e)}```",
-            color=discord.Color.red()
+            title="Error de conexión",
+            description=f"> No se pudo conectar con el servicio del clima.\n```{str(e)}```",
+            color=0x1a237e()
         )
         await ctx.send(embed=embed)
         return
@@ -2474,26 +2474,14 @@ async def clima(ctx: commands.Context, *, ciudad: str):
     # Formatear la descripción (primera letra mayúscula)
     descripcion = descripcion.capitalize()
     
-    # Emojis según la temperatura
-    if temperatura <= 0:
-        emoji_temp = "🥶"
-    elif temperatura <= 15:
-        emoji_temp = "🥶"
-    elif temperatura <= 25:
-        emoji_temp = "😊"
-    elif temperatura <= 35:
-        emoji_temp = "🥵"
-    else:
-        emoji_temp = "🔥"
-    
     # Crear el embed bonito
     embed = discord.Embed(
         title=f" Clima en {nombre_ciudad}, {pais}",
-        color=discord.Color.blue()
+        color=0x1a237e()
     )
     
     # Agregar campos
-    embed.add_field(name=f"> {emoji_temp} Temperatura", value=f"{temperatura}°C", inline=True)
+    embed.add_field(name=f"> Temperatura", value=f"{temperatura}°C", inline=True)
     embed.add_field(name="> Sensación", value=f"{sensacion_termica}°C", inline=True)
     embed.add_field(name="> Humedad", value=f"{humedad}%", inline=True)
     embed.add_field(name="> Viento", value=f"{viento} m/s", inline=True)
