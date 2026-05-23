@@ -7,6 +7,7 @@ import random
 import json
 import time
 import aiohttp
+import urllib.parse
 from PIL import Image, ImageDraw, ImageFont
 from groq import AsyncGroq
 from discord.ext import commands
