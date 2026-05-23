@@ -450,75 +450,50 @@ async def generar_afk(usuario: discord.Member, motivo: str, color_barra=None) ->
 
 
 async def generar_spotify(usuario: discord.Member, actividad: discord.Spotify) -> discord.File:
-  W, H = 340, 500
-    # Cuerpo del iPod (Azul profundo del ambiente de tu imagen)
-    CUERPO_IPOD = (20, 40, 100)
-    PANTALLA_FONDO = (173, 232, 244) # Celeste claro luminoso de fondo de pantalla retro
-    PANTALLA_TEXTO = (3, 4, 94)      # Azul marino oscuro para las letras en la pantalla
+     W, H     = 680, 180
 
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    img  = Image.new("RGBA", (W, H), FONDO_G)
     draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
-    # 1. Cuerpo metálico redondeado del iPod
-    draw.rounded_rectangle([(10, 10), (W - 10, H - 10)], radius=30, fill=AZUL_IPOD)
-    # Borde de luz metálica
-    draw.rounded_rectangle([(10, 10), (W - 10, H - 10)], radius=30, outline=BLANCO, width=2)
+    try:
+        portada = await descargar_imagen(actividad.album_cover_url)
+        portada = portada.resize((130, 130)).convert("RGBA")
+        mask = Image.new("L", (130, 130), 0)
+        ImageDraw.Draw(mask).rounded_rectangle([(0, 0), (130, 130)], radius=10, fill=255)
+        portada_r = Image.new("RGBA", (130, 130), (0, 0, 0, 0))
+        portada_r.paste(portada, (0, 0), mask)
+        img.paste(portada_r, (30, 25), portada_r)
+    except:
+        draw.rounded_rectangle([(30, 25), (160, 155)], radius=10, fill=GRIS_G)
 
-    # 2. Pantalla LCD Luminosa
-    draw.rounded_rectangle([(30, 30), (W - 30, 210)], radius=10, fill=PANTALLA_FONDO)
-    draw.rounded_rectangle([(30, 30), (W - 30, 210)], radius=10, outline=(100, 200, 255), width=2)
+    draw.rounded_rectangle([(29, 24), (161, 156)], radius=10, outline=AZUL_OSCURO, width=2)
+    draw.text((182, 28), f"{usuario.display_name} esta escuchando", font=fuente(13), fill=SUB_G)
+    cancion = actividad.title[:30] + "..." if len(actividad.title) > 30 else actividad.title
+    draw.text((182, 50), cancion, font=fuente(20, bold=True), fill=TEXTO_G)
+    draw.text((182, 78), actividad.artist, font=fuente(14), fill=AZUL_OSCURO)
+    album = actividad.album[:35] + "..." if len(actividad.album) > 35 else actividad.album
+    draw.text((182, 100), album, font=fuente(12), fill=SUB_G)
+    draw.rectangle([(182, 118), (645, 119)], fill=GRIS_G)
 
-    # Contenido de la Pantalla LCD
-    draw.text((45, 45), "Ahora Sonando", font=fuente(12, bold=True), fill=(10, 50, 120))
-    
-    # Título y Artista
-    titulo_recortado = cancion[:20] + "..." if len(cancion) > 20 else cancion
-    artista_recortado = artista[:24] + "..." if len(artista) > 24 else artista
-    draw.text((45, 75), titulo_recortado, font=fuente(18, bold=True), fill=PANTALLA_TEXTO)
-    draw.text((45, 105), artista_recortado, font=fuente(13), fill=PANTALLA_TEXTO)
+    ahora        = discord.utils.utcnow()
+    duracion     = actividad.duration.total_seconds()
+    transcurrido = (ahora - actividad.start).total_seconds()
+    progreso     = min(transcurrido / duracion, 1.0) if duracion > 0 else 0
 
-    # Barra de reproducción estilo iPod OS
-    draw.rounded_rectangle([(45, 140), (W - 45, 148)], radius=4, fill=(210, 210, 210))
-    progreso_px = 45 + int((W - 90) * (progreso_pct / 100))
-    draw.rounded_rectangle([(45, 140), (progreso_px, 148)], radius=4, fill=AZUL_IPOD)
-    
-    # Tiempos de la canción
-    draw.text((45, 160), "0:00", font=fuente(11), fill=PANTALLA_TEXTO)
-    draw.text((W - 45, 160), duracion, font=fuente(11), fill=PANTALLA_TEXTO, anchor="ra")
+    draw.rounded_rectangle([(182, 128), (645, 136)], radius=4, fill=GRIS_G)
+    fill_w = int(182 + (463 * progreso))
+    if fill_w > 182:
+        draw.rounded_rectangle([(182, 128), (fill_w, 136)], radius=4, fill=BLANCO)
 
-    # Icono de batería pequeña en la esquina de la pantalla
-    draw.rectangle([(W - 65, 45), (W - 45, 55)], outline=PANTALLA_TEXTO, width=1)
-    draw.rectangle([(W - 63, 47), (W - 49, 53)], fill=PANTALLA_TEXTO)
+    fmt = lambda s: f"{int(s) // 60}:{int(s) % 60:02}"
+    draw.text((182, 148), fmt(max(transcurrido, 0)), font=fuente(11), fill=SUB_G)
+    draw.text((645, 148), fmt(duracion), font=fuente(11), fill=SUB_G, anchor="ra")
 
-    # 3. La famosa Click Wheel de los iPods
-    centro_x, centro_y = W // 2, 350
-    radio_rueda = 90
-    draw.ellipse([(centro_x - radio_rueda, centro_y - radio_rueda), 
-                  (centro_x + radio_rueda, centro_y + radio_rueda)], 
-                 fill=(240, 240, 240))
-    
-    # Borde de sombra de la rueda
-    draw.ellipse([(centro_x - radio_rueda, centro_y - radio_rueda), 
-                  (centro_x + radio_rueda, centro_y + radio_rueda)], 
-                 outline=(200, 200, 200), width=3)
-
-    # Botón Central de Selección
-    radio_central = 30
-    draw.ellipse([(centro_x - radio_central, centro_y - radio_central), 
-                  (centro_x + radio_central, centro_y + radio_central)], 
-                 fill=(210, 210, 210))
-
-    # Textos de los botones de la rueda (MENU, >>|, |<<, >||)
-    draw.text((centro_x, centro_y - 75), "MENU", font=fuente(12, bold=True), fill=(120, 120, 120), anchor="mm")
-    draw.text((centro_x, centro_y + 70), "▶||", font=fuente(12, bold=True), fill=(120, 120, 120), anchor="mm")
-    draw.text((centro_x - 65, centro_y), "|◀◀", font=fuente(11, bold=True), fill=(120, 120, 120), anchor="mm")
-    draw.text((centro_x + 65, centro_y), "▶▶|", font=fuente(11, bold=True), fill=(120, 120, 120), anchor="mm")
-
-    # Guardar en memoria de bytes
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
-    return discord.File(buf, filename="ipod.png")
+    return discord.File(buf, filename="spotify.png")
 
 async def generar_warn(usuario: discord.Member, razon: str, total: int) -> discord.File:
     W, H     = 680, 180
@@ -2556,6 +2531,137 @@ async def clima_card(ctx: commands.Context, *, ciudad: str):
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
+
+# Tu color estético del iPod azul veraniego
+AZUL_IPOD = (43, 85, 181)
+AZUL_IPOD_NUM = 0x2B55B5
+
+# =========================================================
+# GENERADOR GRÁFICO - CÁMARA RETRO (PILLOW)
+# =========================================================
+
+async def generar_camara_retro_img(usuario: discord.Member) -> discord.File:
+    """
+    Descarga el avatar del usuario y lo transforma en una captura analógica/digital
+    estilo Cyber Y2K (años 2000) con overlays de interfaz de cámara.
+    """
+    # 1. Obtener la imagen del avatar del usuario
+    avatar_original = await descargar_imagen(str(usuario.display_avatar.url))
+    
+    # Queremos una proporción clásica de foto digital antigua (4:3)
+    # Redimensionamos la foto de perfil para que sea de 640x480 píxeles
+    base_img = avatar_original.resize((640, 480)).convert("RGBA")
+    
+    # 2. Aplicar un filtro sutil de saturación y ruido retro para simular un sensor CCD antiguo
+    # Aumentar la saturación un poco para el toque veraniego
+    enhancer_color = ImageEnhance.Color(base_img)
+    base_img = enhancer_color.enhance(1.25)
+    
+    # Aumentar el contraste ligeramente
+    enhancer_contrast = ImageEnhance.Contrast(base_img)
+    base_img = enhancer_contrast.enhance(1.1)
+
+    # Crear la capa de dibujo
+    draw = ImageDraw.Draw(base_img)
+    
+    # Colores clásicos de la interfaz de cámara digital
+    VERDE_LIME = (57, 255, 20)      # Batería y enfoque activo
+    BLANCO_UI = (255, 255, 255, 220) # Iconos generales
+    NARANJA_DATE = (255, 110, 0)     # El clásico estampado de fecha retro de cuarzo
+    
+    # 3. Dibujar la cuadrícula de enfoque (Focus Grid) en el centro de la pantalla
+    cx, cy = 320, 240 # Centro de la imagen
+    offset = 40       # Tamaño de los brackets de enfoque
+    grosor = 2
+    
+    # Bracket Izquierdo del visor de enfoque
+    draw.line([(cx - offset, cy - 20), (cx - offset, cy + 20)], fill=VERDE_LIME, width=grosor)
+    draw.line([(cx - offset, cy - 20), (cx - offset + 15, cy - 20)], fill=VERDE_LIME, width=grosor)
+    draw.line([(cx - offset, cy + 20), (cx - offset + 15, cy + 20)], fill=VERDE_LIME, width=grosor)
+    
+    # Bracket Derecho del visor de enfoque
+    draw.line([(cx + offset, cy - 20), (cx + offset, cy + 20)], fill=VERDE_LIME, width=grosor)
+    draw.line([(cx + offset, cy - 20), (cx + offset - 15, cy - 20)], fill=VERDE_LIME, width=grosor)
+    draw.line([(cx + offset, cy + 20), (cx + offset - 15, cy + 20)], fill=VERDE_LIME, width=grosor)
+
+    # Pequeño punto de enfoque activo en el centro
+    draw.rectangle([(cx - 2, cy - 2), (cx + 2, cy + 2)], fill=VERDE_LIME)
+
+    # 4. Iconos e indicadores en las esquinas de la interfaz de la cámara
+    
+    # ESQUINA SUPERIOR IZQUIERDA: Modo de Disparo e ISO
+    # Icono del flash activado (⚡)
+    draw.text((25, 25), "⚡", font=fuente(18, bold=True), fill=BLANCO_UI)
+    draw.text((50, 28), "AUTO", font=fuente(11, bold=True), fill=BLANCO_UI)
+    
+    # Indicador de ISO y modo estabilizador
+    draw.text((25, 55), "ISO 100", font=fuente(12, bold=True), fill=BLANCO_UI)
+    draw.text((25, 75), "[O]", font=fuente(12, bold=True), fill=VERDE_LIME) # Estabilizador en verde
+
+    # ESQUINA SUPERIOR DERECHA: Batería y Memoria SD
+    # Icono de batería
+    draw.rectangle([(570, 28), (610, 44)], outline=BLANCO_UI, width=2)
+    draw.rectangle([(610, 32), (613, 40)], fill=BLANCO_UI) # El polo positivo de la batería
+    # Llenado de batería (Verde neón para indicar cargada)
+    draw.rectangle([(573, 31), (607, 41)], fill=VERDE_LIME)
+    
+    # Calidad de imagen y espacio restante
+    draw.text((550, 55), "5.0 Mpx", font=fuente(12, bold=True), fill=BLANCO_UI)
+    draw.text((585, 75), "RAW", font=fuente(11, bold=True), fill=BLANCO_UI)
+
+    # ESQUINA INFERIOR IZQUIERDA: Ajustes adicionales (F-stop, velocidad de disparo)
+    draw.text((25, 410), "F 2.8", font=fuente(13, bold=True), fill=BLANCO_UI)
+    draw.text((25, 430), "1/125s", font=fuente(13, bold=True), fill=BLANCO_UI)
+    draw.text((25, 450), "+0.7 EV", font=fuente(11, bold=True), fill=BLANCO_UI)
+
+    # ESQUINA INFERIOR DERECHA: Estampa de fecha clásica de cuarzo naranja
+    # Obtenemos la fecha actual
+    fecha_actual = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    
+    # Para el toque verdaderamente retro, aplicamos una sombra negra muy sutil al texto de la fecha
+    # Esto simula el relieve del quemado del cuarzo en las pantallas LCD de cámaras de los 2000
+    sombra_desplazamiento = 1
+    draw.text((430 + sombra_desplazamiento, 440 + sombra_desplazamiento), fecha_actual, font=fuente(16, bold=True), fill=(0, 0, 0))
+    # Fecha principal en naranja cuarzo brillante
+    draw.text((430, 440), fecha_actual, font=fuente(16, bold=True), fill=NARANJA_DATE)
+
+    # 5. Convertir a archivo seguro de Discord para envío
+    buf = io.BytesIO()
+    base_img.convert("RGB").save(buf, format="JPEG", quality=90) # JPEG para un sutil toque de compresión nostálgica
+    buf.seek(0)
+    return discord.File(buf, filename="camara_retro.png")
+
+# =========================================================
+# COMANDO HÍBRIDO DE DISCORD
+# =========================================================
+
+@bot.hybrid_command(name="camara-retro", description="Toma una foto de un usuario con estética de cámara digital de los años 2000.")
+async def camara_retro(ctx: commands.Context, usuario: discord.Member = None):
+    """
+    Comando para aplicar un filtro de visor de cámara fotográfica portátil Y2K.
+    """
+    await ctx.defer()
+    
+    # Si no se especifica usuario, la foto se le toma al autor del comando
+    usuario_objetivo = usuario or ctx.author
+    
+    try:
+        # Generar el archivo gráfico con Pillow
+        file = await generar_camara_retro_img(usuario_objetivo)
+        
+        # Enviar la imagen
+        await ctx.send(
+            content=f"📸 **Captura tomada con éxito!** — *Visor LCD Cyber-shot 2000*",
+            file=file
+        )
+    except Exception as e:
+        print(f"Error en comando camara-retro: {e}")
+        embed_error = discord.Embed(
+            title="💥 Error de Enfoque",
+            description=f"No pude procesar la foto de {usuario_objetivo.mention}.\n*¿Tiene un avatar válido?*",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed_error)
 
 # =========================================================
 # ERROR HANDLER
