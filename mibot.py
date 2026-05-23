@@ -2591,6 +2591,166 @@ async def juegos_gratis(ctx: commands.Context):
     
     await ctx.send(embed=embed)
 
+# =========================================================
+# COMANDO PELICULA - Buscar información de películas
+# =========================================================
+
+@bot.hybrid_command(name="pelicula", description="Busca información de una película")
+async def pelicula(ctx: commands.Context, *, nombre: str):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    API_KEY = os.getenv("TMDB_API_KEY")
+    
+    if not API_KEY:
+        await ctx.send("**API Key de TMDB no configurada**")
+        return
+    
+    # Buscar película
+    url_buscar = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={nombre}&language=es"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url_buscar) as resp:
+            data = await resp.json()
+            resultados = data.get('results', [])
+            
+            if not resultados:
+                await ctx.send(f"> No se encontró la película: **{nombre}**")
+                return
+            
+            peli = resultados[0]
+    
+    # Obtener detalles
+    peli_id = peli.get('id')
+    url_detalles = f"https://api.themoviedb.org/3/movie/{peli_id}?api_key={API_KEY}&language=es"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url_detalles) as resp:
+            detalles = await resp.json()
+    
+    titulo = detalles.get('title', 'Sin título')
+    fecha = detalles.get('release_date', 'Desconocida')[:4]
+    duracion = detalles.get('runtime', 0)
+    generos = ", ".join([g.get('name', '') for g in detalles.get('genres', [])])
+    descripcion = detalles.get('overview', 'Sin descripción')
+    puntaje = detalles.get('vote_average', 0)
+    poster = detalles.get('poster_path', '')
+    url_imagen = f"https://image.tmdb.org/t/p/w500{poster}" if poster else ""
+    
+    embed = discord.Embed(
+        title=f"{titulo} ⁝ ({fecha})",
+        description=descripcion[:300] + "..." if len(descripcion) > 300 else descripcion,
+        color=0x1a237e
+    )
+    embed.add_field(name="> Puntuación", value=f"{puntaje}/10", inline=True)
+    embed.add_field(name="> Duración", value=f"{duracion} min", inline=True)
+    embed.add_field(name="> Géneros", value=generos[:50], inline=True)
+    
+    if url_imagen:
+        embed.set_thumbnail(url=url_imagen)
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO POKEMON - Información de Pokémon
+# =========================================================
+
+@bot.hybrid_command(name="pokemon", description="Información de un Pokémon")
+async def pokemon(ctx: commands.Context, *, nombre: str):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    nombre = nombre.lower().strip()
+    url = f"https://pokeapi.co/api/v2/pokemon/{nombre}"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send(f"**No se encontró el Pokémon: **{nombre}****")
+                return
+            
+            data = await resp.json()
+    
+    # Extraer datos
+    nombre_oficial = data.get('name', nombre).capitalize()
+    id_pokemon = data.get('id', 0)
+    altura = data.get('height', 0) / 10  # Convertir a metros
+    peso = data.get('weight', 0) / 10     # Convertir a kg
+    tipos = ", ".join([t['type']['name'].capitalize() for t in data.get('types', [])])
+    
+    # Habilidades
+    habilidades = ", ".join([h['ability']['name'].capitalize() for h in data.get('abilities', [])[:3]])
+    
+    # Estadísticas base
+    stats = {}
+    for s in data.get('stats', []):
+        stat_name = s['stat']['name']
+        stat_value = s['base_stat']
+        stats[stat_name] = stat_value
+    
+    # Sprite
+    sprite = data.get('sprites', {}).get('front_default', '')
+    
+    embed = discord.Embed(
+        title=f"{nombre_oficial} ⁞ #{id_pokemon}",
+        color=0x1a237e
+    )
+    embed.add_field(name="> Altura", value=f"{altura} m", inline=True)
+    embed.add_field(name="> Peso", value=f"{peso} kg", inline=True)
+    embed.add_field(name="> Tipo", value=tipos, inline=True)
+    embed.add_field(name="> Habilidades", value=habilidades, inline=False)
+    
+    if stats:
+        hp = stats.get('hp', 0)
+        ataque = stats.get('attack', 0)
+        defensa = stats.get('defense', 0)
+        embed.add_field(name="> HP", value=hp, inline=True)
+        embed.add_field(name="> Ataque", value=ataque, inline=True)
+        embed.add_field(name="> Defensa", value=defensa, inline=True)
+    
+    if sprite:
+        embed.set_thumbnail(url=sprite)
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO NASA - Foto astronómica del día
+# =========================================================
+
+@bot.hybrid_command(name="nasa", description="Foto astronómica del día (NASA APOD)")
+async def nasa(ctx: commands.Context):
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    url = "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send("**Error al obtener imagen de la NASA.**")
+                return
+            
+            data = await resp.json()
+    
+    titulo = data.get('title', 'Imagen del día')
+    explicacion = data.get('explanation', 'Sin explicación')
+    imagen = data.get('url', '')
+    fecha = data.get('date', '')
+    
+    if len(explicacion) > 400:
+        explicacion = explicacion[:400] + "..."
+    
+    embed = discord.Embed(
+        title=f"{titulo}",
+        description=explicacion,
+        color=0x1a237e
+        url=imagen
+    )
+    embed.set_image(url=imagen)
+    embed.set_footer(text=f"> {fecha} | NASA Astronomy Picture of the Day")
+    
+    await ctx.send(embed=embed)
+
 # -------------------------
 # FLASK WEB
 # -------------------------
