@@ -3293,7 +3293,7 @@ async def covid(ctx: commands.Context, pais: str = "mexico"):
     
     embed = discord.Embed(
         title=f"COVID-19: {nombre}",
-        color=discord.Color.red()
+        color=0x1a237e
     )
     
     if bandera:
