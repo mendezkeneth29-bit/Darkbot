@@ -1775,7 +1775,7 @@ async def reproducir(ctx, *, cancion: str):
         url = "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO90d0o_cqFbnSa2Bx0-Dmp5BaM9aW0uM"
         payload = {
             "context": {"client": {"clientName": "WEB", "clientVersion": "2.20230101.00.00"}},
-            "query": cancion,
+            "query": video,
             "params": "EgIQAQ%3D%3D"
         }
         async with aiohttp.ClientSession() as session:
@@ -1868,133 +1868,73 @@ async def lyrics(ctx, *, cancion: str):
         else: await ctx.send(embed=embed)
 
 # =========================================================
-# CLIMA
-# =========================================================
-
-@bot.hybrid_command(name="clima", description="Ver el clima de una ciudad")
-async def clima(ctx, *, ciudad: str):
-    await ctx.defer() if ctx.interaction else None
-    try:
-        url = f"https://wttr.in/{ciudad}?format=j1"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    cc          = data['current_condition'][0]
-                    temperatura = cc['temp_C']
-                    sensacion   = cc['FeelsLikeC']
-                    humedad     = cc['humidity']
-                    descripcion = cc['weatherDesc'][0]['value']
-
-                    embed = discord.Embed(color=0x1a237e, title=f"Clima en {ciudad}")
-                    embed.add_field(name="Temperatura",       value=f"{temperatura}°C", inline=True)
-                    embed.add_field(name="Sensacion Termica", value=f"{sensacion}°C",   inline=True)
-                    embed.add_field(name="Humedad",           value=f"{humedad}%",      inline=True)
-                    embed.add_field(name="Condicion",         value=descripcion,         inline=False)
-                else:
-                    embed = discord.Embed(color=0x1a237e)
-                    embed.description = "> Ciudad no encontrada"
-
-        if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
-        else: await ctx.send(embed=embed)
-
-    except Exception as e:
-        embed = discord.Embed(color=0x1a237e)
-        embed.description = f"> Error: `{str(e)}`"
-        if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
-        else: await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="pronostico", description="Pronostico de 3 dias")
-async def pronostico(ctx, *, ciudad: str):
-    await ctx.defer() if ctx.interaction else None
-    try:
-        url = f"https://wttr.in/{ciudad}?format=j1"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data  = await resp.json()
-                    embed = discord.Embed(color=0x1a237e, title=f"Pronostico de {ciudad}")
-                    for n, dia in enumerate(data['weather'][:3], 1):
-                        embed.add_field(
-                            name=f"Dia {n} - {dia['date']}",
-                            value=f"Max: {dia['maxtempC']}°C | Min: {dia['mintempC']}°C\n{dia['hourly'][0]['weatherDesc'][0]['value']}",
-                            inline=False
-                        )
-                else:
-                    embed = discord.Embed(color=0x1a237e)
-                    embed.description = "> Ciudad no encontrada"
-
-        if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
-        else: await ctx.send(embed=embed)
-
-    except Exception as e:
-        embed = discord.Embed(color=0x1a237e)
-        embed.description = f"> Error: `{str(e)}`"
-        if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
-        else: await ctx.send(embed=embed)
-
-# =========================================================
 # BUSCAR LIBRO
 # =========================================================
 
-biblioteca_data = {}
-
-@bot.hybrid_command(name="buscar-libro", description="Busca informacion de un libro")
-async def buscar_libro(ctx, *, query: str):
+@bot.hybrid_command(name="buscar-libro", description="Busca información de un libro en Google Books")
+async def buscar_libro(ctx: commands.Context, *, query: str):
+    """
+    Busca información de un libro y la presenta en un embed estético.
+    """
     await ctx.defer()
-    url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=1"
+    
+    # Codificar el query para que la URL sea válida
+    query_encoded = urllib.parse.quote(query)
+    url = f"https://www.googleapis.com/books/v1/volumes?q={query_encoded}&maxResults=1"
+    
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(url, timeout=10) as response:
                 if response.status == 429:
-                    embed = discord.Embed(color=0x1a237e, title="API Saturada")
-                    embed.description = "> Limite de busquedas alcanzado. Espera unos minutos."
+                    embed = discord.Embed(title="Diagnóstico", description="> Límite de búsquedas alcanzado. Espera unos minutos.", color=AZUL_IPOD_NUM)
                     return await ctx.send(embed=embed)
+                
                 if response.status != 200:
-                    embed = discord.Embed(color=0x1a237e)
-                    embed.description = f"> Error de conexion ({response.status})"
+                    embed = discord.Embed(description=f"> Error de conexión ({response.status})", color=AZUL_IPOD_NUM)
                     return await ctx.send(embed=embed)
+                
                 data = await response.json()
 
         if "items" not in data:
-            embed = discord.Embed(color=0x1a237e)
-            embed.description = f"> No encontre ningun libro para: **{query}**"
+            embed = discord.Embed(description=f"> No encontré ningún libro para: **{query}**", color=AZUL_IPOD_NUM)
             return await ctx.send(embed=embed)
 
-        info        = data["items"][0]["volumeInfo"]
-        titulo      = info.get("title", "Sin titulo")
-        autores     = ", ".join(info.get("authors", ["Desconocido"]))
-        descripcion = info.get("description", "Sin descripcion.")[:500] + ("..." if len(info.get("description", "")) > 500 else "")
-        fecha       = info.get("publishedDate", "Desconocida")
-        paginas     = info.get("pageCount", "N/A")
-        portada     = info.get("imageLinks", {}).get("thumbnail", "").replace("http://", "https://")
+        info = data["items"][0]["volumeInfo"]
+        titulo = info.get("title", "Sin título")
+        autores = ", ".join(info.get("authors", ["Desconocido"]))
+        
+        # Limpieza de descripción
+        raw_desc = info.get("description", "Sin descripción disponible.")
+        descripcion = (raw_desc[:500] + "...") if len(raw_desc) > 500 else raw_desc
+        
+        fecha = info.get("publishedDate", "Desconocida")
+        paginas = info.get("pageCount", "N/A")
+        
+        # Obtener portada y asegurar HTTPS
+        portada = info.get("imageLinks", {}).get("thumbnail", "")
+        if portada:
+            portada = portada.replace("http://", "https://")
 
-        embed = discord.Embed(title=titulo, description=descripcion, color=0x1a237e)
-        embed.add_field(name="> Autor(es)",    value=autores, inline=True)
-        embed.add_field(name="> Publicacion",  value=fecha,   inline=True)
-        embed.add_field(name="> Paginas",      value=str(paginas), inline=True)
-        if portada: embed.set_thumbnail(url=portada)
-        embed.set_footer(text=f"Solicitado por {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        # Construcción del Embed estético
+        embed = discord.Embed(title=titulo, description=descripcion, color=AZUL_IPOD_NUM)
+        embed.add_field(name="> Autor(es)", value=autores, inline=True)
+        embed.add_field(name="> Publicación", value=fecha, inline=True)
+        embed.add_field(name="> Páginas", value=str(paginas), inline=True)
+        
+        if portada:
+            embed.set_thumbnail(url=portada)
+            
+        embed.set_footer(
+            text=f"Solicitado por {ctx.author.display_name}", 
+            icon_url=ctx.author.display_avatar.url
+        )
+        
         await ctx.send(embed=embed)
 
     except Exception as e:
-        embed = discord.Embed(color=0x1a237e)
-        embed.description = f"> Error inesperado: `{str(e)[:100]}`"
+        print(f"Error en buscar-libro: {e}")
+        embed = discord.Embed(description=f"> Error inesperado: `{str(e)[:100]}`", color=AZUL_IPOD_NUM)
         await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="mi-biblioteca", description="Ve tu biblioteca personal")
-async def mi_biblioteca(ctx):
-    await ctx.defer()
-    gid, uid = str(ctx.guild.id), str(ctx.author.id)
-    if gid not in biblioteca_data or uid not in biblioteca_data[gid] or not biblioteca_data[gid][uid]:
-        embed = discord.Embed(color=0x1a237e)
-        embed.description = "> Tu biblioteca esta vacia."
-        await ctx.send(embed=embed)
-        return
-    embed = discord.Embed(color=0x1a237e, title="Mi Biblioteca Personal")
-    for libro in biblioteca_data[gid][uid]:
-        embed.add_field(name=libro.get('titulo', 'Sin titulo'), value=f"**Autor:** {libro.get('autor', 'Desconocido')}", inline=False)
-    await ctx.send(embed=embed)
 
 # =========================================================
 # TRIVIA
@@ -2432,49 +2372,6 @@ async def generar_ipod_player_img(cancion: str, artista: str, duracion: str, pro
     buf.seek(0)
     return discord.File(buf, filename="ipod.png")
 
-
-async def generar_clima_card_img(ciudad: str, temp: str, condicion: str, humedad: str, sensacion: str) -> discord.File:
-    """
-    Genera una hermosa tarjeta de clima veraniega (650x200) con degradados
-    y estética refrescante basada en tu azul iPod.
-    """
-    W, H = 650, 200
-    img = Image.new("RGBA", (W, H), FONDO_G)
-    draw = ImageDraw.Draw(img)
-
-    # Barra decorativa de color
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_IPOD)
-
-    # Caja principal del clima con gradiente de azul suave
-    draw.rounded_rectangle([(24, 24), (W - 24, H - 24)], radius=15, fill=(15, 20, 35))
-    draw.rounded_rectangle([(24, 24), (W - 24, H - 24)], radius=15, outline=AZUL_IPOD, width=2)
-
-    # Nombre de la Ciudad y Condición climática
-    draw.text((45, 42), f"CLIMA EN {ciudad.upper()}", font=fuente(14, bold=True), fill=SUB_G)
-    draw.text((45, 68), condicion.capitalize(), font=fuente(20, bold=True), fill=BLANCO)
-
-    # Gran Temperatura en formato visual destacado
-    draw.text((W - 60, 42), f"{temp}°C", font=fuente(42, bold=True), fill=AZUL_IPOD, anchor="ra")
-
-    # Línea divisoria interna
-    draw.rectangle([(45, 115), (W - 45, 116)], fill=GRIS_G)
-
-    # Campos secundarios inferiores
-    draw.text((45, 134), "HUMEDAD", font=fuente(10, bold=True), fill=SUB_G)
-    draw.text((45, 152), f"{humedad}", font=fuente(15, bold=True), fill=BLANCO)
-
-    draw.text((220, 134), "SENSACIÓN TÉRMICA", font=fuente(10, bold=True), fill=SUB_G)
-    draw.text((220, 152), f"{sensacion}°C", font=fuente(15, bold=True), fill=BLANCO)
-
-    # Mensaje de ambientación refrescante veraniego
-    consejo = "¡Hora de un refresco helado! 🍹" if "sun" in condicion.lower() or "despejado" in condicion.lower() else "Día perfecto para música y relax. 🎧"
-    draw.text((W - 45, 148), consejo, font=fuente(11), fill=AZUL_IPOD, anchor="ra")
-
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="climacard.png")
-
 # =========================================================
 # COMANDOS DE DISCORD REESTRUCTURADOS
 # =========================================================
@@ -2494,175 +2391,6 @@ async def ipod_player(ctx: commands.Context, cancion: str, artista: str, duracio
     
     # Enviamos el archivo
     await ctx.send(file=file)
-
-
-@bot.hybrid_command(name="clima-card", description="Consulta el clima de una ciudad y genera una tarjeta de ambiente veraniega.")
-async def clima_card(ctx: commands.Context, *, ciudad: str):
-    """
-    Consulta meteorológica integrada directamente con Pillow para renderizar un widget gráfico.
-    """
-    await ctx.defer()
-    
-    try:
-        # Consulta a wttr.in para clima dinámico en formato JSON
-        url = f"https://wttr.in/{ciudad}?format=j1"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    
-                    clima_actual = data['current_condition'][0]
-                    temperatura = clima_actual['temp_C']
-                    sensacion = clima_actual['FeelsLikeC']
-                    humedad = f"{clima_actual['humidity']}%"
-                    descripcion = clima_actual['weatherDesc'][0]['value']
-                    
-                    # Llamamos al generador visual de clima
-                    file = await generar_clima_card_img(ciudad, temperatura, descripcion, humedad, sensacion)
-                    await ctx.send(file=file)
-                else:
-                    embed = discord.Embed(
-                        description="❌ Ciudad no encontrada. Intenta escribiendo una ciudad principal.",
-                        color=AZUL_IPOD_NUM
-                    )
-                    await ctx.send(embed=embed)
-    except Exception as e:
-        embed = discord.Embed(
-            description=f"⚠️ No pudimos conectar con el servicio meteorológico.\nDetalles: `{str(e)[:100]}`",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-
-# Tu color estético del iPod azul veraniego
-AZUL_IPOD = (43, 85, 181)
-AZUL_IPOD_NUM = 0x2B55B5
-
-# =========================================================
-# GENERADOR GRÁFICO - CÁMARA RETRO (PILLOW)
-# =========================================================
-
-async def generar_camara_retro_img(usuario: discord.Member) -> discord.File:
-    """
-    Descarga el avatar del usuario y lo transforma en una captura analógica/digital
-    estilo Cyber Y2K (años 2000) con overlays de interfaz de cámara.
-    """
-    # 1. Obtener la imagen del avatar del usuario
-    avatar_original = await descargar_imagen(str(usuario.display_avatar.url))
-    
-    # Queremos una proporción clásica de foto digital antigua (4:3)
-    # Redimensionamos la foto de perfil para que sea de 640x480 píxeles
-    base_img = avatar_original.resize((640, 480)).convert("RGBA")
-    
-    # 2. Aplicar un filtro sutil de saturación y ruido retro para simular un sensor CCD antiguo
-    # Aumentar la saturación un poco para el toque veraniego
-    enhancer_color = ImageEnhance.Color(base_img)
-    base_img = enhancer_color.enhance(1.25)
-    
-    # Aumentar el contraste ligeramente
-    enhancer_contrast = ImageEnhance.Contrast(base_img)
-    base_img = enhancer_contrast.enhance(1.1)
-
-    # Crear la capa de dibujo
-    draw = ImageDraw.Draw(base_img)
-    
-    # Colores clásicos de la interfaz de cámara digital
-    VERDE_LIME = (57, 255, 20)      # Batería y enfoque activo
-    BLANCO_UI = (255, 255, 255, 220) # Iconos generales
-    NARANJA_DATE = (255, 110, 0)     # El clásico estampado de fecha retro de cuarzo
-    
-    # 3. Dibujar la cuadrícula de enfoque (Focus Grid) en el centro de la pantalla
-    cx, cy = 320, 240 # Centro de la imagen
-    offset = 40       # Tamaño de los brackets de enfoque
-    grosor = 2
-    
-    # Bracket Izquierdo del visor de enfoque
-    draw.line([(cx - offset, cy - 20), (cx - offset, cy + 20)], fill=VERDE_LIME, width=grosor)
-    draw.line([(cx - offset, cy - 20), (cx - offset + 15, cy - 20)], fill=VERDE_LIME, width=grosor)
-    draw.line([(cx - offset, cy + 20), (cx - offset + 15, cy + 20)], fill=VERDE_LIME, width=grosor)
-    
-    # Bracket Derecho del visor de enfoque
-    draw.line([(cx + offset, cy - 20), (cx + offset, cy + 20)], fill=VERDE_LIME, width=grosor)
-    draw.line([(cx + offset, cy - 20), (cx + offset - 15, cy - 20)], fill=VERDE_LIME, width=grosor)
-    draw.line([(cx + offset, cy + 20), (cx + offset - 15, cy + 20)], fill=VERDE_LIME, width=grosor)
-
-    # Pequeño punto de enfoque activo en el centro
-    draw.rectangle([(cx - 2, cy - 2), (cx + 2, cy + 2)], fill=VERDE_LIME)
-
-    # 4. Iconos e indicadores en las esquinas de la interfaz de la cámara
-    
-    # ESQUINA SUPERIOR IZQUIERDA: Modo de Disparo e ISO
-    # Icono del flash activado (⚡)
-    draw.text((25, 25), "⚡", font=fuente(18, bold=True), fill=BLANCO_UI)
-    draw.text((50, 28), "AUTO", font=fuente(11, bold=True), fill=BLANCO_UI)
-    
-    # Indicador de ISO y modo estabilizador
-    draw.text((25, 55), "ISO 100", font=fuente(12, bold=True), fill=BLANCO_UI)
-    draw.text((25, 75), "[O]", font=fuente(12, bold=True), fill=VERDE_LIME) # Estabilizador en verde
-
-    # ESQUINA SUPERIOR DERECHA: Batería y Memoria SD
-    # Icono de batería
-    draw.rectangle([(570, 28), (610, 44)], outline=BLANCO_UI, width=2)
-    draw.rectangle([(610, 32), (613, 40)], fill=BLANCO_UI) # El polo positivo de la batería
-    # Llenado de batería (Verde neón para indicar cargada)
-    draw.rectangle([(573, 31), (607, 41)], fill=VERDE_LIME)
-    
-    # Calidad de imagen y espacio restante
-    draw.text((550, 55), "5.0 Mpx", font=fuente(12, bold=True), fill=BLANCO_UI)
-    draw.text((585, 75), "RAW", font=fuente(11, bold=True), fill=BLANCO_UI)
-
-    # ESQUINA INFERIOR IZQUIERDA: Ajustes adicionales (F-stop, velocidad de disparo)
-    draw.text((25, 410), "F 2.8", font=fuente(13, bold=True), fill=BLANCO_UI)
-    draw.text((25, 430), "1/125s", font=fuente(13, bold=True), fill=BLANCO_UI)
-    draw.text((25, 450), "+0.7 EV", font=fuente(11, bold=True), fill=BLANCO_UI)
-
-    # ESQUINA INFERIOR DERECHA: Estampa de fecha clásica de cuarzo naranja
-    # Obtenemos la fecha actual
-    fecha_actual = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
-    
-    # Para el toque verdaderamente retro, aplicamos una sombra negra muy sutil al texto de la fecha
-    # Esto simula el relieve del quemado del cuarzo en las pantallas LCD de cámaras de los 2000
-    sombra_desplazamiento = 1
-    draw.text((430 + sombra_desplazamiento, 440 + sombra_desplazamiento), fecha_actual, font=fuente(16, bold=True), fill=(0, 0, 0))
-    # Fecha principal en naranja cuarzo brillante
-    draw.text((430, 440), fecha_actual, font=fuente(16, bold=True), fill=NARANJA_DATE)
-
-    # 5. Convertir a archivo seguro de Discord para envío
-    buf = io.BytesIO()
-    base_img.convert("RGB").save(buf, format="JPEG", quality=90) # JPEG para un sutil toque de compresión nostálgica
-    buf.seek(0)
-    return discord.File(buf, filename="camara_retro.png")
-
-# =========================================================
-# COMANDO HÍBRIDO DE DISCORD
-# =========================================================
-
-@bot.hybrid_command(name="camara-retro", description="Toma una foto de un usuario con estética de cámara digital de los años 2000.")
-async def camara_retro(ctx: commands.Context, usuario: discord.Member = None):
-    """
-    Comando para aplicar un filtro de visor de cámara fotográfica portátil Y2K.
-    """
-    await ctx.defer()
-    
-    # Si no se especifica usuario, la foto se le toma al autor del comando
-    usuario_objetivo = usuario or ctx.author
-    
-    try:
-        # Generar el archivo gráfico con Pillow
-        file = await generar_camara_retro_img(usuario_objetivo)
-        
-        # Enviar la imagen
-        await ctx.send(
-            content=f"📸 **Captura tomada con éxito!** — *Visor LCD Cyber-shot 2000*",
-            file=file
-        )
-    except Exception as e:
-        print(f"Error en comando camara-retro: {e}")
-        embed_error = discord.Embed(
-            title="💥 Error de Enfoque",
-            description=f"No pude procesar la foto de {usuario_objetivo.mention}.\n*¿Tiene un avatar válido?*",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed_error)
 
 # =========================================================
 # ERROR HANDLER
