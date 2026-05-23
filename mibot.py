@@ -432,9 +432,9 @@ async def generar_afk(usuario: discord.Member, motivo: str, color_barra=None) ->
         draw.ellipse([(37, 47), (133, 143)], fill=GRIS_G)
 
     draw.ellipse([(35, 45), (135, 145)], outline=c_barra, width=2)
-    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=c_barra)
-    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=c_barra)
-    draw.text((120, 46), "z", font=fuente(11), fill=c_barra)
+    draw.text((98, 72), "z", font=fuente(17, bold=True), fill=BLANCO)
+    draw.text((110, 58), "z", font=fuente(14, bold=True), fill=BLANCO)
+    draw.text((120, 46), "z", font=fuente(11), fill=BLANCO)
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
     draw.rounded_rectangle([(158, 68), (218, 90)], radius=11, fill=c_barra)
     draw.text((188, 74), "AFK", font=fuente(12, bold=True), fill=FONDO_G, anchor="mt")
@@ -2500,63 +2500,61 @@ async def clima(ctx: commands.Context, *, ciudad: str):
     await ctx.send(embed=embed)
 
 # =========================================================
-# COMANDO PAÍS - Información de cualquier país
+# PAIS
 # =========================================================
 
-@bot.hybrid_command(name="goole-maps", description="Muestra información de un país")
+@bot.hybrid_command(name="pais", description="Muestra informacion de un pais")
 async def pais(ctx: commands.Context, *, nombre: str):
-    """
-    Uso: >pais España
-    Uso: >pais México
-    """
-    
     await ctx.defer() if ctx.interaction else None
-    
-    url = f"https://restcountries.com/v3.1/name/{nombre}"
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status != 200:
-                await ctx.send(f"**País **{nombre}** no encontrado.**")
-                return
-            
-            data = await resp.json()
-            pais_data = data[0]
-    
-    # Extraer información
-    nombre_oficial = pais_data.get('name', {}).get('official', 'Desconocido')
-    capital = ", ".join(pais_data.get('capital', ['Desconocida']))
-    poblacion = f"{pais_data.get('population', 0):,}"
-    area = f"{pais_data.get('area', 0):,} km²"
-    idiomas = ", ".join(pais_data.get('languages', {}).values())
-    moneda = list(pais_data.get('currencies', {}).values())[0].get('name', 'Desconocida') if pais_data.get('currencies') else 'Desconocida'
-    bandera = pais_data.get('flags', {}).get('png', '')
-    mapa = pais_data.get('maps', {}).get('googleMaps', '')
-    
-    # Crear embed
-    embed = discord.Embed(
-        title=f"{nombre_oficial}",
-        color=0x1a237e
-    )
-    embed.add_field(name="> Capital", value=capital, inline=True)
-    embed.add_field(name="> Población", value=poblacion, inline=True)
-    embed.add_field(name="> Área", value=area, inline=True)
-    embed.add_field(name="> Idiomas", value=idiomas[:50], inline=True)
-    embed.add_field(name="> Moneda", value=moneda, inline=True)
-    
-    if mapa:
-        embed.add_field(name="Google Maps", value=f"[Ver mapa]({mapa})", inline=False)
-    
-    if bandera:
-        embed.set_thumbnail(url=bandera)
-    
-    await ctx.send(embed=embed)
+
+    try:
+        url = f"https://restcountries.com/v3.1/name/{nombre}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    embed = discord.Embed(color=0x1a237e)
+                    embed.description = f"> Pais **{nombre}** no encontrado."
+                    if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
+                    else: await ctx.send(embed=embed)
+                    return
+                data = await resp.json()
+
+        pais_data      = data[0]
+        nombre_oficial = pais_data.get('name', {}).get('official', 'Desconocido')
+        capital        = ", ".join(pais_data.get('capital', ['Desconocida']))
+        poblacion      = f"{pais_data.get('population', 0):,}"
+        area           = f"{pais_data.get('area', 0):,} km"
+        idiomas        = ", ".join(pais_data.get('languages', {}).values())
+        moneda         = list(pais_data.get('currencies', {}).values())[0].get('name', 'Desconocida') if pais_data.get('currencies') else 'Desconocida'
+        bandera        = pais_data.get('flags', {}).get('png', '')
+        mapa           = pais_data.get('maps', {}).get('googleMaps', '')
+
+        embed = discord.Embed(title=nombre_oficial, color=0x1a237e)
+        embed.add_field(name="> Capital",   value=capital,          inline=True)
+        embed.add_field(name="> Poblacion", value=poblacion,        inline=True)
+        embed.add_field(name="> Area",      value=area,             inline=True)
+        embed.add_field(name="> Idiomas",   value=idiomas[:50],     inline=True)
+        embed.add_field(name="> Moneda",    value=moneda,           inline=True)
+        if mapa:
+            embed.add_field(name="> Google Maps", value=f"[Ver mapa]({mapa})", inline=False)
+        if bandera:
+            embed.set_thumbnail(url=bandera)
+
+        if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
+        else: await ctx.send(embed=embed)
+
+    except Exception as e:
+        embed = discord.Embed(color=0x1a237e)
+        embed.description = f"> Error: `{str(e)[:100]}`"
+        if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
+        else: await ctx.send(embed=embed)
+
 
 # =========================================================
 # COMANDO JUEGOS - Juegos gratis del momento
 # =========================================================
 
-@bot.hybrid_command(name="Juegos", description="Muestra una lista de juegos grautitos.")
+@bot.hybrid_command(name="juegos", description="Muestra juegos gratis disponibles")
 async def juegos_gratis(ctx: commands.Context):
     
     await ctx.defer() if ctx.interaction else None
@@ -2566,7 +2564,7 @@ async def juegos_gratis(ctx: commands.Context):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             if resp.status != 200:
-                await ctx.send("**Error al obtener juegos.**")
+                await ctx.send("Error al obtener juegos.")
                 return
             
             juegos = await resp.json()
@@ -2585,24 +2583,13 @@ async def juegos_gratis(ctx: commands.Context):
         
         embed.add_field(
             name=f"{titulo}",
-            value=f" {genero} |  {plataforma}\n [Descargar]({url_juego})",
+            value=f"{genero} |  {plataforma}\n [Descargar]({url_juego})",
             inline=False
         )
     
     embed.set_footer(text="Juegos gratis de FreeToGame.com")
     
     await ctx.send(embed=embed)
-
-# =========================================================
-# ERROR HANDLER
-# =========================================================
-
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandNotFound):
-        return
-    embed = discord.Embed(title="Error", description=f"```{str(error)}```", color=0xff69b4)
-    await ctx.send(embed=embed, delete_after=10)
 
 # -------------------------
 # FLASK WEB
