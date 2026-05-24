@@ -1099,19 +1099,15 @@ import re
 from datetime import datetime
 from typing import Optional, List, Dict
 
-# Colores
-AZUL_IPOD = 0x5AC8FA  # Azul iOS
-AZUL_OSCURO = 0x007AFF
-AZUL_CLARO = 0x64D2FF
-AZUL_ELECTRICO = 0x00C2FF
+# Colores - TODOS AZUL_IPOD
+AZUL_IPOD = 0x5AC8FA  # Azul iOS único
 
 # Configuración de memoria
-MEMORIA_MAX = 30  # Aumentado de 20 a 30 mensajes
+MEMORIA_MAX = 30
 TEMPERATURA = 0.8
 MAX_TOKENS = 500
 
 memoria_usuarios: Dict[int, List[Dict]] = {}
-memoria_contexto: Dict[int, Dict] = {}
 
 def get_memoria(user_id: int) -> list:
     """Obtiene el historial de conversación de un usuario"""
@@ -1127,7 +1123,6 @@ def agregar_memoria(user_id: int, role: str, content: str):
         "content": content,
         "timestamp": datetime.now().isoformat()
     })
-    # Mantener solo los últimos MEMORIA_MAX mensajes
     if len(memoria) > MEMORIA_MAX:
         memoria.pop(0)
 
@@ -1142,7 +1137,6 @@ def get_resumen_contexto(user_id: int) -> str:
     if len(memoria) < 5:
         return ""
     
-    # Extraer temas principales de la conversación
     temas = []
     for msg in memoria[-10:]:
         if msg["role"] == "user":
@@ -1154,18 +1148,18 @@ def get_resumen_contexto(user_id: int) -> str:
     return ""
 
 # =========================================================
-# GENERADOR DE IMÁGENES MEJORADO
+# GENERADOR DE IMÁGENES
 # =========================================================
 
 class ImageGenerator:
     """Clase dedicada a la generación de imágenes con múltiples modelos"""
     
     MODELOS = {
-        1: {"name": "FLUX-schnell", "emoji": "<:power:1507916118151532756>", "quality": "Buena"},
-        2: {"name": "FLUX-Kontext", "emoji": "<:retry:1505394236906799165>", "quality": "Media"},
-        3: {"name": "DreamShaper", "emoji": "<:pincel:1507915303429079081>", "quality": "Excelente"},
-        4: {"name": "RealVisXL", "emoji": "<:phone:1505453393798365234>", "quality": "Realista"},
-        5: {"name": "AnimeV3", "emoji": "<:identy:1504901134173737103>", "quality": "Anime"}
+        1: {"name": "FLUX-schnell", "quality": "Buena"},
+        2: {"name": "FLUX-Kontext", "quality": "Media"},
+        3: {"name": "DreamShaper", "quality": "Excelente"},
+        4: {"name": "RealVisXL", "quality": "Realista"},
+        5: {"name": "AnimeV3", "quality": "Anime"}
     }
     
     PALABRAS_CLAVE = [
@@ -1177,16 +1171,14 @@ class ImageGenerator:
     @staticmethod
     async def generar(mensaje: str, modelo: int = 3) -> tuple:
         """Genera una imagen usando LLM7"""
-        # Extraer prompt
         prompt = ImageGenerator._extraer_prompt(mensaje)
         
         if not prompt or len(prompt) < 3:
             prompt = mensaje
         
-        # Configurar parámetros
-        prompt_encoded = urllib.parse.quote(prompt[:500])  # Limitar prompt
+        prompt_encoded = urllib.parse.quote(prompt[:500])
         seed = random.randint(1, 999999)
-        size = random.choice([512, 768])  # Variedad de tamaños
+        size = random.choice([512, 768])
         url = f"https://api.llm7.io/prompt/{prompt_encoded}?w={size}&h={size}&seed={seed}&model={model}"
         
         return url, prompt, seed, model
@@ -1199,7 +1191,6 @@ class ImageGenerator:
             prompt = prompt.replace(palabra, "")
         prompt = re.sub(r'\s+', ' ', prompt).strip()
         
-        # Capitalizar primera letra
         if prompt:
             prompt = prompt[0].upper() + prompt[1:]
         return prompt
@@ -1207,7 +1198,7 @@ class ImageGenerator:
     @staticmethod
     async def generar_con_retry(mensaje: str, intentos: int = 2) -> tuple:
         """Intenta generar imagen con múltiples modelos si falla"""
-        modelos_a_intentar = [3, 1, 5, 2]  # DreamShaper -> FLUX -> Anime -> Kontext
+        modelos_a_intentar = [3, 1, 5, 2]
         
         for i in range(min(intentos, len(modelos_a_intentar))):
             modelo = modelos_a_intentar[i]
@@ -1225,7 +1216,7 @@ class ImageGenerator:
         return None, None, None, None, False
 
 # =========================================================
-# SISTEMA DE RESPUESTAS MEJORADO
+# SISTEMA DE RESPUESTAS
 # =========================================================
 
 async def generar_respuesta_ia(user_id: int, mensaje: str, nombre_usuario: str, nombre_servidor: str) -> str:
@@ -1258,21 +1249,13 @@ async def generar_respuesta_ia(user_id: int, mensaje: str, nombre_usuario: str, 
 5. Si te preguntan algo que no sabes, dilo con humor
 6. Recuerda cosas que te contaron antes
 7. Trata a cada usuario de forma única
-
-🎭 EJEMPLOS DE RESPUESTA:
-- "Ay amix... eso fue re turbio jajaja"
-- "Mmm no sé eh... medio raro eso"
-- "JAJAJAJA sos un caso perdido, te quiero igual"
 """
     
-    # Construir mensajes para la API
     mensajes_api = [{"role": "system", "content": system_prompt}]
     
-    # Agregar historial relevante (últimos 15 mensajes)
     for msg in historial[-15:]:
         mensajes_api.append({"role": msg["role"], "content": msg["content"]})
     
-    # Agregar mensaje actual
     mensajes_api.append({"role": "user", "content": mensaje})
     
     try:
@@ -1284,7 +1267,6 @@ async def generar_respuesta_ia(user_id: int, mensaje: str, nombre_usuario: str, 
         )
         texto = respuesta.choices[0].message.content
         
-        # Limitar respuesta si es muy larga
         if len(texto) > 500:
             texto = texto[:500] + "..."
         
@@ -1294,7 +1276,7 @@ async def generar_respuesta_ia(user_id: int, mensaje: str, nombre_usuario: str, 
         return "Ups, me quedé sin neuronas por un momento... ¿Podrías repetir?"
 
 # =========================================================
-# COMANDO ASK (SLASH) - VERSIÓN DEFINITIVA
+# COMANDO ASK (SLASH)
 # =========================================================
 
 @bot.tree.command(name="ask", description="Habla con Misti (IA con memoria)")
@@ -1303,45 +1285,39 @@ async def ask_slash(i: discord.Interaction, mensaje: str):
     
     embed_espera = discord.Embed(
         description="<a:loading:1506394397057613864> **Misti está pensando...**",
-        color=AZUL_CLARO
+        color=AZUL_IPOD
     )
     await i.followup.send(embed=embed_espera)
     
     try:
-        # =============================================
         # GENERAR IMAGEN
-        # =============================================
         if any(p in mensaje.lower() for p in ImageGenerator.PALABRAS_CLAVE):
             img_data, prompt, seed, modelo_usado, exito = await ImageGenerator.generar_con_retry(mensaje)
             
             if exito and img_data:
                 archivo = discord.File(io.BytesIO(img_data), filename="misti_art.png")
-                
-                modelo_info = ImageGenerator.MODELOS.get(modelo_usado, {"name": "DreamShaper", "emoji": "🎨"})
+                modelo_info = ImageGenerator.MODELOS.get(modelo_usado, {"name": "DreamShaper"})
                 
                 embed = discord.Embed(
-                    title=f"{modelo_info['emoji']} Misti creó esto para vos {modelo_info['emoji']}",
+                    title="Misti creó esta imagen",
                     description=f">>> *\"{prompt[:200]}\"*",
                     color=AZUL_IPOD
                 )
                 embed.set_image(url="attachment://misti_art.png")
-                embed.set_footer(text=f"> Modelo: {modelo_info['name']} | Seed: {seed} | Tamaño: 512x512")
+                embed.set_footer(text=f"Modelo: {modelo_info['name']} | Seed: {seed}")
                 
                 await i.edit_original_response(content=None, embed=embed, attachments=[archivo])
                 return
             else:
-                # Fallback a imagen de error pero linda
                 embed = discord.Embed(
                     title="No pude generar la imagen",
-                    description=f"*\"{mensaje[:100]}\"*\n\n> **Tip:** Intenta con un prompt más descriptivo o usa `/ask [tu mensaje]` sin palabras clave de imagen.",
-                    color=AZUL_OSCURO
+                    description=f"*\"{mensaje[:100]}\"*\n\n> **Tip:** Intenta con un prompt más descriptivo",
+                    color=AZUL_IPOD
                 )
                 await i.edit_original_response(embed=embed)
                 return
 
-        # =============================================
         # CHAT NORMAL
-        # =============================================
         texto = await generar_respuesta_ia(
             i.user.id, 
             mensaje, 
@@ -1349,14 +1325,11 @@ async def ask_slash(i: discord.Interaction, mensaje: str):
             i.guild.name
         )
         
-        # Guardar en memoria
         agregar_memoria(i.user.id, "user", mensaje)
         agregar_memoria(i.user.id, "assistant", texto)
         
-        # Crear embed bonito
         embed = discord.Embed(color=AZUL_IPOD)
         
-        # Mensaje del usuario
         user_text = mensaje[:500] + "..." if len(mensaje) > 500 else mensaje
         embed.add_field(
             name=f"{i.user.display_name}",
@@ -1364,7 +1337,6 @@ async def ask_slash(i: discord.Interaction, mensaje: str):
             inline=False
         )
         
-        # Respuesta de Misti
         bot_text = texto[:500] + "..." if len(texto) > 500 else texto
         embed.add_field(
             name=f"Misti",
@@ -1372,24 +1344,20 @@ async def ask_slash(i: discord.Interaction, mensaje: str):
             inline=False
         )
         
-        # Separador decorativo
-        embed.add_field(name="", value="<:sparkles:1506394397057613864>" * 10, inline=False)
-        
         embed.set_footer(text=f"Memoria: {len(get_memoria(i.user.id))} mensajes")
-        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
         
         await i.edit_original_response(content=None, embed=embed)
         
     except Exception as e:
         embed_error = discord.Embed(
-            title="Error inesperado",
-            description=f"```{str(e)[:200]}```\n> Misti se cayó de la silla... intentá de nuevo",
-            color=AZUL_OSCURO
+            title="Error",
+            description=f"```{str(e)[:200]}```",
+            color=AZUL_IPOD
         )
         await i.edit_original_response(embed=embed_error)
 
 # =========================================================
-# COMANDO ASK (PREFIX) - VERSIÓN DEFINITIVA
+# COMANDO ASK (PREFIX)
 # =========================================================
 
 @bot.command(name="ask")
@@ -1397,24 +1365,21 @@ async def ask_prefix(ctx, *, mensaje: str):
     
     embed_espera = discord.Embed(
         description="<a:loading:1506394397057613864> **Misti está pensando...**",
-        color=AZUL_CLARO
+        color=AZUL_IPOD
     )
     msg_espera = await ctx.send(embed=embed_espera)
     
     try:
-        # =============================================
         # GENERAR IMAGEN
-        # =============================================
         if any(p in mensaje.lower() for p in ImageGenerator.PALABRAS_CLAVE):
             img_data, prompt, seed, modelo_usado, exito = await ImageGenerator.generar_con_retry(mensaje)
             
             if exito and img_data:
                 archivo = discord.File(io.BytesIO(img_data), filename="misti_art.png")
-                
-                modelo_info = ImageGenerator.MODELOS.get(modelo_usado, {"name": "DreamShaper", "emoji": "🎨"})
+                modelo_info = ImageGenerator.MODELOS.get(modelo_usado, {"name": "DreamShaper"})
                 
                 embed = discord.Embed(
-                    title=f"{modelo_info['emoji']} Misti creó esto para vos {modelo_info['emoji']}",
+                    title="Misti creó la imagen",
                     description=f">>> *\"{prompt[:200]}\"*",
                     color=AZUL_IPOD
                 )
@@ -1426,16 +1391,14 @@ async def ask_prefix(ctx, *, mensaje: str):
                 return
             else:
                 embed = discord.Embed(
-                    title="No pude generar la imagen ",
-                    description=f"*\"{mensaje[:100]}\"*\n\n> **Tip:** Usá `>ask [mensaje]` sin palabras de imagen para hablar conmigo.",
-                    color=AZUL_OSCURO
+                    title="No pude generar la imagen",
+                    description=f"*\"{mensaje[:100]}\"*\n\n> **Tip:** Usá `>ask` sin palabras de imagen para hablar conmigo",
+                    color=AZUL_IPOD
                 )
                 await msg_espera.edit(content=None, embed=embed)
                 return
 
-        # =============================================
         # CHAT NORMAL
-        # =============================================
         texto = await generar_respuesta_ia(
             ctx.author.id, 
             mensaje, 
@@ -1462,9 +1425,7 @@ async def ask_prefix(ctx, *, mensaje: str):
             inline=False
         )
         
-        embed.add_field(name="", value="" * 15, inline=False)
         embed.set_footer(text=f"Memoria: {len(get_memoria(ctx.author.id))} mensajes")
-        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
         
         await msg_espera.delete()
         await ctx.send(embed=embed)
@@ -1473,7 +1434,7 @@ async def ask_prefix(ctx, *, mensaje: str):
         embed_error = discord.Embed(
             title="Error",
             description=f"```{str(e)[:200]}```",
-            color=AZUL_OSCURO
+            color=AZUL_IPOD
         )
         await msg_espera.edit(content=None, embed=embed_error)
 
@@ -1485,7 +1446,7 @@ async def ask_prefix(ctx, *, mensaje: str):
 async def forget_slash(i: discord.Interaction):
     limpiar_memoria(i.user.id)
     embed = discord.Embed(
-        description="> **Misti ya no recuerda nada de ti...**\n> *Podemos empezar de nuevo cuando quieras*",
+        description="**Misti ya no recuerda nada de ti...**\n> *Podemos empezar de nuevo cuando quieras*",
         color=AZUL_IPOD
     )
     await i.response.send_message(embed=embed, ephemeral=True)
@@ -1494,7 +1455,7 @@ async def forget_slash(i: discord.Interaction):
 async def forget_prefix(ctx):
     limpiar_memoria(ctx.author.id)
     embed = discord.Embed(
-        description="> **Misti ya no recuerda nada de ti...**\n> *Podemos empezar de nuevo cuando quieras*",
+        description="**Misti ya no recuerda nada de ti...**\n> *Podemos empezar de nuevo cuando quieras*",
         color=AZUL_IPOD
     )
     await ctx.send(embed=embed)
@@ -1516,9 +1477,12 @@ async def memoria_slash(i: discord.Interaction):
     
     if cantidad > 0:
         ultimo_msg = memoria[-1]
+        texto = ultimo_msg['content']
+        if len(texto) > 100:
+            texto = texto[:100] + "..."
         embed.add_field(
             name="Último recuerdo",
-            value=f"> *{ultimo_msg['content'][:100]}...*" if len(ultimo_msg['content']) > 100 else f"> {ultimo_msg['content']}",
+            value=f"> {texto}",
             inline=False
         )
     
