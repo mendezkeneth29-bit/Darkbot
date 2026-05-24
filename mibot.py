@@ -2666,8 +2666,9 @@ async def generar_qr(ctx: commands.Context, *, texto: str):
     embed = discord.Embed(
         title="Código QR Generado",
         description=f"**Contenido:** {texto[:100]}{'...' if len(texto) > 100 else ''}",
-        color=0x2B55B5
+        color=AZUL_IPOD_NUM
     )
+    
     embed.set_image(url=url)
     embed.set_footer(text=f"Solicitado por {ctx.author.display_name}")
     await ctx.send(embed=embed)
