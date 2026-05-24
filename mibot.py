@@ -28,22 +28,34 @@ def guardar_playlists(data):
     with open(PLAYLIST_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+# -------------------------
+# CLIENTES
+# -------------------------
+
 groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 TOKEN        = os.getenv("TOKEN")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 
-AZUL_OSCURO   = (43, 85, 181)
-AZUL_IPOD     = (43, 85, 181)
-AZUL_IPOD_NUM = 0x2B55B5
-ROSA_RGB      = (255, 105, 180)
-ROSA_HEX      = 0x2B55B5
+# =========================================================
+# CONSTANTES GLOBALES — definidas UNA SOLA VEZ al inicio
+# =========================================================
+
+AZUL_OSCURO   = (43, 85, 181)       # RGB para Pillow
+AZUL_IPOD     = (43, 85, 181)       # RGB para Pillow (iPod)
+AZUL_IPOD_NUM = 0x2B55B5            # int hex para discord.Embed
+ROSA_RGB      = (255, 105, 180)     # RGB para Pillow
+ROSA_HEX      = 0xff69b4            # int hex para discord.Embed
 BLANCO        = (255, 255, 255)
-CELESTE       = 0x2B55B5
+CELESTE       = 0x48CAE4
 FONDO_G       = (10, 10, 10)
 GRIS_G        = (42, 42, 42)
 TEXTO_G       = (255, 255, 255)
 SUB_G         = (136, 136, 136)
 OSCU_G        = (15, 15, 15)
+
+# -------------------------
+# DATA
+# -------------------------
 
 warnings_data = {}
 afk_data      = {}
@@ -55,6 +67,10 @@ nivel_canal   = {}
 xp_cooldown   = {}
 economia_data = {}
 claves_data   = {}
+
+# -------------------------
+# BOT
+# -------------------------
 
 class DarkyBot(commands.Bot):
     def __init__(self):
@@ -68,6 +84,10 @@ bot = DarkyBot()
 @bot.event
 async def on_ready():
     print(f"Conectado como {bot.user}")
+
+# =========================================================
+# HELPERS TARJETAS
+# =========================================================
 
 async def descargar_imagen(url: str) -> Image.Image:
     async with aiohttp.ClientSession() as session:
@@ -95,6 +115,10 @@ def fuente(size: int, bold: bool = False):
         except:
             continue
     return ImageFont.load_default()
+
+# =========================================================
+# HELPERS DATA
+# =========================================================
 
 def get_xp(guild_id, user_id):
     gid, uid = str(guild_id), str(user_id)
@@ -137,6 +161,10 @@ async def get_member_from_ctx(ctx, usuario=None):
         except:
             pass
     return ctx.author
+
+# =========================================================
+# GENERADORES DE TARJETAS
+# =========================================================
 
 async def generar_userinfo(usuario: discord.Member) -> discord.File:
     W, H = 700, 340
@@ -724,7 +752,7 @@ async def kick_slash(i: discord.Interaction, usuario: discord.Member, razon: str
     await i.response.defer()
     try:
         await usuario.kick(reason=razon)
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=CELESTE)
         embed.description = f"> **{usuario.display_name}** fue expulsado\n> Razon: {razon}\n> Moderador: {i.user.mention}"
         await i.followup.send(embed=embed)
     except Exception as e:
@@ -739,7 +767,7 @@ async def kick_prefix(ctx, usuario: discord.Member = None, *, razon: str = "Sin 
         return
     try:
         await usuario.kick(reason=razon)
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=CELESTE)
         embed.description = f"> **{usuario.display_name}** fue expulsado\n> Razon: {razon}"
         await ctx.send(embed=embed)
     except Exception as e:
@@ -753,7 +781,7 @@ async def timeout_slash(i: discord.Interaction, usuario: discord.Member, minutos
         import datetime as dt
         until = discord.utils.utcnow() + dt.timedelta(minutes=minutos)
         await usuario.timeout(until, reason=razon)
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=ROSA_HEX)
         embed.description = f"> **{usuario.display_name}** silenciado por `{minutos}` minutos\n> Razon: {razon}"
         await i.followup.send(embed=embed)
     except Exception as e:
@@ -774,14 +802,14 @@ async def afk_prefix(ctx, *, motivo: str = "Sin motivo"):
 @bot.tree.command(name="avatar")
 async def avatar_slash(i: discord.Interaction, usuario: discord.Member = None):
     usuario = usuario or i.user
-    embed   = discord.Embed(title=f"Avatar de {usuario.name}", color=0x2B55B5)
+    embed   = discord.Embed(title=f"Avatar de {usuario.name}", color=ROSA_HEX)
     embed.set_image(url=usuario.display_avatar.url)
     await i.response.send_message(embed=embed)
 
 @bot.command(name="avatar")
 async def avatar_prefix(ctx, usuario: discord.Member = None):
     usuario = await get_member_from_ctx(ctx, usuario)
-    embed   = discord.Embed(title=f"Avatar de {usuario.name}", color=0x2B55B5)
+    embed   = discord.Embed(title=f"Avatar de {usuario.name}", color=CELESTE)
     embed.set_image(url=usuario.display_avatar.url)
     await ctx.send(embed=embed)
 
@@ -922,7 +950,7 @@ async def clearwarns_slash(i: discord.Interaction, usuario: discord.Member):
     gid, uid = str(i.guild.id), str(usuario.id)
     if gid in warnings_data and uid in warnings_data[gid]:
         warnings_data[gid][uid] = []
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=CELESTE)
     embed.description = f"> Warns de **{usuario.display_name}** borrados"
     await i.response.send_message(embed=embed)
 
@@ -966,7 +994,7 @@ async def nuke_slash(i: discord.Interaction):
     canal = i.channel
     nuevo = await canal.clone()
     await canal.delete()
-    await nuevo.send(embed=discord.Embed(title="Canal Nukeado", description="> Canal purificado exitosamente.", color=0x2B55B5))
+    await nuevo.send(embed=discord.Embed(title="Canal Nukeado", description="> Canal purificado exitosamente.", color=CELESTE))
 
 @bot.command(name="nuke")
 @commands.has_permissions(manage_channels=True)
@@ -974,7 +1002,7 @@ async def nuke_prefix(ctx):
     canal = ctx.channel
     nuevo = await canal.clone()
     await canal.delete()
-    await nuevo.send(embed=discord.Embed(title="Canal Nukeado", description="> Canal purificado exitosamente.", color=0x2B55B5))
+    await nuevo.send(embed=discord.Embed(title="Canal Nukeado", description="> Canal purificado exitosamente.", color=CELESTE))
 
 @bot.tree.command(name="delete")
 @app_commands.checks.has_permissions(manage_messages=True)
@@ -1021,45 +1049,45 @@ async def ship_prefix(ctx, usuario1: discord.Member, usuario2: discord.Member):
 @bot.tree.command(name="ping", description="Latencia del bot")
 async def ping_slash(i: discord.Interaction):
     ms    = round(bot.latency * 1000)
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=CELESTE)
     embed.description = f"> Pong! `{ms}ms`"
     await i.response.send_message(embed=embed)
 
 @bot.command(name="ping")
 async def ping_prefix(ctx):
     ms    = round(bot.latency * 1000)
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=CELESTE)
     embed.description = f"> Pong! `{ms}ms`"
     await ctx.send(embed=embed)
 
 @bot.tree.command(name="moneda", description="Tira una moneda")
 async def moneda_slash(i: discord.Interaction):
     resultado = random.choice(["Cara", "Cruz"])
-    embed     = discord.Embed(color=0x2B55B5)
+    embed     = discord.Embed(color=ROSA_HEX)
     embed.description = f"> Resultado: **{resultado}**"
     await i.response.send_message(embed=embed)
 
 @bot.command(name="moneda")
 async def moneda_prefix(ctx):
     resultado = random.choice(["Cara", "Cruz"])
-    embed     = discord.Embed(color=0x2B55B5)
+    embed     = discord.Embed(color=CELESTE)
     embed.description = f"> Resultado: **{resultado}**"
     await ctx.send(embed=embed)
 
 @bot.tree.command(name="dado", description="Tira un dado de N caras")
 async def dado_slash(i: discord.Interaction, caras: int = 6):
     resultado = random.randint(1, caras)
-    embed     = discord.Embed(color=0x2B55B5)
+    embed     = discord.Embed(color=CELESTE)
     embed.description = f"> Dado de {caras} caras: **{resultado}**"
     await i.response.send_message(embed=embed)
 
 @bot.command(name="dado")
 async def dado_prefix(ctx, caras: int = 6):
     resultado = random.randint(1, caras)
-    embed     = discord.Embed(color=0x2B55B5)
+    embed     = discord.Embed(color=CELESTE)
     embed.description = f"> Dado de {caras} caras: **{resultado}**"
     await ctx.send(embed=embed)
-
+    
 # =========================================================
 # SISTEMA DE CLAVES
 # =========================================================
@@ -1072,13 +1100,13 @@ async def clave_slash(i: discord.Interaction, clave: str, mensaje: str):
     clave_lower = clave.lower()
 
     if clave_lower in claves:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=CELESTE)
         embed.description = f"> La clave **{clave}** ya existe\n> Usa `/clave-delete` para eliminarla primero"
         await i.followup.send(embed=embed)
         return
 
     claves[clave_lower] = mensaje
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=CELESTE)
     embed.description = f"> Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
     await i.followup.send(embed=embed)
 
@@ -1089,13 +1117,13 @@ async def clave_prefix(ctx, clave: str, *, mensaje: str):
     clave_lower = clave.lower()
 
     if clave_lower in claves:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=ROSA_HEX)
         embed.description = f"> La clave **{clave}** ya existe\n> Usa `>mt clave-delete` para eliminarla primero"
         await ctx.send(embed=embed)
         return
 
     claves[clave_lower] = mensaje
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=CELESTE)
     embed.description = f"> Clave **{clave}** creada exitosamente\n> Respuesta: `{mensaje}`"
     await ctx.send(embed=embed)
 
@@ -1123,13 +1151,13 @@ async def clave_delete_slash(i: discord.Interaction, clave: str):
     clave_lower = clave.lower()
 
     if clave_lower not in claves:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=CELESTE)
         embed.description = f"> La clave **{clave}** no existe"
         await i.followup.send(embed=embed)
         return
 
     del claves[clave_lower]
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=CELESTE)
     embed.description = f"> Clave **{clave}** eliminada exitosamente"
     await i.followup.send(embed=embed)
 
@@ -1140,13 +1168,13 @@ async def clave_delete_prefix(ctx, clave: str):
     clave_lower = clave.lower()
 
     if clave_lower not in claves:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=CELESTE)
         embed.description = f"> La clave **{clave}** no existe"
         await ctx.send(embed=embed)
         return
 
     del claves[clave_lower]
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=CELESTE)
     embed.description = f"> Clave **{clave}** eliminada exitosamente"
     await ctx.send(embed=embed)
 
@@ -1158,9 +1186,9 @@ async def clave_delete_prefix(ctx, clave: str):
 @app_commands.checks.has_permissions(administrator=True)
 async def welc(i: discord.Interaction, canal: discord.TextChannel, titulo: str = None, descripcion: str = None, color: str = None, autor: str = None, autor_imagen: str = None, imagen: str = None, footer: str = None, footer_imagen: str = None):
     try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x2B55B5
+        color_final = int(color.replace("#", ""), 16) if color else 0xFFFFFF
     except:
-        color_final = 0x2B55B5
+        color_final = CELESTE
 
     welc_config[i.guild.id] = {
         "canal": canal.id, "titulo": titulo, "desc": descripcion,
@@ -1173,9 +1201,9 @@ async def welc(i: discord.Interaction, canal: discord.TextChannel, titulo: str =
 @app_commands.checks.has_permissions(administrator=True)
 async def bye(i: discord.Interaction, canal: discord.TextChannel, titulo: str = None, descripcion: str = None, color: str = None, autor: str = None, autor_imagen: str = None, imagen: str = None, footer: str = None, footer_imagen: str = None):
     try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x2B55B5
+        color_final = int(color.replace("#", ""), 16) if color else CELESTE
     except:
-        color_final = 0x2B55B5
+        color_final = CELESTE
 
     bye_config[i.guild.id] = {
         "canal": canal.id, "titulo": titulo, "desc": descripcion,
@@ -1205,9 +1233,9 @@ async def reset_bye(i: discord.Interaction):
 async def embed_create(i: discord.Interaction, canal: discord.TextChannel = None, titulo: str = None, descripcion: str = None, color: str = None, imagen: str = None, footer_texto: str = None, autor_nombre: str = None):
     canal = canal or i.channel
     try:
-        color_final = int(color.replace("#", ""), 16) if color else 0x2B55B5
+        color_final = int(color.replace("#", ""), 16) if color else CELESTE
     except:
-        color_final = 0x2B55B5
+        color_final = CELESTE
 
     embed = discord.Embed(title=titulo or "", description=descripcion or "", color=color_final)
     if imagen:       embed.set_image(url=imagen)
@@ -1292,7 +1320,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
             data_user = {"usernames": [usuario], "excludeBannedUsers": False}
             async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
                 if resp.status != 200:
-                    embed = discord.Embed(color=0x2B55B5)
+                    embed = discord.Embed(color=CELESTE)
                     embed.description = "> Error al conectar con la API de Roblox"
                     if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
                     else: await ctx.send(embed=embed)
@@ -1300,7 +1328,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
 
                 res_user = await resp.json()
                 if not res_user["data"]:
-                    embed = discord.Embed(color=0x2B55B5)
+                    embed = discord.Embed(color=CELESTE)
                     embed.description = f"> El usuario **{usuario}** no existe en Roblox"
                     if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
                     else: await ctx.send(embed=embed)
@@ -1330,7 +1358,7 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
 
         perfil_link = f"https://www.roblox.com/users/{user_id}/profile"
 
-        embed = discord.Embed(color=0x2B55B5, title="Perfil de Roblox")
+        embed = discord.Embed(color=CELESTE, title="Perfil de Roblox")
         embed.add_field(name="Usuario",        value=roblox_user,    inline=True)
         embed.add_field(name="ID",             value=user_id,        inline=True)
         embed.add_field(name="Apodo",          value=display_name,   inline=False)
@@ -1343,13 +1371,13 @@ async def roblox_prefix(ctx: commands.Context, usuario: str):
         else: await ctx.send(embed=embed)
 
     except Exception as e:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=CELESTE)
         embed.description = f"Error: {str(e)}"
         if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
         else: await ctx.send(embed=embed)
 
 # =========================================================
-# ON MESSAGE (primera definicion — claves + AFK + economia)
+# ON MESSAGE
 # =========================================================
 
 @bot.event
@@ -1383,6 +1411,7 @@ async def on_message(message):
                     await message.reply(respuesta, mention_author=False)
                     break
 
+    # Procesar comandos prefix
     await bot.process_commands(message)
 
     # Economia por mensajes
@@ -1395,24 +1424,32 @@ async def on_message(message):
             data = get_user_eco(str(message.guild.id), message.author.id)
             data["coins"] += random.randint(2, 4)
 
-    # Mencion al bot
-    if bot.user in message.mentions:
-        mensaje_limpio = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
-        if not mensaje_limpio:
-            await message.reply("> Mencioname con un mensaje para que te responda.", mention_author=False)
-            return
-        await responder_ask(message, message.author, mensaje_limpio, es_reply=True)
+    # Responder si le replican al bot
+    if not message.reference:
         return
 
-    # Reply al bot
-    if message.reference:
-        try:
-            replied = await message.channel.fetch_message(message.reference.message_id)
-            if replied.author.id == bot.user.id:
-                await responder_ask(message, message.author, message.content, es_reply=True)
-                return
-        except:
-            pass
+    try:
+        replied = await message.channel.fetch_message(message.reference.message_id)
+        if replied.author.id != bot.user.id:
+            return
+        mensaje_original = replied.content
+        if replied.embeds and replied.embeds[0].description:
+            mensaje_original = replied.embeds[0].description
+        system_prompt = f"Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual. El usuario se llama {message.author.display_name} y estas en {message.guild.name}"
+        respuesta = await groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "assistant", "content": mensaje_original},
+                {"role": "user",     "content": message.content}
+            ]
+        )
+        texto = respuesta.choices[0].message.content
+        embed = discord.Embed(color=ROSA_HEX)
+        embed.description = f"### Emisor\n> {message.content}\n\n### Receptor\n> {texto}"
+        await message.reply(embed=embed, mention_author=False)
+    except:
+        pass
 
 # =========================================================
 # EVENTOS JOIN / REMOVE
@@ -1432,7 +1469,7 @@ async def on_member_join(member):
     embed = discord.Embed(
         title=parse_text(cfg.get("titulo") or f"Bienvenido {member.name}", member),
         description=parse_text(cfg.get("desc") or "", member),
-        color=cfg.get("color", 0x2B55B5)
+        color=cfg.get("color", CELESTE)
     )
     autor_n, autor_i = cfg.get("autor", (None, None))
     if autor_n:
@@ -1459,7 +1496,7 @@ async def on_member_remove(member):
     embed = discord.Embed(
         title=parse_text(cfg.get("titulo") or f"Adios {member.name}", member),
         description=parse_text(cfg.get("desc") or "", member),
-        color=cfg.get("color", 0x2B55B5)
+        color=cfg.get("color", CELESTE)
     )
     autor_n, autor_i = cfg.get("autor", (None, None))
     if autor_n:
@@ -1508,7 +1545,7 @@ async def add_nivel_slash(i: discord.Interaction, usuario: discord.Member, canti
     await i.response.defer()
     data = get_xp(i.guild.id, usuario.id)
     data["level"] += cantidad
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se agregaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
     await i.followup.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
 
@@ -1517,7 +1554,7 @@ async def add_nivel_slash(i: discord.Interaction, usuario: discord.Member, canti
 async def add_nivel_prefix(ctx, usuario: discord.Member, cantidad: int):
     data = get_xp(ctx.guild.id, usuario.id)
     data["level"] += cantidad
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se agregaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
     await ctx.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
 
@@ -1527,7 +1564,7 @@ async def remove_nivel_slash(i: discord.Interaction, usuario: discord.Member, ca
     await i.response.defer()
     data = get_xp(i.guild.id, usuario.id)
     data["level"] = max(1, data["level"] - cantidad)
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se quitaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
     await i.followup.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
 
@@ -1536,7 +1573,7 @@ async def remove_nivel_slash(i: discord.Interaction, usuario: discord.Member, ca
 async def remove_nivel_prefix(ctx, usuario: discord.Member, cantidad: int):
     data = get_xp(ctx.guild.id, usuario.id)
     data["level"] = max(1, data["level"] - cantidad)
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se quitaron **{cantidad}** niveles a {usuario.mention}\n> Nivel actual: **{data['level']}**"
     await ctx.send(embed=embed, file=await generar_nivel(usuario, data["level"], data["xp"], xp_para_nivel(data["level"])))
 
@@ -1546,7 +1583,7 @@ async def add_dinero_slash(i: discord.Interaction, usuario: discord.Member, cant
     await i.response.defer()
     data = get_user_eco(i.guild.id, usuario.id)
     data["coins"] += cantidad
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se agregaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await i.followup.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
@@ -1555,7 +1592,7 @@ async def add_dinero_slash(i: discord.Interaction, usuario: discord.Member, cant
 async def add_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     data = get_user_eco(ctx.guild.id, usuario.id)
     data["coins"] += cantidad
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se agregaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
@@ -1565,7 +1602,7 @@ async def remove_dinero_slash(i: discord.Interaction, usuario: discord.Member, c
     await i.response.defer()
     data = get_user_eco(i.guild.id, usuario.id)
     data["coins"] = max(0, data["coins"] - cantidad)
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await i.followup.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
@@ -1574,7 +1611,7 @@ async def remove_dinero_slash(i: discord.Interaction, usuario: discord.Member, c
 async def remove_dinero_prefix(ctx, usuario: discord.Member, cantidad: int):
     data = get_user_eco(ctx.guild.id, usuario.id)
     data["coins"] = max(0, data["coins"] - cantidad)
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se quitaron **${cantidad:,}** monedas a {usuario.mention}\n> Dinero actual: **${data['coins']:,}**"
     await ctx.send(embed=embed, file=await generar_balance(usuario, data["coins"], data["last_daily"]))
 
@@ -1609,7 +1646,7 @@ async def reproducir(ctx, *, busqueda: str):
                             vistas    = v.get('viewCountText', {}).get('simpleText', '0 vistas')
                             url_video = f"https://www.youtube.com/watch?v={video_id}"
 
-                            embed = discord.Embed(color=0x2B55B5, title="Video Encontrado")
+                            embed = discord.Embed(color=AZUL_IPOD_NUM, title="Video Encontrado")
                             embed.add_field(name="> Titulo",   value=titulo[:100], inline=False)
                             embed.add_field(name="> Duracion", value=duracion,     inline=True)
                             embed.add_field(name="> Canal",    value=canal[:50],   inline=True)
@@ -1622,13 +1659,13 @@ async def reproducir(ctx, *, busqueda: str):
                             else: await ctx.send(embed=embed)
                             return
 
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = "> No se encontraron resultados"
         if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
         else: await ctx.send(embed=embed)
 
     except Exception as e:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = f"```{str(e)[:200]}```"
         if ctx.interaction: await ctx.interaction.followup.send(embed=embed, ephemeral=True)
         else: await ctx.send(embed=embed)
@@ -1649,7 +1686,7 @@ async def lyrics(ctx, *, cancion: str):
                 data = await resp.json()
 
         if not data:
-            embed = discord.Embed(color=0x2B55B5)
+            embed = discord.Embed(color=AZUL_IPOD_NUM)
             embed.description = "> No se encontraron resultados para esa cancion."
             if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
             else: await ctx.send(embed=embed)
@@ -1667,7 +1704,7 @@ async def lyrics(ctx, *, cancion: str):
         if len(letra) > 4096:
             letra = letra[:4000] + "\n\n*[Letra cortada]*"
 
-        embed = discord.Embed(title=nombre, description=letra, color=0x2B55B5)
+        embed = discord.Embed(title=nombre, description=letra, color=AZUL_IPOD_NUM)
         embed.set_author(name=artista)
         if album: embed.set_footer(text=f"Album: {album}")
 
@@ -1675,7 +1712,7 @@ async def lyrics(ctx, *, cancion: str):
         else: await ctx.send(embed=embed)
 
     except Exception as e:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = f"> Error: `{str(e)[:100]}`"
         if ctx.interaction: await ctx.interaction.followup.send(embed=embed, ephemeral=True)
         else: await ctx.send(embed=embed)
@@ -1695,17 +1732,17 @@ async def buscar_libro(ctx: commands.Context, *, query: str):
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=10) as response:
                 if response.status == 429:
-                    embed = discord.Embed(description="> Límite de búsquedas alcanzado. Espera unos minutos.", color=0x2B55B5)
+                    embed = discord.Embed(description="> Límite de búsquedas alcanzado. Espera unos minutos.", color=AZUL_IPOD_NUM)
                     return await ctx.send(embed=embed)
 
                 if response.status != 200:
-                    embed = discord.Embed(description=f"> Error de conexión ({response.status})", color=0x2B55B5)
+                    embed = discord.Embed(description=f"> Error de conexión ({response.status})", color=AZUL_IPOD_NUM)
                     return await ctx.send(embed=embed)
 
                 data = await response.json()
 
         if "items" not in data:
-            embed = discord.Embed(description=f"> No encontré ningún libro para: **{query}**", color=0x2B55B5)
+            embed = discord.Embed(description=f"> No encontré ningún libro para: **{query}**", color=AZUL_IPOD_NUM)
             return await ctx.send(embed=embed)
 
         info    = data["items"][0]["volumeInfo"]
@@ -1722,7 +1759,7 @@ async def buscar_libro(ctx: commands.Context, *, query: str):
         if portada:
             portada = portada.replace("http://", "https://")
 
-        embed = discord.Embed(title=titulo, description=descripcion, color=0x2B55B5)
+        embed = discord.Embed(title=titulo, description=descripcion, color=AZUL_IPOD_NUM)
         embed.add_field(name="> Autor(es)",   value=autores,      inline=True)
         embed.add_field(name="> Publicación", value=fecha,        inline=True)
         embed.add_field(name="> Páginas",     value=str(paginas), inline=True)
@@ -1736,7 +1773,7 @@ async def buscar_libro(ctx: commands.Context, *, query: str):
 
     except Exception as e:
         print(f"Error en buscar-libro: {e}")
-        embed = discord.Embed(description=f"> Error inesperado: `{str(e)[:100]}`", color=0x2B55B5)
+        embed = discord.Embed(description=f"> Error inesperado: `{str(e)[:100]}`", color=AZUL_IPOD_NUM)
         await ctx.send(embed=embed)
 
 # =========================================================
@@ -1778,10 +1815,10 @@ class TriviaView(discord.ui.View):
         if uid not in puntuaciones_trivia[gid]: puntuaciones_trivia[gid][uid] = 0
         if correcta:
             puntuaciones_trivia[gid][uid] += 10
-            embed = discord.Embed(color=0x2B55B5)
+            embed = discord.Embed(color=AZUL_IPOD_NUM)
             embed.description = "> Correcto! +10 puntos"
         else:
-            embed = discord.Embed(color=0x2B55B5)
+            embed = discord.Embed(color=AZUL_IPOD_NUM)
             embed.description = f"> Incorrecto! La respuesta era: **{self.pregunta_data['respuestas'][self.pregunta_data['correcta']]}**"
         embed.add_field(name="Puntos Totales", value=puntuaciones_trivia[gid][uid])
         await interaction.response.edit_message(embed=embed, view=None)
@@ -1789,14 +1826,14 @@ class TriviaView(discord.ui.View):
 @bot.hybrid_command(name="trivia", description="Juega una trivia")
 async def trivia(ctx):
     pregunta_data = random.choice(PREGUNTAS_TRIVIA)
-    embed         = discord.Embed(color=0x2B55B5, title="Trivia")
+    embed         = discord.Embed(color=AZUL_IPOD_NUM, title="Trivia")
     embed.description = pregunta_data['pregunta']
     await ctx.send(embed=embed, view=TriviaView(pregunta_data, ctx.author.id))
 
 @bot.hybrid_command(name="mi-puntuacion-trivia", description="Ver tu puntuacion en trivia")
 async def mi_puntuacion_trivia(ctx):
     puntos = puntuaciones_trivia.get(str(ctx.guild.id), {}).get(str(ctx.author.id), 0)
-    embed  = discord.Embed(color=0x2B55B5, title="Tu Puntuacion de Trivia")
+    embed  = discord.Embed(color=AZUL_IPOD_NUM, title="Tu Puntuacion de Trivia")
     embed.description = f"> Puntos: **{puntos}**"
     await ctx.send(embed=embed)
 
@@ -1808,11 +1845,11 @@ async def mi_puntuacion_trivia(ctx):
 async def calcular(ctx, *, operacion: str):
     try:
         resultado = eval(operacion)
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = f"> **Operacion:** {operacion}\n> **Resultado:** {resultado}"
         await ctx.send(embed=embed)
     except:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = "> Operacion invalida"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
@@ -1820,7 +1857,7 @@ async def calcular(ctx, *, operacion: str):
 async def generar_password(ctx, longitud: int = 16):
     import string
     password = ''.join(random.choice(string.ascii_letters + string.digits + string.punctuation) for _ in range(longitud))
-    embed    = discord.Embed(color=0x2B55B5)
+    embed    = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Contrasena: `{password}`"
     await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
@@ -1828,7 +1865,7 @@ async def generar_password(ctx, longitud: int = 16):
 async def base64_codificar(ctx, *, texto: str):
     import base64
     codificado = base64.b64encode(texto.encode()).decode()
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.add_field(name="Original", value=texto,              inline=False)
     embed.add_field(name="Base64",   value=f"`{codificado}`", inline=False)
     await ctx.send(embed=embed)
@@ -1838,12 +1875,12 @@ async def base64_decodificar(ctx, *, texto: str):
     try:
         import base64
         decodificado = base64.b64decode(texto).decode()
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.add_field(name="Base64",   value=texto,        inline=False)
         embed.add_field(name="Original", value=decodificado, inline=False)
         await ctx.send(embed=embed)
     except:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = "> Texto base64 invalido"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
@@ -1854,7 +1891,7 @@ async def base64_decodificar(ctx, *, texto: str):
 @bot.hybrid_command(name="adivina-numero", description="Adivina un numero del 1 al 100")
 async def adivina_numero(ctx):
     numero_secreto = random.randint(1, 100)
-    embed          = discord.Embed(color=0x2B55B5, title="Adivina el Numero")
+    embed          = discord.Embed(color=AZUL_IPOD_NUM, title="Adivina el Numero")
     embed.description = "> Piensa un numero entre 1 y 100. Tienes 10 intentos"
     await ctx.send(embed=embed)
 
@@ -1865,21 +1902,21 @@ async def adivina_numero(ctx):
             mensaje = await bot.wait_for('message', check=check, timeout=60)
             numero  = int(mensaje.content)
             if numero == numero_secreto:
-                embed = discord.Embed(color=0x2B55B5)
+                embed = discord.Embed(color=AZUL_IPOD_NUM)
                 embed.description = f"> Correcto! El numero era **{numero_secreto}**\n> Intentaste **{intento + 1}** veces"
                 await ctx.send(embed=embed)
                 return
             elif numero < numero_secreto:
-                embed = discord.Embed(color=0x2B55B5)
+                embed = discord.Embed(color=AZUL_IPOD_NUM)
                 embed.description = f"> El numero es **mayor** ({intento + 1}/10)"
             else:
-                embed = discord.Embed(color=0x2B55B5)
+                embed = discord.Embed(color=AZUL_IPOD_NUM)
                 embed.description = f"> El numero es **menor** ({intento + 1}/10)"
             await ctx.send(embed=embed)
         except (ValueError, asyncio.TimeoutError):
             break
 
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Se acabaron los intentos! El numero era **{numero_secreto}**"
     await ctx.send(embed=embed)
 
@@ -1897,7 +1934,7 @@ async def ppt_mejorado(ctx):
             resultado = "GANASTE"
         else:
             resultado = "PERDISTE"
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = f"> Tu: **{opcion_usuario}**\n> Bot: **{opcion_bot}**\n> **{resultado}**"
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -1907,7 +1944,7 @@ async def ppt_mejorado(ctx):
         button.callback = lambda interaction, op=opcion: ppt_seleccionar(interaction, op)
         view.add_item(button)
 
-    embed = discord.Embed(color=0x2B55B5, title="Piedra, Papel o Tijera")
+    embed = discord.Embed(color=AZUL_IPOD_NUM, title="Piedra, Papel o Tijera")
     embed.description = "> Elige tu opcion"
     await ctx.send(embed=embed, view=view)
 
@@ -1921,7 +1958,7 @@ async def ahorcado(ctx):
     def mostrar_palabra():
         return ' '.join([l if l in letras_adivinadas else '_' for l in palabra_secreta])
 
-    embed = discord.Embed(color=0x2B55B5, title="Ahorcado")
+    embed = discord.Embed(color=AZUL_IPOD_NUM, title="Ahorcado")
     embed.description = f"> `{mostrar_palabra()}`\n> Intentos: **{intentos}**"
     await ctx.send(embed=embed)
 
@@ -1932,20 +1969,20 @@ async def ahorcado(ctx):
             mensaje = await bot.wait_for('message', check=check, timeout=60)
             letra   = mensaje.content.upper()
             if letra in letras_adivinadas:
-                embed = discord.Embed(color=0x2B55B5)
+                embed = discord.Embed(color=AZUL_IPOD_NUM)
                 embed.description = "> Ya adivinaste esa letra"
                 await ctx.send(embed=embed)
                 continue
             letras_adivinadas.add(letra)
             if letra not in palabra_secreta:
                 intentos -= 1
-            embed = discord.Embed(color=0x2B55B5)
+            embed = discord.Embed(color=AZUL_IPOD_NUM)
             embed.description = f"> `{mostrar_palabra()}`\n> Intentos: **{intentos}**"
             await ctx.send(embed=embed)
         except asyncio.TimeoutError:
             break
 
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     if set(palabra_secreta) == letras_adivinadas:
         embed.description = f"> GANASTE! La palabra era: **{palabra_secreta}**"
     else:
@@ -1964,7 +2001,7 @@ async def crear_cupon(ctx, codigo: str, recompensa: int):
     gid = str(ctx.guild.id)
     if gid not in cupones_data: cupones_data[gid] = {}
     cupones_data[gid][codigo.upper()] = {"recompensa": recompensa, "usado_por": []}
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Cupon `{codigo.upper()}` creado\n> Recompensa: **${recompensa:,}**"
     await ctx.send(embed=embed)
 
@@ -1972,20 +2009,20 @@ async def crear_cupon(ctx, codigo: str, recompensa: int):
 async def canjear_cupon(ctx, codigo: str):
     gid = str(ctx.guild.id)
     if gid not in cupones_data or codigo.upper() not in cupones_data[gid]:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = "> Cupon invalido"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
     cupon = cupones_data[gid][codigo.upper()]
     if ctx.author.id in cupon["usado_por"]:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = "> Ya usaste este cupon"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
         return
     cupon["usado_por"].append(ctx.author.id)
     eco = get_user_eco(ctx.guild.id, ctx.author.id)
     eco["coins"] += cupon["recompensa"]
-    embed = discord.Embed(color=0x2B55B5)
+    embed = discord.Embed(color=AZUL_IPOD_NUM)
     embed.description = f"> Cupon canjeado! Ganaste: **${cupon['recompensa']:,}**"
     await ctx.send(embed=embed)
 
@@ -2004,7 +2041,7 @@ async def doctor(ctx: commands.Context):
         embed = discord.Embed(
             title="Doctor - Diagnóstico",
             description="**Este comando solo puede ser ejecutado dentro de un servidor.**",
-            color=0x2B55B5
+            color=AZUL_IPOD_NUM
         )
         return await ctx.send(embed=embed)
 
@@ -2042,7 +2079,7 @@ async def doctor(ctx: commands.Context):
     embed = discord.Embed(
         title="Diagnóstico de Salud del Bot",
         description="A continuación se muestra el estado de los permisos requeridos para el correcto funcionamiento de todos los módulos del bot.",
-        color=0x2B55B5
+        color=AZUL_IPOD_NUM
     )
 
     embed.add_field(name="Permisos en este Canal",    value=formatear_permisos(permisos_canal),    inline=False)
@@ -2068,6 +2105,7 @@ async def doctor(ctx: commands.Context):
 
 async def generar_ipod_player_img(cancion: str, artista: str, duracion: str, progreso_pct: int) -> discord.File:
     W, H = 340, 500
+    CUERPO_IPOD    = (20, 40, 100)
     PANTALLA_FONDO = (173, 232, 244)
     PANTALLA_TEXTO = (3, 4, 94)
 
@@ -2136,7 +2174,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
         embed = discord.Embed(
             title="Error de configuración",
             description="> El comando clima no está configurado correctamente.\nEl administrador debe agregar WEATHER_API_KEY.",
-            color=0x2B55B5
+            color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
@@ -2151,13 +2189,13 @@ async def clima(ctx: commands.Context, *, ciudad: str):
             async with session.get(url) as respuesta:
                 if respuesta.status == 404:
                     await mensaje_carga.delete()
-                    embed = discord.Embed(title="Ciudad no encontrada", description=f"> No se encontró la ciudad **{ciudad}**.", color=0x2B55B5)
+                    embed = discord.Embed(title="Ciudad no encontrada", description=f"> No se encontró la ciudad **{ciudad}**.", color=AZUL_IPOD_NUM)
                     await ctx.send(embed=embed)
                     return
 
                 if respuesta.status != 200:
                     await mensaje_carga.delete()
-                    embed = discord.Embed(title="Error", description=f"> Error al obtener el clima. Código: {respuesta.status}", color=0x2B55B5)
+                    embed = discord.Embed(title="Error", description=f"> Error al obtener el clima. Código: {respuesta.status}", color=AZUL_IPOD_NUM)
                     await ctx.send(embed=embed)
                     return
 
@@ -2165,7 +2203,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
 
     except Exception as e:
         await mensaje_carga.delete()
-        embed = discord.Embed(title="Error de conexión", description=f"> No se pudo conectar con el servicio del clima.\n```{str(e)}```", color=0x2B55B5)
+        embed = discord.Embed(title="Error de conexión", description=f"> No se pudo conectar con el servicio del clima.\n```{str(e)}```", color=AZUL_IPOD_NUM)
         await ctx.send(embed=embed)
         return
 
@@ -2178,7 +2216,7 @@ async def clima(ctx: commands.Context, *, ciudad: str):
     viento           = datos['wind']['speed']
     icono            = datos['weather'][0]['icon']
 
-    embed = discord.Embed(title=f"Clima en {nombre_ciudad}, {pais}", color=0x2B55B5)
+    embed = discord.Embed(title=f"Clima en {nombre_ciudad}, {pais}", color=AZUL_IPOD_NUM)
     embed.add_field(name="> Temperatura", value=f"{temperatura}°C",      inline=True)
     embed.add_field(name="> Sensación",   value=f"{sensacion_termica}°C", inline=True)
     embed.add_field(name="> Humedad",     value=f"{humedad}%",           inline=True)
@@ -2203,7 +2241,7 @@ async def pais(ctx: commands.Context, *, nombre: str):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
-                    embed = discord.Embed(color=0x2B55B5)
+                    embed = discord.Embed(color=AZUL_IPOD_NUM)
                     embed.description = f"> Pais **{nombre}** no encontrado."
                     if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
                     else: await ctx.send(embed=embed)
@@ -2220,7 +2258,7 @@ async def pais(ctx: commands.Context, *, nombre: str):
         bandera        = pais_data.get('flags', {}).get('png', '')
         mapa           = pais_data.get('maps', {}).get('googleMaps', '')
 
-        embed = discord.Embed(title=nombre_oficial, color=0x2B55B5)
+        embed = discord.Embed(title=nombre_oficial, color=AZUL_IPOD_NUM)
         embed.add_field(name="> Capital",   value=capital,      inline=True)
         embed.add_field(name="> Poblacion", value=poblacion,    inline=True)
         embed.add_field(name="> Area",      value=area,         inline=True)
@@ -2233,7 +2271,7 @@ async def pais(ctx: commands.Context, *, nombre: str):
         else: await ctx.send(embed=embed)
 
     except Exception as e:
-        embed = discord.Embed(color=0x2B55B5)
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
         embed.description = f"> Error: `{str(e)[:100]}`"
         if ctx.interaction: await ctx.interaction.followup.send(embed=embed)
         else: await ctx.send(embed=embed)
@@ -2256,7 +2294,7 @@ async def juegos_gratis(ctx: commands.Context):
             juegos = await resp.json()
             juegos = juegos[:5]
 
-    embed = discord.Embed(title="Juegos Gratis Recomendados", color=0x2B55B5)
+    embed = discord.Embed(title="Juegos Gratis Recomendados", color=AZUL_IPOD_NUM)
 
     for juego in juegos:
         titulo     = juego.get('title', 'Sin título')
@@ -2311,7 +2349,7 @@ async def pelicula(ctx: commands.Context, *, nombre: str):
     embed = discord.Embed(
         title=f"{titulo} ({fecha})",
         description=descripcion[:300] + "..." if len(descripcion) > 300 else descripcion,
-        color=0x2B55B5
+        color=AZUL_IPOD_NUM
     )
     embed.add_field(name="> Puntuación", value=f"{puntaje}/10", inline=True)
     embed.add_field(name="> Duración",   value=f"{duracion} min", inline=True)
@@ -2351,7 +2389,7 @@ async def pokemon(ctx: commands.Context, *, nombre: str):
 
     sprite = data.get('sprites', {}).get('front_default', '')
 
-    embed = discord.Embed(title=f"{nombre_oficial} #{id_pokemon}", color=0x2B55B5)
+    embed = discord.Embed(title=f"{nombre_oficial} #{id_pokemon}", color=AZUL_IPOD_NUM)
     embed.add_field(name="> Altura",      value=f"{altura} m",   inline=True)
     embed.add_field(name="> Peso",        value=f"{peso} kg",    inline=True)
     embed.add_field(name="> Tipo",        value=tipos,           inline=True)
@@ -2426,10 +2464,10 @@ async def nasa(ctx: commands.Context):
     copyright_nt = traducir_texto(data.get('copyright', 'NASA'))
 
     if imagen.endswith('.mp4') or 'youtube' in imagen or 'vimeo' in imagen:
-        embed = discord.Embed(title=titulo, description=f"**Video del día**\n\n{explicacion}", color=0x2B55B5)
+        embed = discord.Embed(title=titulo, description=f"**Video del día**\n\n{explicacion}", color=AZUL_IPOD_NUM)
         embed.add_field(name="**Ver video**", value=f"[Haz clic aquí]({imagen})", inline=False)
     else:
-        embed = discord.Embed(title=titulo, description=explicacion, color=0x2B55B5, url=imagen)
+        embed = discord.Embed(title=titulo, description=explicacion, color=AZUL_IPOD_NUM, url=imagen)
         embed.set_image(url=imagen)
 
     embed.add_field(name="> Fecha",   value=fecha_nasa,   inline=True)
@@ -2495,7 +2533,7 @@ async def traducir(ctx: commands.Context, idioma: str, *, texto: str):
         idioma_origen_nombre  = idiomas_nombres.get(idioma_detectado, idioma_detectado.upper())
         idioma_destino_nombre = idiomas_nombres.get(idioma, idioma.upper())
 
-        embed = discord.Embed(title="Traductor de Google", color=0x2B55B5)
+        embed = discord.Embed(title="Traductor de Google", color=AZUL_IPOD_NUM)
         embed.add_field(name=f"Texto original ({idioma_origen_nombre})",   value=f"```{texto_original}```",  inline=False)
         embed.add_field(name=f"> Traducción ({idioma_destino_nombre})", value=f"```{texto_traducido}```", inline=False)
         embed.set_footer(text=f"Solicitado por {ctx.author.display_name}")
@@ -2530,7 +2568,7 @@ async def definir(ctx: commands.Context, *, palabra: str):
     palabra_nombre = palabra_info.get('word', palabra)
     significados   = palabra_info.get('meanings', [])
 
-    embed = discord.Embed(title=f"{palabra_nombre.capitalize()}", color=0x2B55B5)
+    embed = discord.Embed(title=f"{palabra_nombre.capitalize()}", color=AZUL_IPOD_NUM)
 
     for significado in significados[:3]:
         tipo        = significado.get('partOfSpeech', 'Desconocido')
@@ -2604,7 +2642,7 @@ async def steam(ctx: commands.Context, *, juego: str):
     embed = discord.Embed(
         title=nombre,
         description=descripcion[:200] + "..." if len(descripcion) > 200 else descripcion,
-        color=0x2B55B5,
+        color=AZUL_IPOD_NUM,
         url=f"https://store.steampowered.com/app/{app_id}"
     )
     embed.add_field(name="> Precio",     value=precio_final,                                          inline=True)
@@ -2628,8 +2666,9 @@ async def generar_qr(ctx: commands.Context, *, texto: str):
     embed = discord.Embed(
         title="Código QR Generado",
         description=f"**Contenido:** {texto[:100]}{'...' if len(texto) > 100 else ''}",
-        color=0x2B55B5
+        color=AZUL_IPOD_NUM
     )
+    
     embed.set_image(url=url)
     embed.set_footer(text=f"Solicitado por {ctx.author.display_name}")
     await ctx.send(embed=embed)
@@ -2684,7 +2723,7 @@ async def ip_info(ctx: commands.Context, direccion_ip: str):
         await ctx.send(f"> IP **{direccion_ip}** no válida o no encontrada")
         return
 
-    embed = discord.Embed(title=f"Información de IP: {direccion_ip}", color=0x2B55B5)
+    embed = discord.Embed(title=f"Información de IP: {direccion_ip}", color=AZUL_IPOD_NUM)
     embed.add_field(name="> País",          value=data.get('country', 'Desconocido'),    inline=True)
     embed.add_field(name="> Ciudad",        value=data.get('city', 'Desconocida'),       inline=True)
     embed.add_field(name="> ISP",           value=data.get('isp', 'Desconocido'),        inline=True)
@@ -2712,7 +2751,7 @@ acertijos = [
 async def acertijo(ctx: commands.Context):
     acertijo_actual = random.choice(acertijos)
 
-    embed = discord.Embed(title="Acertijo", description=f"**{acertijo_actual['pregunta']}**", color=0x2B55B5)
+    embed = discord.Embed(title="Acertijo", description=f"**{acertijo_actual['pregunta']}**", color=AZUL_IPOD_NUM)
     embed.set_footer(text="Responde con >respuesta [tu respuesta] (tienes 30 segundos)")
     await ctx.send(embed=embed)
 
@@ -2735,7 +2774,7 @@ async def acertijo(ctx: commands.Context):
         await ctx.send(f"> Tiempo agotado. La respuesta era: **{acertijo_actual['respuesta']}**")
 
 # =========================================================
-# COVID
+# COVID  ← BUG CRÍTICO CORREGIDO: 'criticos' sin acento
 # =========================================================
 
 @bot.hybrid_command(name="covid", description="Datos actualizados de COVID-19")
@@ -2758,7 +2797,7 @@ async def covid(ctx: commands.Context, pais: str = "mexico"):
     muertes_hoy  = data.get('todayDeaths', 0)
     recuperados  = data.get('recovered', 0)
     activos      = data.get('active', 0)
-    criticos     = data.get('critical', 0)
+    criticos     = data.get('critical', 0)      # ← sin tilde
     pruebas      = data.get('tests', 0)
     poblacion    = data.get('population', 0)
     bandera      = data.get('countryInfo', {}).get('flag', '')
@@ -2767,7 +2806,7 @@ async def covid(ctx: commands.Context, pais: str = "mexico"):
     tasa_recuperacion = (recuperados / casos * 100)    if casos > 0     else 0
     casos_por_millon  = (casos / poblacion * 1000000)  if poblacion > 0 else 0
 
-    embed = discord.Embed(title=f"COVID-19: {nombre}", color=0x2B55B5)
+    embed = discord.Embed(title=f"COVID-19: {nombre}", color=AZUL_IPOD_NUM)
     if bandera: embed.set_thumbnail(url=bandera)
 
     embed.add_field(name="> Casos totales",    value=f"{casos:,}",           inline=True)
@@ -2776,7 +2815,7 @@ async def covid(ctx: commands.Context, pais: str = "mexico"):
     embed.add_field(name="> Muertes hoy",      value=f"+{muertes_hoy:,}",    inline=True)
     embed.add_field(name="> Recuperados",      value=f"{recuperados:,}",     inline=True)
     embed.add_field(name="> Activos",          value=f"{activos:,}",         inline=True)
-    embed.add_field(name="> Críticos",         value=f"{criticos:,}",        inline=True)
+    embed.add_field(name="> Críticos",         value=f"{criticos:,}",        inline=True)   # ← corregido
     embed.add_field(name="> Pruebas",          value=f"{pruebas:,}",         inline=True)
     embed.add_field(name="> Tasa mortalidad",  value=f"{tasa_mortalidad:.2f}%",  inline=True)
     embed.add_field(name="> Tasa recuperación",value=f"{tasa_recuperacion:.2f}%",inline=True)
@@ -2902,11 +2941,12 @@ class RegenerarButton(discord.ui.View):
 async def responder_ask(destino, autor, mensaje: str, es_reply: bool = False):
     nombre_servidor = autor.guild.name if hasattr(autor, 'guild') and autor.guild else "DM"
 
+    # ES IMAGEN
     if any(p in mensaje.lower() for p in PALABRAS_IMAGEN):
         img_data, prompt, seed = await generar_imagen_ia(mensaje)
         if img_data:
             archivo = discord.File(io.BytesIO(img_data), filename="misti_art.png")
-            embed   = discord.Embed(title="Imagen generada", description=f"> **Prompt:** {prompt[:200]}", color=0x2B55B5)
+            embed   = discord.Embed(title="Imagen generada", description=f"> **Prompt:** {prompt[:200]}", color=0xff69b4)
             embed.set_image(url="attachment://misti_art.png")
             if seed: embed.set_footer(text=f"Seed: {seed}")
             if es_reply: await destino.reply(embed=embed, file=archivo, mention_author=False)
@@ -2918,6 +2958,7 @@ async def responder_ask(destino, autor, mensaje: str, es_reply: bool = False):
             else:        await destino.send(embed=embed)
         return
 
+    # RESPUESTA NORMAL
     agregar_memoria(autor.id, "user", mensaje)
     respuesta = await generar_respuesta_groq(autor.id, mensaje, autor.display_name, nombre_servidor)
     agregar_memoria(autor.id, "assistant", respuesta)
@@ -2946,7 +2987,7 @@ async def ask_slash(i: discord.Interaction, texto: str):
         img_data, prompt, seed = await generar_imagen_ia(texto)
         if img_data:
             archivo = discord.File(io.BytesIO(img_data), filename="misti_art.png")
-            embed   = discord.Embed(title="Imagen generada", description=f"> **Prompt:** {prompt[:200]}", color=0x2B55B5)
+            embed   = discord.Embed(title="Imagen generada", description=f"> **Prompt:** {prompt[:200]}", color=0xff69b4)
             embed.set_image(url="attachment://misti_art.png")
             if seed: embed.set_footer(text=f"Seed: {seed}")
             await i.followup.send(embed=embed, file=archivo)
@@ -2977,6 +3018,61 @@ async def ask_prefix(ctx, *, texto: str):
     await responder_ask(ctx, ctx.author, texto, es_reply=False)
 
 # =========================================================
+# ON MESSAGE - MENCIONES Y REPLIES
+# =========================================================
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    # QUITAR AFK
+    if message.author.id in afk_data:
+        tiempo_inicio    = afk_data[message.author.id]["tiempo"]
+        segundos_totales = int(time.time() - tiempo_inicio)
+        m, s = divmod(segundos_totales, 60)
+        h, m = divmod(m, 60)
+        tiempo_texto = f"{h}h {m}m {s}s" if h > 0 else f"{m}m {s}s" if m > 0 else f"{s}s"
+        await message.channel.send(f"**Bienvenido de nuevo {message.author.name}**\n> estuviste `{tiempo_texto}` inactivo")
+        del afk_data[message.author.id]
+
+    # AVISAR MENCIONES AFK
+    for user in message.mentions:
+        if user.id in afk_data and user.id != message.author.id:
+            await message.channel.send(f"**{user.name}** esta dormido...\n> Motivo: `{afk_data[user.id]['motivo']}`")
+
+    await bot.process_commands(message)
+
+    # MONEDAS CADA 5 MENSAJES
+    if message.guild:
+        uid = str(message.author.id)
+        if uid not in mensaje_count: mensaje_count[uid] = 0
+        mensaje_count[uid] += 1
+        if mensaje_count[uid] >= 5:
+            mensaje_count[uid] = 0
+            data = get_user_eco(str(message.guild.id), message.author.id)
+            data["coins"] += random.randint(2, 4)
+
+    # MENCION AL BOT
+    if bot.user in message.mentions:
+        mensaje_limpio = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
+        if not mensaje_limpio:
+            await message.reply("> Mencioname con un mensaje para que te responda.", mention_author=False)
+            return
+        await responder_ask(message, message.author, mensaje_limpio, es_reply=True)
+        return
+
+    # REPLY AL BOT
+    if message.reference:
+        try:
+            replied = await message.channel.fetch_message(message.reference.message_id)
+            if replied.author.id == bot.user.id:
+                await responder_ask(message, message.author, message.content, es_reply=True)
+                return
+        except:
+            pass
+
+# =========================================================
 # FORGET
 # =========================================================
 
@@ -2988,27 +3084,36 @@ async def forget(ctx: commands.Context):
     await ctx.send(embed=embed)
 
 # =========================================================
-# RECORDATORIO
+# COMANDO RECORDATORIO
 # =========================================================
 
 recordatorios_activos = {}
 
 @bot.hybrid_command(name="recordar", description="Crea un recordatorio (10s, 5m, 2h, 1d)")
 async def recordar(ctx: commands.Context, tiempo: str, *, mensaje: str):
+    """
+    Ejemplos:
+    >recordar 10s Hacer la tarea
+    >recordar 5m Llamar a mamá
+    >recordar 2h Reunión importante
+    >recordar 1d Cumpleaños de Juan
+    """
+    
+    # Convertir tiempo a segundos
     unidad = tiempo[-1].lower()
     cantidad_texto = tiempo[:-1]
-
+    
     try:
         cantidad = int(cantidad_texto)
     except:
         embed = discord.Embed(
             title="Error",
             description=f"> Formato inválido. Usa: `10s`, `5m`, `2h`, `1d`",
-            color=0x2B55B5
+            color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
-
+    
     if unidad == 's':
         segundos = cantidad
         texto_unidad = "segundo" if cantidad == 1 else "segundos"
@@ -3025,124 +3130,455 @@ async def recordar(ctx: commands.Context, tiempo: str, *, mensaje: str):
         embed = discord.Embed(
             title="Error",
             description=f"> Unidad inválida. Usa: `s` (segundos), `m` (minutos), `h` (horas), `d` (días)",
-            color=0x2B55B5
+            color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
-
-    if segundos > 604800:
+    
+    if segundos > 604800:  # 7 días máximo
         embed = discord.Embed(
             title="Error",
             description="> El recordatorio no puede ser mayor a 7 días",
-            color=0x2B55B5
+            color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
-
+    
     if segundos < 5:
         embed = discord.Embed(
             title="Error",
             description="**El tiempo mínimo es 5 segundos**",
-            color=0x2B55B5
+            color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
-
+    
+    # Guardar recordatorio
     recordatorios_activos[ctx.author.id] = {
         "mensaje": mensaje,
         "tiempo": segundos,
         "canal_id": ctx.channel.id
     }
-
+    
     embed_confirmacion = discord.Embed(
         title="Recordatorio creado",
         description=f"Te recordaré **{mensaje}** en **{cantidad} {texto_unidad}**",
-        color=0x2B55B5
+        color=AZUL_IPOD_NUM
     )
     await ctx.send(embed=embed_confirmacion)
-
+    
+    # Esperar y enviar recordatorio
     await asyncio.sleep(segundos)
-
+    
     embed_recordatorio = discord.Embed(
         title="RECORDATORIO",
         description=f"> {ctx.author.mention}\n**{mensaje}**",
-        color=0x2B55B5
+        color=AZUL_IPOD_NUM
     )
-
+    
     canal = ctx.channel
     await canal.send(content=ctx.author.mention, embed=embed_recordatorio)
+    
+    # Limpiar recordatorio activo
     recordatorios_activos.pop(ctx.author.id, None)
 
 # =========================================================
-# ANIMALES
+# COMANDO COLOR - Muestra color por código HEX
 # =========================================================
 
-async def _animal_embed(ctx, datos, query_unsplash, fallback_url):
-    await ctx.defer()
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f"https://api.unsplash.com/photos/random?query={query_unsplash}&orientation=landscape") as resp:
-            data = await resp.json()
-            img_url = data.get('urls', {}).get('regular', fallback_url)
+@bot.hybrid_command(name="color", description="Muestra un color por código HEX")
+async def mostrar_color(ctx: commands.Context, hex_code: str = None):
+    """
+    Ejemplos:
+    >color FF5733
+    >color 5AC8FA
+    >color (aleatorio)
+    """
+    
+    import re
+    
+    # Si no hay código, generar aleatorio
+    if not hex_code:
+        hex_code = ''.join([random.choice('0123456789ABCDEF') for _ in range(6)])
+        es_aleatorio = True
+    else:
+        # Limpiar código HEX
+        hex_code = hex_code.strip().lstrip('#').upper()
+        es_aleatorio = False
+    
+    # Validar formato HEX
+    if not re.match(r'^[0-9A-F]{6}$', hex_code):
+        embed = discord.Embed(
+            title="Error",
+            description=f"> Código HEX inválido: `{hex_code}`\nUsa formato de 6 caracteres: `FF5733`, `5AC8FA`, etc.",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    # Convertir HEX a RGB
+    r = int(hex_code[0:2], 16)
+    g = int(hex_code[2:4], 16)
+    b = int(hex_code[4:6], 16)
+    
+    # Calcular color complementario
+    r_comp = 255 - r
+    g_comp = 255 - g
+    b_comp = 255 - b
+    hex_comp = f"{r_comp:02X}{g_comp:02X}{b_comp:02X}"
+    
+    # Crear imagen del color
+    img = Image.new("RGB", (400, 200), (r, g, b))
+    draw = ImageDraw.Draw(img)
+    
+    # Agregar texto del color
+    draw.text((200, 80), f"#{hex_code}", font=fuente(24, bold=True), fill=(255, 255, 255), anchor="mm")
+    draw.text((200, 120), f"RGB({r}, {g}, {b})", font=fuente(16), fill=(255, 255, 255), anchor="mm")
+    
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    archivo = discord.File(buf, filename="color.png")
+    
+    # Nombre del color aproximado
+    nombres_colores = {
+        "FF0000": "Rojo", "00FF00": "Verde", "0000FF": "Azul", "FFFFFF": "Blanco", "000000": "Negro",
+        "FFFF00": "Amarillo", "FF00FF": "Magenta", "00FFFF": "Cian", "FF5733": "Naranja", "5AC8FA": "Celeste"
+    }
+    nombre_color = nombres_colores.get(hex_code, "Color personalizado")
+    
+    embed = discord.Embed(
+        title=f"{nombre_color}" if not es_aleatorio else "Color Aleatorio",
+        color=int(hex_code, 16)
+    )
+    embed.add_field(name="> Código HEX", value=f"`#{hex_code}`", inline=True)
+    embed.add_field(name="> RGB", value=f"`({r}, {g}, {b})`", inline=True)
+    embed.add_field(name="> Complementario", value=f"`#{hex_comp}`", inline=True)
+    embed.set_image(url="attachment://color.png")
+    
+    if es_aleatorio:
+        embed.set_footer(text="Usa >mt o /color [HEX] para ver un color específico")
+    
+    await ctx.send(embed=embed, file=archivo)
 
-    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=0x2B55B5)
-    embed.add_field(name="> Hábitat",        value=datos['habitat'],     inline=False)
-    embed.add_field(name="> Alimentación",   value=datos['alimentacion'], inline=True)
-    embed.add_field(name="> Longevidad",     value=datos['longevidad'],   inline=True)
-    embed.add_field(name="> Dato curioso",   value=datos['curiosidad'],  inline=False)
-    embed.add_field(name="> Más información",value=datos['dato_extra'],  inline=False)
+# =========================================================
+# IMPORTS NECESARIOS
+# =========================================================
+
+import discord
+from discord.ext import commands
+import aiohttp
+
+# =========================================================
+# FUNCIÓN PARA OBTENER IMAGEN
+# Porque repetir 40 veces lo mismo es deporte olímpico ya 😭
+# =========================================================
+
+async def obtener_imagen(query: str, fallback: str):
+    url = f"https://api.unsplash.com/photos/random?query={query}&orientation=landscape&client_id=TU_CLIENT_ID"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data.get("urls", {}).get("regular", fallback)
+
+    except Exception as e:
+        print(f"Error obteniendo imagen: {e}")
+
+    return fallback
+
+# =========================================================
+# FUNCIÓN PARA CREAR EMBED
+# =========================================================
+
+def crear_embed(datos, img_url):
+    embed = discord.Embed(
+        title=f"{datos['nombre']} ({datos['cientifico']})",
+        color=AZUL_IPOD_NUM
+    )
+
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+
     embed.set_image(url=img_url)
-    await ctx.send(embed=embed)
+    embed.set_footer(text="Foto aleatoria | Datos científicos")
+
+    return embed
+
+# =========================================================
+# LEÓN
+# =========================================================
 
 @bot.hybrid_command(name="leon", description="Información y foto de un león")
 async def leon(ctx: commands.Context):
-    datos = {"nombre": "León", "cientifico": "Panthera leo", "habitat": "Sabanas y pastizales de África", "alimentacion": "Carnívoro (cazan en manada)", "curiosidad": "Los leones duermen entre 16 y 20 horas al día", "longevidad": "10-14 años en libertad, hasta 20 en cautiverio", "dato_extra": "La melena del león macho le sirve para atraer hembras y protegerse"}
-    await _animal_embed(ctx, datos, "lion", "https://cdn.pixabay.com/photo/2017/07/24/19/57/lion-2535885_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "León",
+        "cientifico": "Panthera leo",
+        "habitat": "Sabanas y pastizales de África",
+        "alimentacion": "Carnívoro (cazan en manada)",
+        "curiosidad": "Los leones duermen entre 16 y 20 horas al día",
+        "longevidad": "10-14 años en libertad, hasta 20 en cautiverio",
+        "dato_extra": "La melena del león macho le sirve para atraer hembras y protegerse"
+    }
+
+    img_url = await obtener_imagen(
+        "lion",
+        "https://cdn.pixabay.com/photo/2017/07/24/19/57/lion-2535885_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# ELEFANTE
+# =========================================================
 
 @bot.hybrid_command(name="elefante", description="Información y foto de un elefante")
 async def elefante(ctx: commands.Context):
-    datos = {"nombre": "Elefante Africano", "cientifico": "Loxodonta africana", "habitat": "Sabanas, bosques y desiertos de África", "alimentacion": "Herbívoro (come hasta 150kg al día)", "curiosidad": "Los elefantes tienen la memoria más larga de todos los animales terrestres", "longevidad": "60-70 años", "dato_extra": "Su trompa tiene más de 40,000 músculos"}
-    await _animal_embed(ctx, datos, "elephant", "https://cdn.pixabay.com/photo/2016/03/27/22/16/elephant-1284299_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Elefante Africano",
+        "cientifico": "Loxodonta africana",
+        "habitat": "Sabanas, bosques y desiertos de África",
+        "alimentacion": "Herbívoro (come hasta 150kg al día)",
+        "curiosidad": "Los elefantes tienen la memoria más larga de todos los animales terrestres",
+        "longevidad": "60-70 años",
+        "dato_extra": "Su trompa tiene más de 40,000 músculos"
+    }
+
+    img_url = await obtener_imagen(
+        "elephant",
+        "https://cdn.pixabay.com/photo/2016/03/27/22/16/elephant-1284299_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# JIRAFA
+# =========================================================
 
 @bot.hybrid_command(name="jirafa", description="Información y foto de una jirafa")
 async def jirafa(ctx: commands.Context):
-    datos = {"nombre": "Jirafa", "cientifico": "Giraffa camelopardalis", "habitat": "Sabanas y bosques abiertos de África", "alimentacion": "Herbívoro (come hojas de acacia)", "curiosidad": "Las jirafas duermen solo 30 minutos al día", "longevidad": "20-25 años", "dato_extra": "Su lengua mide hasta 45 cm y es de color negro"}
-    await _animal_embed(ctx, datos, "giraffe", "https://cdn.pixabay.com/photo/2020/07/05/12/08/giraffe-5372115_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Jirafa",
+        "cientifico": "Giraffa camelopardalis",
+        "habitat": "Sabanas y bosques abiertos de África",
+        "alimentacion": "Herbívoro (come hojas de acacia)",
+        "curiosidad": "Las jirafas duermen solo 30 minutos al día",
+        "longevidad": "20-25 años",
+        "dato_extra": "Su lengua mide hasta 45 cm y es de color negro"
+    }
+
+    img_url = await obtener_imagen(
+        "giraffe",
+        "https://cdn.pixabay.com/photo/2020/07/05/12/08/giraffe-5372115_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# PINGÜINO
+# =========================================================
 
 @bot.hybrid_command(name="pinguino", description="Información y foto de un pingüino")
 async def pinguino(ctx: commands.Context):
-    datos = {"nombre": "Pingüino Emperador", "cientifico": "Aptenodytes forsteri", "habitat": "Antártida y costas del hemisferio sur", "alimentacion": "Carnívoro (come peces, calamares y krill)", "curiosidad": "Los pingüinos no pueden volar pero nadan a 25 km/h", "longevidad": "15-20 años", "dato_extra": "El macho incuba el huevo durante 60 días sin comer"}
-    await _animal_embed(ctx, datos, "penguin", "https://cdn.pixabay.com/photo/2017/06/28/12/53/penguins-2450977_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Pingüino Emperador",
+        "cientifico": "Aptenodytes forsteri",
+        "habitat": "Antártida y costas del hemisferio sur",
+        "alimentacion": "Carnívoro (come peces, calamares y krill)",
+        "curiosidad": "Los pingüinos no pueden volar pero nadan a 25 km/h",
+        "longevidad": "15-20 años",
+        "dato_extra": "El macho incuba el huevo durante 60 días sin comer"
+    }
+
+    img_url = await obtener_imagen(
+        "penguin",
+        "https://cdn.pixabay.com/photo/2017/06/28/12/53/penguins-2450977_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# DELFÍN
+# =========================================================
 
 @bot.hybrid_command(name="delfin", description="Información y foto de un delfín")
 async def delfin(ctx: commands.Context):
-    datos = {"nombre": "Delfín Nariz de Botella", "cientifico": "Tursiops truncatus", "habitat": "Océanos de todo el mundo", "alimentacion": "Carnívoro (come peces y calamares)", "curiosidad": "Los delfines duermen con un ojo abierto", "longevidad": "40-50 años", "dato_extra": "Son uno de los animales más inteligentes y se reconocen en un espejo"}
-    await _animal_embed(ctx, datos, "dolphin", "https://cdn.pixabay.com/photo/2014/11/19/21/49/dolphin-537891_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Delfín Nariz de Botella",
+        "cientifico": "Tursiops truncatus",
+        "habitat": "Océanos de todo el mundo",
+        "alimentacion": "Carnívoro (come peces y calamares)",
+        "curiosidad": "Los delfines duermen con un ojo abierto",
+        "longevidad": "40-50 años",
+        "dato_extra": "Son uno de los animales más inteligentes y se reconocen en un espejo"
+    }
+
+    img_url = await obtener_imagen(
+        "dolphin",
+        "https://cdn.pixabay.com/photo/2014/11/19/21/49/dolphin-537891_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# PANDA
+# =========================================================
 
 @bot.hybrid_command(name="panda", description="Información y foto de un panda")
 async def panda(ctx: commands.Context):
-    datos = {"nombre": "Panda Gigante", "cientifico": "Ailuropoda melanoleuca", "habitat": "Bosques de bambú de China", "alimentacion": "Herbívoro (99% de su dieta es bambú)", "curiosidad": "Los pandas pasan 12 horas al día comiendo", "longevidad": "15-20 años en libertad", "dato_extra": "Tienen un hueso adicional en la muñeca para sujetar el bambú"}
-    await _animal_embed(ctx, datos, "panda", "https://cdn.pixabay.com/photo/2017/09/13/01/08/panda-2744094_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Panda Gigante",
+        "cientifico": "Ailuropoda melanoleuca",
+        "habitat": "Bosques de bambú de China",
+        "alimentacion": "Herbívoro (99% de su dieta es bambú)",
+        "curiosidad": "Los pandas pasan 12 horas al día comiendo",
+        "longevidad": "15-20 años en libertad",
+        "dato_extra": "Tienen un hueso adicional en la muñeca para sujetar el bambú"
+    }
+
+    img_url = "https://cdn.pixabay.com/photo/2017/09/13/01/08/panda-2744094_640.jpg"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://some-random-api.com/animal/panda") as resp:
+
+                if resp.status == 200:
+                    data = await resp.json()
+                    img_url = data.get("image", img_url)
+
+    except Exception as e:
+        print(f"Error panda: {e}")
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# TIBURÓN
+# =========================================================
 
 @bot.hybrid_command(name="tiburon", description="Información y foto de un tiburón")
 async def tiburon(ctx: commands.Context):
-    datos = {"nombre": "Tiburón Blanco", "cientifico": "Carcharodon carcharias", "habitat": "Océanos de todo el mundo", "alimentacion": "Carnívoro (focas, peces, calamares)", "curiosidad": "Los tiburones tienen electroreceptores para detectar presas", "longevidad": "30-40 años", "dato_extra": "Un tiburón puede perder hasta 30,000 dientes en su vida"}
-    await _animal_embed(ctx, datos, "shark", "https://cdn.pixabay.com/photo/2013/10/02/23/10/shark-190274_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Tiburón Blanco",
+        "cientifico": "Carcharodon carcharias",
+        "habitat": "Océanos de todo el mundo",
+        "alimentacion": "Carnívoro (focas, peces, calamares)",
+        "curiosidad": "Los tiburones tienen electroreceptores para detectar presas",
+        "longevidad": "30-40 años",
+        "dato_extra": "Un tiburón puede perder hasta 30,000 dientes en su vida"
+    }
+
+    img_url = await obtener_imagen(
+        "shark",
+        "https://cdn.pixabay.com/photo/2013/10/02/23/10/shark-190274_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# BÚHO
+# =========================================================
 
 @bot.hybrid_command(name="buho", description="Información y foto de un búho")
 async def buho(ctx: commands.Context):
-    datos = {"nombre": "Búho Real", "cientifico": "Bubo bubo", "habitat": "Bosques y montañas de Europa, Asia y África", "alimentacion": "Carnívoro (roedores, aves, insectos)", "curiosidad": "Los búhos pueden girar la cabeza 270 grados", "longevidad": "10-20 años", "dato_extra": "Su vuelo es silencioso gracias a sus plumas especiales"}
-    await _animal_embed(ctx, datos, "owl", "https://cdn.pixabay.com/photo/2017/03/02/16/00/owl-2111222_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Búho Real",
+        "cientifico": "Bubo bubo",
+        "habitat": "Bosques y montañas de Europa, Asia y África",
+        "alimentacion": "Carnívoro (roedores, aves, insectos)",
+        "curiosidad": "Los búhos pueden girar la cabeza 270 grados",
+        "longevidad": "10-20 años",
+        "dato_extra": "Su vuelo es silencioso gracias a sus plumas especiales"
+    }
+
+    img_url = await obtener_imagen(
+        "owl",
+        "https://cdn.pixabay.com/photo/2017/03/02/16/00/owl-2111222_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# CANGREJO
+# =========================================================
 
 @bot.hybrid_command(name="cangrejo", description="Información y foto de un cangrejo")
 async def cangrejo(ctx: commands.Context):
-    datos = {"nombre": "Cangrejo Ermitaño", "cientifico": "Paguroidea", "habitat": "Playas y océanos de todo el mundo", "alimentacion": "Omnívoro (come algas, restos de animales)", "curiosidad": "Los cangrejos usan conchas de otros animales como casa", "longevidad": "10-30 años", "dato_extra": "Pueden regenerar sus pinzas si las pierden"}
-    await _animal_embed(ctx, datos, "crab", "https://cdn.pixabay.com/photo/2020/06/07/19/48/crab-5270499_640.jpg")
+
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Cangrejo Ermitaño",
+        "cientifico": "Paguroidea",
+        "habitat": "Playas y océanos de todo el mundo",
+        "alimentacion": "Omnívoro (come algas, restos de animales)",
+        "curiosidad": "Los cangrejos usan conchas de otros animales como casa",
+        "longevidad": "10-30 años",
+        "dato_extra": "Pueden regenerar sus pinzas si las pierden"
+    }
+
+    img_url = await obtener_imagen(
+        "crab",
+        "https://cdn.pixabay.com/photo/2020/06/07/19/48/crab-5270499_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+
+# =========================================================
+# MARIPOSA
+# =========================================================
 
 @bot.hybrid_command(name="mariposa", description="Información y foto de una mariposa")
 async def mariposa(ctx: commands.Context):
-    datos = {"nombre": "Mariposa Monarca", "cientifico": "Danaus plexippus", "habitat": "América del Norte, bosques y jardines", "alimentacion": "Néctar de flores", "curiosidad": "Las mariposas saborean con sus patas", "longevidad": "2-6 semanas (migratorias hasta 8 meses)", "dato_extra": "Pueden volar hasta 4,000 km durante la migración"}
-    await _animal_embed(ctx, datos, "butterfly", "https://cdn.pixabay.com/photo/2016/03/23/16/19/butterfly-1274974_640.jpg")
 
+    await ctx.defer()
+
+    datos = {
+        "nombre": "Mariposa Monarca",
+        "cientifico": "Danaus plexippus",
+        "habitat": "América del Norte, bosques y jardines",
+        "alimentacion": "Néctar de flores",
+        "curiosidad": "Las mariposas saborean con sus patas",
+        "longevidad": "2-6 semanas (migratorias hasta 8 meses)",
+        "dato_extra": "Pueden volar hasta 4,000 km durante la migración"
+    }
+
+    img_url = await obtener_imagen(
+        "butterfly",
+        "https://cdn.pixabay.com/photo/2016/03/23/16/19/butterfly-1274974_640.jpg"
+    )
+
+    await ctx.send(embed=crear_embed(datos, img_url))
+    
 # -------------------------
 # FLASK WEB
 # -------------------------
@@ -3163,5 +3599,3 @@ threading.Thread(target=run_web).start()
 # -------------------------
 
 bot.run(TOKEN)
-PYEOF
-echo "Done"
