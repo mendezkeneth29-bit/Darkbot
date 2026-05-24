@@ -1089,213 +1089,454 @@ async def dado_prefix(ctx, caras: int = 6):
     await ctx.send(embed=embed)
 
 # =========================================================
-# MEMORIA IA
+# MEMORIA IA (MEJORADA)
 # =========================================================
 
-memoria_usuarios = {}
+import urllib.parse
+import random
+import asyncio
+import re
+from datetime import datetime
+from typing import Optional, List, Dict
+
+# Colores
+AZUL_IPOD = 0x5AC8FA  # Azul iOS
+AZUL_OSCURO = 0x007AFF
+AZUL_CLARO = 0x64D2FF
+AZUL_ELECTRICO = 0x00C2FF
+
+# Configuración de memoria
+MEMORIA_MAX = 30  # Aumentado de 20 a 30 mensajes
+TEMPERATURA = 0.8
+MAX_TOKENS = 500
+
+memoria_usuarios: Dict[int, List[Dict]] = {}
+memoria_contexto: Dict[int, Dict] = {}
 
 def get_memoria(user_id: int) -> list:
+    """Obtiene el historial de conversación de un usuario"""
     if user_id not in memoria_usuarios:
         memoria_usuarios[user_id] = []
     return memoria_usuarios[user_id]
 
 def agregar_memoria(user_id: int, role: str, content: str):
+    """Agrega un mensaje al historial del usuario con timestamp"""
     memoria = get_memoria(user_id)
-    memoria.append({"role": role, "content": content})
-    if len(memoria) > 20:
+    memoria.append({
+        "role": role, 
+        "content": content,
+        "timestamp": datetime.now().isoformat()
+    })
+    # Mantener solo los últimos MEMORIA_MAX mensajes
+    if len(memoria) > MEMORIA_MAX:
         memoria.pop(0)
 
+def limpiar_memoria(user_id: int):
+    """Limpia completamente la memoria de un usuario"""
+    if user_id in memoria_usuarios:
+        memoria_usuarios[user_id] = []
+
+def get_resumen_contexto(user_id: int) -> str:
+    """Genera un resumen del contexto de conversación"""
+    memoria = get_memoria(user_id)
+    if len(memoria) < 5:
+        return ""
+    
+    # Extraer temas principales de la conversación
+    temas = []
+    for msg in memoria[-10:]:
+        if msg["role"] == "user":
+            palabras = msg["content"].split()[:5]
+            temas.append(" ".join(palabras))
+    
+    if temas:
+        return f"Contexto reciente: {' | '.join(temas)}"
+    return ""
+
 # =========================================================
-# ASK IA (con generador de imágenes mejorado)
+# GENERADOR DE IMÁGENES MEJORADO
 # =========================================================
 
-@bot.tree.command(name="ask")
-async def ask_slash(i: discord.Interaction, mensaje: str):
-    await i.response.defer()
-    try:
-        # =============================================
-        # GENERAR IMAGEN (MEJORADO CON LLM7)
-        # =============================================
-        palabras_clave = ["imagen", "foto", "dibujo", "genera", "wallpaper", "crea", "hazme", "dibújame"]
+class ImageGenerator:
+    """Clase dedicada a la generación de imágenes con múltiples modelos"""
+    
+    MODELOS = {
+        1: {"name": "FLUX-schnell", "emoji": "<:power:1507916118151532756>", "quality": "Buena"},
+        2: {"name": "FLUX-Kontext", "emoji": "<:retry:1505394236906799165>", "quality": "Media"},
+        3: {"name": "DreamShaper", "emoji": "<:pincel:1507915303429079081>", "quality": "Excelente"},
+        4: {"name": "RealVisXL", "emoji": "<:phone:1505453393798365234>", "quality": "Realista"},
+        5: {"name": "AnimeV3", "emoji": "<:identy:1504901134173737103>", "quality": "Anime"}
+    }
+    
+    PALABRAS_CLAVE = [
+        "imagen", "foto", "dibujo", "genera", "wallpaper", 
+        "crea", "hazme", "dibújame", "pintame", "ilustra",
+        "generame", "muéstrame", "muestrame"
+    ]
+    
+    @staticmethod
+    async def generar(mensaje: str, modelo: int = 3) -> tuple:
+        """Genera una imagen usando LLM7"""
+        # Extraer prompt
+        prompt = ImageGenerator._extraer_prompt(mensaje)
         
-        if any(p in mensaje.lower() for p in palabras_clave):
-            # Extraer el prompt para la imagen
-            prompt_imagen = mensaje
-            for palabra in palabras_clave:
-                prompt_imagen = prompt_imagen.lower().replace(palabra, "").strip()
+        if not prompt or len(prompt) < 3:
+            prompt = mensaje
+        
+        # Configurar parámetros
+        prompt_encoded = urllib.parse.quote(prompt[:500])  # Limitar prompt
+        seed = random.randint(1, 999999)
+        size = random.choice([512, 768])  # Variedad de tamaños
+        url = f"https://api.llm7.io/prompt/{prompt_encoded}?w={size}&h={size}&seed={seed}&model={model}"
+        
+        return url, prompt, seed, model
+    
+    @staticmethod
+    def _extraer_prompt(mensaje: str) -> str:
+        """Extrae el prompt real eliminando palabras clave"""
+        prompt = mensaje.lower()
+        for palabra in ImageGenerator.PALABRAS_CLAVE:
+            prompt = prompt.replace(palabra, "")
+        prompt = re.sub(r'\s+', ' ', prompt).strip()
+        
+        # Capitalizar primera letra
+        if prompt:
+            prompt = prompt[0].upper() + prompt[1:]
+        return prompt
+    
+    @staticmethod
+    async def generar_con_retry(mensaje: str, intentos: int = 2) -> tuple:
+        """Intenta generar imagen con múltiples modelos si falla"""
+        modelos_a_intentar = [3, 1, 5, 2]  # DreamShaper -> FLUX -> Anime -> Kontext
+        
+        for i in range(min(intentos, len(modelos_a_intentar))):
+            modelo = modelos_a_intentar[i]
+            url, prompt, seed, model = await ImageGenerator.generar(mensaje, modelo)
             
-            if not prompt_imagen or len(prompt_imagen) < 3:
-                prompt_imagen = mensaje
-            
-            # Usar LLM7 (gratis, sin API Key)
-            prompt_encoded = urllib.parse.quote(prompt_imagen)
-            
-            # Modelo 3 = DreamShaper (mejor calidad)
-            seed = random.randint(1, 999999)
-            url = f"https://api.llm7.io/prompt/{prompt_encoded}?w=512&h=512&seed={seed}&model=3"
-            
-            # Mensaje de espera
-            await i.followup.send("🎨 Generando imagen... (esto puede tomar 10-15 segundos)")
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
-                    if resp.status == 200:
-                        img_data = await resp.read()
-                        archivo = discord.File(io.BytesIO(img_data), filename="generated.png")
-                        
-                        embed = discord.Embed(
-                            title="🖼️ Imagen generada por IA",
-                            description=f"**Prompt:** {prompt_imagen[:200]}",
-                            color=AZUL_IPOD_NUM
-                        )
-                        embed.set_image(url="attachment://generated.png")
-                        embed.set_footer(text=f"Seed: {seed} | Modelo: DreamShaper")
-                        
-                        await i.followup.send(embed=embed, file=archivo)
-                    else:
-                        # Fallback a Pollinations si LLM7 falla
-                        image_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt_imagen)}"
-                        embed = discord.Embed(
-                            title="🖼️ Imagen generada",
-                            description=f"**Prompt:** {prompt_imagen[:200]}",
-                            color=AZUL_IPOD_NUM
-                        )
-                        embed.set_image(url=image_url)
-                        await i.followup.send(embed=embed)
-            return
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                        if resp.status == 200:
+                            img_data = await resp.read()
+                            return img_data, prompt, seed, model, True
+            except:
+                continue
+        
+        return None, None, None, None, False
 
-        # =============================================
-        # CHAT NORMAL CON IA
-        # =============================================
-        system_prompt = f"""
-Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual.
-Estas hablando con {i.user.display_name} (usuario: {i.user.name}).
-Estas en el servidor: {i.guild.name}.
-Recuerda todo lo que te han dicho antes y adapta tu personalidad a cada usuario.
-Si ya conoces al usuario, trata de recordar cosas que te haya contado.
-Responde de forma natural, casual y con personalidad.
+# =========================================================
+# SISTEMA DE RESPUESTAS MEJORADO
+# =========================================================
+
+async def generar_respuesta_ia(user_id: int, mensaje: str, nombre_usuario: str, nombre_servidor: str) -> str:
+    """Genera respuesta usando Groq con contexto mejorado"""
+    
+    historial = get_memoria(user_id)
+    resumen_contexto = get_resumen_contexto(user_id)
+    
+    system_prompt = f"""
+╔══════════════════════════════════════════════════════════╗
+║                      PERSONALIDAD                        ║
+╠══════════════════════════════════════════════════════════╣
+║ Nombre: Misti (Ella/Elle - Transexual)                  ║
+║ Personalidad: Divertida, sarcástica, cariñosa, real     ║
+║ Estilo: Natural, casual, con chistes, sin filtros       ║
+║ Recuerda: Memoria a largo plazo con cada usuario        ║
+╚══════════════════════════════════════════════════════════╝
+
+📌 CONTEXTO ACTUAL:
+• Hablando con: {nombre_usuario}
+• Servidor: {nombre_servidor}
+• Hora: {datetime.now().strftime('%H:%M')}
+• Resumen: {resumen_contexto if resumen_contexto else 'Conversación nueva'}
+
+💬 INSTRUCCIONES:
+1. Responde en el mismo idioma que te hablan
+2. Sé sarcástica pero amable
+3. Usa emojis ocasionalmente
+4. Máximo 400 caracteres por respuesta
+5. Si te preguntan algo que no sabes, dilo con humor
+6. Recuerda cosas que te contaron antes
+7. Trata a cada usuario de forma única
+
+🎭 EJEMPLOS DE RESPUESTA:
+- "Ay amix... eso fue re turbio jajaja"
+- "Mmm no sé eh... medio raro eso"
+- "JAJAJAJA sos un caso perdido, te quiero igual"
 """
-        historial = get_memoria(i.user.id)
-        mensajes = [{"role": "system", "content": system_prompt}] + historial + [{"role": "user", "content": mensaje}]
-
+    
+    # Construir mensajes para la API
+    mensajes_api = [{"role": "system", "content": system_prompt}]
+    
+    # Agregar historial relevante (últimos 15 mensajes)
+    for msg in historial[-15:]:
+        mensajes_api.append({"role": msg["role"], "content": msg["content"]})
+    
+    # Agregar mensaje actual
+    mensajes_api.append({"role": "user", "content": mensaje})
+    
+    try:
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=mensajes
+            messages=mensajes_api,
+            temperature=TEMPERATURA,
+            max_tokens=MAX_TOKENS
         )
         texto = respuesta.choices[0].message.content
+        
+        # Limitar respuesta si es muy larga
+        if len(texto) > 500:
+            texto = texto[:500] + "..."
+        
+        return texto
+    except Exception as e:
+        print(f"Error en Groq: {e}")
+        return "Ups, me quedé sin neuronas por un momento... ¿Podrías repetir?"
 
+# =========================================================
+# COMANDO ASK (SLASH) - VERSIÓN DEFINITIVA
+# =========================================================
+
+@bot.tree.command(name="ask", description="Habla con Misti (IA con memoria)")
+async def ask_slash(i: discord.Interaction, mensaje: str):
+    await i.response.defer()
+    
+    embed_espera = discord.Embed(
+        description="<a:loading:1506394397057613864> **Misti está pensando...**",
+        color=AZUL_CLARO
+    )
+    await i.followup.send(embed=embed_espera)
+    
+    try:
+        # =============================================
+        # GENERAR IMAGEN
+        # =============================================
+        if any(p in mensaje.lower() for p in ImageGenerator.PALABRAS_CLAVE):
+            img_data, prompt, seed, modelo_usado, exito = await ImageGenerator.generar_con_retry(mensaje)
+            
+            if exito and img_data:
+                archivo = discord.File(io.BytesIO(img_data), filename="misti_art.png")
+                
+                modelo_info = ImageGenerator.MODELOS.get(modelo_usado, {"name": "DreamShaper", "emoji": "🎨"})
+                
+                embed = discord.Embed(
+                    title=f"{modelo_info['emoji']} Misti creó esto para vos {modelo_info['emoji']}",
+                    description=f">>> *\"{prompt[:200]}\"*",
+                    color=AZUL_IPOD
+                )
+                embed.set_image(url="attachment://misti_art.png")
+                embed.set_footer(text=f"> Modelo: {modelo_info['name']} | Seed: {seed} | Tamaño: 512x512")
+                
+                await i.edit_original_response(content=None, embed=embed, attachments=[archivo])
+                return
+            else:
+                # Fallback a imagen de error pero linda
+                embed = discord.Embed(
+                    title="No pude generar la imagen",
+                    description=f"*\"{mensaje[:100]}\"*\n\n> **Tip:** Intenta con un prompt más descriptivo o usa `/ask [tu mensaje]` sin palabras clave de imagen.",
+                    color=AZUL_OSCURO
+                )
+                await i.edit_original_response(embed=embed)
+                return
+
+        # =============================================
+        # CHAT NORMAL
+        # =============================================
+        texto = await generar_respuesta_ia(
+            i.user.id, 
+            mensaje, 
+            i.user.display_name, 
+            i.guild.name
+        )
+        
+        # Guardar en memoria
         agregar_memoria(i.user.id, "user", mensaje)
         agregar_memoria(i.user.id, "assistant", texto)
-
-        embed = discord.Embed(color=AZUL_IPOD_NUM)
-        embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
-        await i.followup.send(embed=embed)
-
+        
+        # Crear embed bonito
+        embed = discord.Embed(color=AZUL_IPOD)
+        
+        # Mensaje del usuario
+        user_text = mensaje[:500] + "..." if len(mensaje) > 500 else mensaje
+        embed.add_field(
+            name=f"{i.user.display_name}",
+            value=f">>> {user_text}",
+            inline=False
+        )
+        
+        # Respuesta de Misti
+        bot_text = texto[:500] + "..." if len(texto) > 500 else texto
+        embed.add_field(
+            name=f"Misti",
+            value=f">>> {bot_text}",
+            inline=False
+        )
+        
+        # Separador decorativo
+        embed.add_field(name="", value="<:sparkles:1506394397057613864>" * 10, inline=False)
+        
+        embed.set_footer(text=f"Memoria: {len(get_memoria(i.user.id))} mensajes")
+        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+        
+        await i.edit_original_response(content=None, embed=embed)
+        
     except Exception as e:
-        await i.followup.send(f"Error:\n```{e}```")
+        embed_error = discord.Embed(
+            title="Error inesperado",
+            description=f"```{str(e)[:200]}```\n> Misti se cayó de la silla... intentá de nuevo",
+            color=AZUL_OSCURO
+        )
+        await i.edit_original_response(embed=embed_error)
 
+# =========================================================
+# COMANDO ASK (PREFIX) - VERSIÓN DEFINITIVA
+# =========================================================
 
 @bot.command(name="ask")
 async def ask_prefix(ctx, *, mensaje: str):
+    
+    embed_espera = discord.Embed(
+        description="<a:loading:1506394397057613864> **Misti está pensando...**",
+        color=AZUL_CLARO
+    )
+    msg_espera = await ctx.send(embed=embed_espera)
+    
     try:
         # =============================================
-        # GENERAR IMAGEN (MEJORADO CON LLM7)
+        # GENERAR IMAGEN
         # =============================================
-        palabras_clave = ["imagen", "foto", "dibujo", "genera", "wallpaper", "crea", "hazme", "dibújame"]
-        
-        if any(p in mensaje.lower() for p in palabras_clave):
-            # Extraer el prompt para la imagen
-            prompt_imagen = mensaje
-            for palabra in palabras_clave:
-                prompt_imagen = prompt_imagen.lower().replace(palabra, "").strip()
+        if any(p in mensaje.lower() for p in ImageGenerator.PALABRAS_CLAVE):
+            img_data, prompt, seed, modelo_usado, exito = await ImageGenerator.generar_con_retry(mensaje)
             
-            if not prompt_imagen or len(prompt_imagen) < 3:
-                prompt_imagen = mensaje
-            
-            # Usar LLM7 (gratis, sin API Key)
-            prompt_encoded = urllib.parse.quote(prompt_imagen)
-            
-            # Modelo 3 = DreamShaper (mejor calidad)
-            seed = random.randint(1, 999999)
-            url = f"https://api.llm7.io/prompt/{prompt_encoded}?w=512&h=512&seed={seed}&model=3"
-            
-            # Mensaje de espera
-            msg_espera = await ctx.send("> Generando imagen... (esto puede tomar 10-15 segundos)")
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
-                    if resp.status == 200:
-                        img_data = await resp.read()
-                        archivo = discord.File(io.BytesIO(img_data), filename="generated.png")
-                        
-                        embed = discord.Embed(
-                            title="Imagen generada por Misti...<:sparkles:1506394397057613864>",
-                            description=f"**Prompt:** {prompt_imagen[:200]}",
-                            color=AZUL_IPOD_NUM
-                        )
-                        embed.set_image(url="attachment://generated.png")
-                        embed.set_footer(text=f"Seed: {seed} | Modelo: DreamShaper")
-                        
-                        await msg_espera.delete()
-                        await ctx.send(embed=embed, file=archivo)
-                    else:
-                        # Fallback a Pollinations si LLM7 falla
-                        image_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt_imagen)}"
-                        embed = discord.Embed(
-                            title="Imagen generada por Misti...<:sparkles:1506394397057613864>",
-                            description=f"**Prompt:** {prompt_imagen[:200]}",
-                            color=AZUL_IPOD_NUM
-                        )
-                        embed.set_image(url=image_url)
-                        await msg_espera.delete()
-                        await ctx.send(embed=embed)
-            return
+            if exito and img_data:
+                archivo = discord.File(io.BytesIO(img_data), filename="misti_art.png")
+                
+                modelo_info = ImageGenerator.MODELOS.get(modelo_usado, {"name": "DreamShaper", "emoji": "🎨"})
+                
+                embed = discord.Embed(
+                    title=f"{modelo_info['emoji']} Misti creó esto para vos {modelo_info['emoji']}",
+                    description=f">>> *\"{prompt[:200]}\"*",
+                    color=AZUL_IPOD
+                )
+                embed.set_image(url="attachment://misti_art.png")
+                embed.set_footer(text=f"Modelo: {modelo_info['name']} | Seed: {seed}")
+                
+                await msg_espera.delete()
+                await ctx.send(embed=embed, file=archivo)
+                return
+            else:
+                embed = discord.Embed(
+                    title="No pude generar la imagen ",
+                    description=f"*\"{mensaje[:100]}\"*\n\n> **Tip:** Usá `>ask [mensaje]` sin palabras de imagen para hablar conmigo.",
+                    color=AZUL_OSCURO
+                )
+                await msg_espera.edit(content=None, embed=embed)
+                return
 
         # =============================================
-        # CHAT NORMAL CON IA
+        # CHAT NORMAL
         # =============================================
-        
-        system_prompt = f"""
-Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual.
-Estas hablando con {ctx.author.display_name} (usuario: {ctx.author.name}).
-Estas en el servidor: {ctx.guild.name}.
-Recuerda todo lo que te han dicho antes y adapta tu personalidad a cada usuario.
-Si ya conoces al usuario, trata de recordar cosas que te haya contado.
-Responde de forma natural, casual y con personalidad.
-"""
-        historial = get_memoria(ctx.author.id)
-        mensajes = [{"role": "system", "content": system_prompt}] + historial + [{"role": "user", "content": mensaje}]
-
-        respuesta = await groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=mensajes
+        texto = await generar_respuesta_ia(
+            ctx.author.id, 
+            mensaje, 
+            ctx.author.display_name, 
+            ctx.guild.name
         )
-        texto = respuesta.choices[0].message.content
-
+        
         agregar_memoria(ctx.author.id, "user", mensaje)
         agregar_memoria(ctx.author.id, "assistant", texto)
-
-        embed = discord.Embed(color=AZUL_IPOD_NUM)
-        embed.description = f"### Emisor\n> {mensaje}\n\n### Receptor\n> {texto}"
+        
+        embed = discord.Embed(color=AZUL_IPOD)
+        
+        user_text = mensaje[:500] + "..." if len(mensaje) > 500 else mensaje
+        embed.add_field(
+            name=f"{ctx.author.display_name}",
+            value=f">>> {user_text}",
+            inline=False
+        )
+        
+        bot_text = texto[:500] + "..." if len(texto) > 500 else texto
+        embed.add_field(
+            name=f"Misti",
+            value=f">>> {bot_text}",
+            inline=False
+        )
+        
+        embed.add_field(name="", value="" * 15, inline=False)
+        embed.set_footer(text=f"Memoria: {len(get_memoria(ctx.author.id))} mensajes")
+        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+        
+        await msg_espera.delete()
         await ctx.send(embed=embed)
-
+        
     except Exception as e:
-        await ctx.send(f"Error:\n```{e}```")
+        embed_error = discord.Embed(
+            title="Error",
+            description=f"```{str(e)[:200]}```",
+            color=AZUL_OSCURO
+        )
+        await msg_espera.edit(content=None, embed=embed_error)
+
+# =========================================================
+# COMANDO FORGET - BORRAR MEMORIA
+# =========================================================
 
 @bot.tree.command(name="forget", description="Borra la memoria que Misti tiene de ti")
 async def forget_slash(i: discord.Interaction):
-    memoria_usuarios.pop(i.user.id, None)
-    embed = discord.Embed(color=CELESTE)
-    embed.description = "> Ya no recuerdo nada de ti..."
+    limpiar_memoria(i.user.id)
+    embed = discord.Embed(
+        description="> **Misti ya no recuerda nada de ti...**\n> *Podemos empezar de nuevo cuando quieras*",
+        color=AZUL_IPOD
+    )
     await i.response.send_message(embed=embed, ephemeral=True)
 
 @bot.command(name="forget")
 async def forget_prefix(ctx):
-    memoria_usuarios.pop(ctx.author.id, None)
-    embed = discord.Embed(color=CELESTE)
-    embed.description = "> Ya no recuerdo nada de ti..."
+    limpiar_memoria(ctx.author.id)
+    embed = discord.Embed(
+        description="> **Misti ya no recuerda nada de ti...**\n> *Podemos empezar de nuevo cuando quieras*",
+        color=AZUL_IPOD
+    )
     await ctx.send(embed=embed)
 
+# =========================================================
+# COMANDO MEMORIA - VER ESTADO DE MEMORIA
+# =========================================================
+
+@bot.tree.command(name="memoria", description="Muestra cuántos recuerdos tiene Misti de ti")
+async def memoria_slash(i: discord.Interaction):
+    memoria = get_memoria(i.user.id)
+    cantidad = len(memoria)
+    
+    embed = discord.Embed(
+        title="Memoria de Misti",
+        description=f"Recuerdo **{cantidad}** mensajes nuestros\n({cantidad // 2} conversaciones)",
+        color=AZUL_IPOD
+    )
+    
+    if cantidad > 0:
+        ultimo_msg = memoria[-1]
+        embed.add_field(
+            name="Último recuerdo",
+            value=f"> *{ultimo_msg['content'][:100]}...*" if len(ultimo_msg['content']) > 100 else f"> {ultimo_msg['content']}",
+            inline=False
+        )
+    
+    embed.set_footer(text=f"Máximo: {MEMORIA_MAX} mensajes")
+    await i.response.send_message(embed=embed, ephemeral=True)
+
+@bot.command(name="memoria")
+async def memoria_prefix(ctx):
+    memoria = get_memoria(ctx.author.id)
+    cantidad = len(memoria)
+    
+    embed = discord.Embed(
+        title="Memoria de Misti",
+        description=f"Recuerdo **{cantidad}** mensajes nuestros",
+        color=AZUL_IPOD
+    )
+    await ctx.send(embed=embed)
+    
 # =========================================================
 # SISTEMA DE CLAVES
 # =========================================================
