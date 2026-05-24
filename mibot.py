@@ -1106,20 +1106,67 @@ def agregar_memoria(user_id: int, role: str, content: str):
         memoria.pop(0)
 
 # =========================================================
-# ASK IA
+# ASK IA (con generador de imágenes mejorado)
 # =========================================================
 
 @bot.tree.command(name="ask")
 async def ask_slash(i: discord.Interaction, mensaje: str):
     await i.response.defer()
     try:
-        if any(p in mensaje.lower() for p in ["imagen", "foto", "dibujo", "genera", "wallpaper"]):
-            image_url = f"https://image.pollinations.ai/prompt/{mensaje.replace(' ', '%20')}"
-            embed = discord.Embed(title="Imagen generada", description=f"> Prompt: {mensaje}", color=AZUL_IPOD_NUM)
-            embed.set_image(url=image_url)
-            await i.followup.send(embed=embed)
+        # =============================================
+        # GENERAR IMAGEN (MEJORADO CON LLM7)
+        # =============================================
+        palabras_clave = ["imagen", "foto", "dibujo", "genera", "wallpaper", "crea", "hazme", "dibújame"]
+        
+        if any(p in mensaje.lower() for p in palabras_clave):
+            # Extraer el prompt para la imagen
+            prompt_imagen = mensaje
+            for palabra in palabras_clave:
+                prompt_imagen = prompt_imagen.lower().replace(palabra, "").strip()
+            
+            if not prompt_imagen or len(prompt_imagen) < 3:
+                prompt_imagen = mensaje
+            
+            # Usar LLM7 (gratis, sin API Key)
+            prompt_encoded = urllib.parse.quote(prompt_imagen)
+            
+            # Modelo 3 = DreamShaper (mejor calidad)
+            seed = random.randint(1, 999999)
+            url = f"https://api.llm7.io/prompt/{prompt_encoded}?w=512&h=512&seed={seed}&model=3"
+            
+            # Mensaje de espera
+            await i.followup.send("🎨 Generando imagen... (esto puede tomar 10-15 segundos)")
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        img_data = await resp.read()
+                        archivo = discord.File(io.BytesIO(img_data), filename="generated.png")
+                        
+                        embed = discord.Embed(
+                            title="🖼️ Imagen generada por IA",
+                            description=f"**Prompt:** {prompt_imagen[:200]}",
+                            color=AZUL_IPOD_NUM
+                        )
+                        embed.set_image(url="attachment://generated.png")
+                        embed.set_footer(text=f"Seed: {seed} | Modelo: DreamShaper")
+                        
+                        await i.followup.send(embed=embed, file=archivo)
+                    else:
+                        # Fallback a Pollinations si LLM7 falla
+                        image_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt_imagen)}"
+                        embed = discord.Embed(
+                            title="🖼️ Imagen generada",
+                            description=f"**Prompt:** {prompt_imagen[:200]}",
+                            color=AZUL_IPOD_NUM
+                        )
+                        embed.set_image(url=image_url)
+                        await i.followup.send(embed=embed)
             return
 
+        # =============================================
+        # CHAT NORMAL CON IA
+        # =============================================
         system_prompt = f"""
 Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual.
 Estas hablando con {i.user.display_name} (usuario: {i.user.name}).
@@ -1129,7 +1176,7 @@ Si ya conoces al usuario, trata de recordar cosas que te haya contado.
 Responde de forma natural, casual y con personalidad.
 """
         historial = get_memoria(i.user.id)
-        mensajes  = [{"role": "system", "content": system_prompt}] + historial + [{"role": "user", "content": mensaje}]
+        mensajes = [{"role": "system", "content": system_prompt}] + historial + [{"role": "user", "content": mensaje}]
 
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -1147,9 +1194,67 @@ Responde de forma natural, casual y con personalidad.
     except Exception as e:
         await i.followup.send(f"Error:\n```{e}```")
 
+
 @bot.command(name="ask")
 async def ask_prefix(ctx, *, mensaje: str):
     try:
+        # =============================================
+        # GENERAR IMAGEN (MEJORADO CON LLM7)
+        # =============================================
+        palabras_clave = ["imagen", "foto", "dibujo", "genera", "wallpaper", "crea", "hazme", "dibújame"]
+        
+        if any(p in mensaje.lower() for p in palabras_clave):
+            # Extraer el prompt para la imagen
+            prompt_imagen = mensaje
+            for palabra in palabras_clave:
+                prompt_imagen = prompt_imagen.lower().replace(palabra, "").strip()
+            
+            if not prompt_imagen or len(prompt_imagen) < 3:
+                prompt_imagen = mensaje
+            
+            # Usar LLM7 (gratis, sin API Key)
+            prompt_encoded = urllib.parse.quote(prompt_imagen)
+            
+            # Modelo 3 = DreamShaper (mejor calidad)
+            seed = random.randint(1, 999999)
+            url = f"https://api.llm7.io/prompt/{prompt_encoded}?w=512&h=512&seed={seed}&model=3"
+            
+            # Mensaje de espera
+            msg_espera = await ctx.send("> Generando imagen... (esto puede tomar 10-15 segundos)")
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        img_data = await resp.read()
+                        archivo = discord.File(io.BytesIO(img_data), filename="generated.png")
+                        
+                        embed = discord.Embed(
+                            title="Imagen generada por Misti...<:sparkles:1506394397057613864>",
+                            description=f"**Prompt:** {prompt_imagen[:200]}",
+                            color=AZUL_IPOD_NUM
+                        )
+                        embed.set_image(url="attachment://generated.png")
+                        embed.set_footer(text=f"Seed: {seed} | Modelo: DreamShaper")
+                        
+                        await msg_espera.delete()
+                        await ctx.send(embed=embed, file=archivo)
+                    else:
+                        # Fallback a Pollinations si LLM7 falla
+                        image_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt_imagen)}"
+                        embed = discord.Embed(
+                            title="Imagen generada por Misti...<:sparkles:1506394397057613864>",
+                            description=f"**Prompt:** {prompt_imagen[:200]}",
+                            color=AZUL_IPOD_NUM
+                        )
+                        embed.set_image(url=image_url)
+                        await msg_espera.delete()
+                        await ctx.send(embed=embed)
+            return
+
+        # =============================================
+        # CHAT NORMAL CON IA
+        # =============================================
+        
         system_prompt = f"""
 Tu nombre SIEMPRE es Misti. Eres un bot de Discord divertido, sarcastico y transexual.
 Estas hablando con {ctx.author.display_name} (usuario: {ctx.author.name}).
@@ -1159,7 +1264,7 @@ Si ya conoces al usuario, trata de recordar cosas que te haya contado.
 Responde de forma natural, casual y con personalidad.
 """
         historial = get_memoria(ctx.author.id)
-        mensajes  = [{"role": "system", "content": system_prompt}] + historial + [{"role": "user", "content": mensaje}]
+        mensajes = [{"role": "system", "content": system_prompt}] + historial + [{"role": "user", "content": mensaje}]
 
         respuesta = await groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
