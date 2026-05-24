@@ -2859,7 +2859,7 @@ async def generar_imagen_ia(mensaje: str):
     prompt = re.sub(r'\s+', ' ', prompt).strip() or mensaje
     prompt_encoded = urllib.parse.quote(prompt[:500])
     seed = random.randint(1, 999999)
-    url  = f"https://image.pollinations.ai/prompt/{prompt_encoded}?w=512&h=512&seed={seed}&nologo=true"
+   image_url = f"https://image.pollinations.ai/prompt/{mensaje.replace(' ', '%20')}"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
