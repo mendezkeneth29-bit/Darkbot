@@ -3261,6 +3261,293 @@ async def mostrar_color(ctx: commands.Context, hex_code: str = None):
     
     await ctx.send(embed=embed, file=archivo)
 
+@bot.hybrid_command(name="leon", description="Información y foto de un león")
+async def leon(ctx: commands.Context):
+    await ctx.defer()
+    
+    # Datos curiosos del león
+    datos = {
+        "nombre": "León",
+        "cientifico": "Panthera leo",
+        "habitat": "Sabanas y pastizales de África",
+        "alimentacion": "Carnívoro (cazan en manada)",
+        "curiosidad": "Los leones duermen entre 16 y 20 horas al día",
+        "longevidad": "10-14 años en libertad, hasta 20 en cautiverio",
+        "dato_extra": "La melena del león macho le sirve para atraer hembras y protegerse"
+    }
+    
+    # Imagen aleatoria
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=lion&orientation=landscape&client_id=TU_CLIENT_ID") as resp:
+            # Fallback a otra API si no hay Unsplash
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2017/07/24/19/57/lion-2535885_640.jpg')
+    
+    embed = discord.Embed(
+        title=f"{datos['nombre']} ({datos['cientifico']})",
+        color=AZUL_IPOD_NUM
+    )
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    embed.set_footer(text="Foto aleatoria | Datos científicos")
+    
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="elefante", description="Información y foto de un elefante")
+async def elefante(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Elefante Africano",
+        "cientifico": "Loxodonta africana",
+        "habitat": "Sabanas, bosques y desiertos de África",
+        "alimentacion": "Herbívoro (come hasta 150kg al día)",
+        "curiosidad": "Los elefantes tienen la memoria más larga de todos los animales terrestres",
+        "longevidad": "60-70 años",
+        "dato_extra": "Su trompa tiene más de 40,000 músculos"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=elephant&orientation=landscape") as resp:
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2016/03/27/22/16/elephant-1284299_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="jirafa", description="Información y foto de una jirafa")
+async def jirafa(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Jirafa",
+        "cientifico": "Giraffa camelopardalis",
+        "habitat": "Sabanas y bosques abiertos de África",
+        "alimentacion": "Herbívoro (come hojas de acacia)",
+        "curiosidad": "Las jirafas duermen solo 30 minutos al día",
+        "longevidad": "20-25 años",
+        "dato_extra": "Su lengua mide hasta 45 cm y es de color negro"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=giraffe&orientation=landscape") as resp:
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2020/07/05/12/08/giraffe-5372115_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="pinguino", description="Información y foto de un pingüino")
+async def pinguino(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Pingüino Emperador",
+        "cientifico": "Aptenodytes forsteri",
+        "habitat": "Antártida y costas del hemisferio sur",
+        "alimentacion": "Carnívoro (come peces, calamares y krill)",
+        "curiosidad": "Los pingüinos no pueden volar pero nadan a 25 km/h",
+        "longevidad": "15-20 años",
+        "dato_extra": "El macho incuba el huevo durante 60 días sin comer"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=penguin&orientation=landscape") as resp:
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2017/06/28/12/53/penguins-2450977_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="delfin", description="Información y foto de un delfín")
+async def delfin(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Delfín Nariz de Botella",
+        "cientifico": "Tursiops truncatus",
+        "habitat": "Océanos de todo el mundo",
+        "alimentacion": "Carnívoro (come peces y calamares)",
+        "curiosidad": "Los delfines duermen con un ojo abierto",
+        "longevidad": "40-50 años",
+        "dato_extra": "Son uno de los animales más inteligentes y se reconocen en un espejo"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=dolphin&orientation=landscape") as resp:
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2014/11/19/21/49/dolphin-537891_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="panda", description="Información y foto de un panda")
+async def panda(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Panda Gigante",
+        "cientifico": "Ailuropoda melanoleuca",
+        "habitat": "Bosques de bambú de China",
+        "alimentacion": "Herbívoro (99% de su dieta es bambú)",
+        "curiosidad": "Los pandas pasan 12 horas al día comiendo",
+        "longevidad": "15-20 años en libertad",
+        "dato_extra": "Tienen un hueso adicional en la muñeca para sujetar el bambú"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://some-random-api.com/animal/panda") as resp:
+            data = await resp.json()
+            img_url = data.get('image', 'https://cdn.pixabay.com/photo/2017/09/13/01/08/panda-2744094_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="tiburon", description="Información y foto de un tiburón")
+async def tiburon(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Tiburón Blanco",
+        "cientifico": "Carcharodon carcharias",
+        "habitat": "Océanos de todo el mundo",
+        "alimentacion": "Carnívoro (focas, peces, calamares)",
+        "curiosidad": "Los tiburones tienen electroreceptores para detectar presas",
+        "longevidad": "30-40 años",
+        "dato_extra": "Un tiburón puede perder hasta 30,000 dientes en su vida"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=shark&orientation=landscape") as resp:
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2013/10/02/23/10/shark-190274_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="buho", description="Información y foto de un búho")
+async def buho(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Búho Real",
+        "cientifico": "Bubo bubo",
+        "habitat": "Bosques y montañas de Europa, Asia y África",
+        "alimentacion": "Carnívoro (roedores, aves, insectos)",
+        "curiosidad": "Los búhos pueden girar la cabeza 270 grados",
+        "longevidad": "10-20 años",
+        "dato_extra": "Su vuelo es silencioso gracias a sus plumas especiales"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=owl&orientation=landscape") as resp:
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2017/03/02/16/00/owl-2111222_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="cangrejo", description="Información y foto de un cangrejo")
+async def cangrejo(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Cangrejo Ermitaño",
+        "cientifico": "Paguroidea",
+        "habitat": "Playas y océanos de todo el mundo",
+        "alimentacion": "Omnívoro (come algas, restos de animales)",
+        "curiosidad": "Los cangrejos usan conchas de otros animales como casa",
+        "longevidad": "10-30 años",
+        "dato_extra": "Pueden regenerar sus pinzas si las pierden"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=crab&orientation=landscape") as resp:
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2020/06/07/19/48/crab-5270499_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="mariposa", description="Información y foto de una mariposa")
+async def mariposa(ctx: commands.Context):
+    await ctx.defer()
+    
+    datos = {
+        "nombre": "Mariposa Monarca",
+        "cientifico": "Danaus plexippus",
+        "habitat": "América del Norte, bosques y jardines",
+        "alimentacion": "Néctar de flores",
+        "curiosidad": "Las mariposas saborean con sus patas",
+        "longevidad": "2-6 semanas (migratorias hasta 8 meses)",
+        "dato_extra": "Pueden volar hasta 4,000 km durante la migración"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.unsplash.com/photos/random?query=butterfly&orientation=landscape") as resp:
+            data = await resp.json()
+            img_url = data.get('urls', {}).get('regular', 'https://cdn.pixabay.com/photo/2016/03/23/16/19/butterfly-1274974_640.jpg')
+    
+    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Hábitat", value=datos['habitat'], inline=False)
+    embed.add_field(name="> Alimentación", value=datos['alimentacion'], inline=True)
+    embed.add_field(name="> Longevidad", value=datos['longevidad'], inline=True)
+    embed.add_field(name="> Dato curioso", value=datos['curiosidad'], inline=False)
+    embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
+    embed.set_image(url=img_url)
+    await ctx.send(embed=embed)
+
 # -------------------------
 # FLASK WEB
 # -------------------------
