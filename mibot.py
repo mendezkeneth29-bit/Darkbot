@@ -2677,7 +2677,7 @@ async def generar_qr(ctx: commands.Context, *, texto: str):
 # COLOR ALEATORIO
 # =========================================================
 
-@bot.hybrid_command(name="color-aleatorio", description="Genera un color aleatorio")
+@bot.hybrid_command(name="color-random", description="Genera un color aleatorio")
 async def color_random(ctx: commands.Context):
     r, g, b   = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
     hex_color = f"#{r:02x}{g:02x}{b:02x}".upper()
@@ -3547,6 +3547,170 @@ async def mariposa(ctx: commands.Context):
     embed.add_field(name="> Más información", value=datos['dato_extra'], inline=False)
     embed.set_image(url=img_url)
     await ctx.send(embed=embed)
+
+# =========================================================
+# COMANDO HELP - Sistema de ayuda completo
+# =========================================================
+
+class HelpView(discord.ui.View):
+    def __init__(self, author_id: int):
+        super().__init__(timeout=120)
+        self.author_id = author_id
+        self.current_page = 0
+        self.pages = self.crear_paginas()
+    
+    def crear_paginas(self):
+        """Crea las diferentes páginas de ayuda"""
+        
+        # PÁGINA 1: INTELIGENCIA ARTIFICIAL
+        pagina1 = discord.Embed(
+            title="> Comandos de IA",
+            description="Comandos para interactuar con la inteligencia artificial",
+            color=AZUL_IPOD_NUM
+        )
+        pagina1.add_field(name="`/ask [texto]`", value="> Habla con Misti (IA con memoria)", inline=False)
+        pagina1.add_field(name="`>mt ask [texto]`", value="> Habla con Misti desde prefijo", inline=False)
+        pagina1.add_field(name="`@Misti [texto]`", value="> Menciona a Misti para hablar", inline=False)
+        pagina1.add_field(name="`>mt forget`", value="> Borra tu memoria con Misti", inline=False)
+        pagina1.add_field(name="`>mt memoria`", value="> Ver cuántos recuerdos tiene Misti de ti", inline=False)
+        pagina1.set_footer(text="> Pagina 1/6 | Misti recuerda cada conversacion")
+        
+        # PÁGINA 2: INFORMACIÓN DEL SERVIDOR
+        pagina2 = discord.Embed(
+            title="> Comandos de Informacion",
+            description="Obtén información sobre usuarios y servidores",
+            color=AZUL_IPOD_NUM
+        )
+        pagina2.add_field(name="`>mt userinfo [@user]`", value="> Información detallada de un usuario", inline=False)
+        pagina2.add_field(name="`>mt serverinfo`", value="> Información del servidor actual", inline=False)
+        pagina2.add_field(name="`>mt avatar [@user]`", value="> Ver el avatar de un usuario", inline=False)
+        pagina2.add_field(name="`>mt spotify [@user]`", value="> Ver qué escucha un usuario en Spotify", inline=False)
+        pagina2.add_field(name="`>mt ip [direccion]`", value="> Información de una dirección IP", inline=False)
+        pagina2.add_field(name="`>mt pais [nombre]`", value="> Información de un país", inline=False)
+        pagina2.set_footer(text="> Pagina 2/6 | Informacion util")
+        
+        # PÁGINA 3: ECONOMÍA Y NIVELES
+        pagina3 = discord.Embed(
+            title="> Comandos de Economia y Niveles",
+            description="Gana monedas, sube de nivel y compite",
+            color=AZUL_IPOD_NUM
+        )
+        pagina3.add_field(name="`>mt balance [@user]`", value="> Ver tu saldo de monedas", inline=False)
+        pagina3.add_field(name="`>mt daily`", value="> Reclama tus monedas diarias", inline=False)
+        pagina3.add_field(name="`>mt ranking`", value="> Top de usuarios más ricos", inline=False)
+        pagina3.add_field(name="`>mt nivel [@user]`", value="> Ver tu nivel actual", inline=False)
+        pagina3.add_field(name="`>mt add-dinero [@user] [cantidad]`", value="> (Admin) Da monedas", inline=False)
+        pagina3.add_field(name="`>mt remove-dinero [@user] [cantidad]`", value="> (Admin) Quita monedas", inline=False)
+        pagina3.add_field(name="`>mt add-nivel [@user] [niveles]`", value="> (Admin) Da niveles", inline=False)
+        pagina3.add_field(name="`>mt remove-nivel [@user] [niveles]`", value="> (Admin) Quita niveles", inline=False)
+        pagina3.set_footer(text="> Pagina 3/6 | Gana monedas cada 5 mensajes")
+        
+        # PÁGINA 4: MODERACIÓN
+        pagina4 = discord.Embed(
+            title="> Comandos de Moderacion",
+            description="Mantén tu servidor seguro (requieren permisos)",
+            color=AZUL_IPOD_NUM
+        )
+        pagina4.add_field(name="`>mt ban [@user] [razon]`", value="> Banea a un usuario", inline=False)
+        pagina4.add_field(name="`>mt kick [@user] [razon]`", value="> Expulsa a un usuario", inline=False)
+        pagina4.add_field(name="`>mt timeout [@user] [minutos]`", value="> Silencia a un usuario", inline=False)
+        pagina4.add_field(name="`>mt warn [@user] [razon]`", value="> Advierte a un usuario", inline=False)
+        pagina4.add_field(name="`>mt warnings [@user]`", value="> Ver warns de un usuario", inline=False)
+        pagina4.add_field(name="`>mt clearwarns [@user]`", value="> Borra warns de un usuario", inline=False)
+        pagina4.add_field(name="`>mt delete [cantidad]`", value="> Elimina mensajes del canal", inline=False)
+        pagina4.add_field(name="`>mt lock`", value="> Bloquea el canal", inline=False)
+        pagina4.add_field(name="`>mt unlock`", value="> Desbloquea el canal", inline=False)
+        pagina4.add_field(name="`>mt nuke`", value="> Clona y borra el canal", inline=False)
+        pagina4.add_field(name="`>mt set-niveles [#canal]`", value="> Canal para anuncios de nivel", inline=False)
+        pagina4.set_footer(text="> Pagina 4/6 | Requieren permisos de moderacion")
+        
+        # PÁGINA 5: JUEGOS Y ENTRETENIMIENTO
+        pagina5 = discord.Embed(
+            title="> Comandos de Juegos",
+            description="Juegos para divertirte con amigos",
+            color=AZUL_IPOD_NUM
+        )
+        pagina5.add_field(name="`>mt ship [@user1] [@user2]`", value="> Calcula compatibilidad amorosa", inline=False)
+        pagina5.add_field(name="`>mt acertijo`", value="> Resuelve un acertijo", inline=False)
+        pagina5.add_field(name="`>mt ahorcado`", value="> Juego del ahorcado", inline=False)
+        pagina5.add_field(name="`>mt trivia`", value="> Preguntas de cultura general", inline=False)
+        pagina5.add_field(name="`>mt adivina-numero`", value="> Adivina el numero del 1 al 100", inline=False)
+        pagina5.add_field(name="`>mt ppt`", value="> Piedra, papel o tijera", inline=False)
+        pagina5.add_field(name="`>mt moneda`", value="> Lanza una moneda", inline=False)
+        pagina5.add_field(name="`>mt dado [caras]`", value="> Lanza un dado", inline=False)
+        pagina5.add_field(name="`>mt ping`", value="> Latencia del bot", inline=False)
+        pagina5.set_footer(text="> Pagina 5/6 | Juegos para toda la familia")
+        
+        # PÁGINA 6: ANIMALES
+        pagina6 = discord.Embed(
+            title="> Comandos de Animales",
+            description="Fotos y datos curiosos de animales",
+            color=AZUL_IPOD_NUM
+        )
+        pagina6.add_field(name="`>mt leon`", value="> Informacion del leon", inline=True)
+        pagina6.add_field(name="`>mt elefante`", value="> Informacion del elefante", inline=True)
+        pagina6.add_field(name="`>mt jirafa`", value="> Informacion de la jirafa", inline=True)
+        pagina6.add_field(name="`>mt pinguino`", value="> Informacion del pinguino", inline=True)
+        pagina6.add_field(name="`>mt delfin`", value="> Informacion del delfin", inline=True)
+        pagina6.add_field(name="`>mt panda`", value="> Informacion del panda", inline=True)
+        pagina6.add_field(name="`>mt tiburon`", value="> Informacion del tiburon", inline=True)
+        pagina6.add_field(name="`>mt buho`", value="> Informacion del buho", inline=True)
+        pagina6.add_field(name="`>mt cangrejo`", value="> Informacion del cangrejo", inline=True)
+        pagina6.add_field(name="`>mt mariposa`", value="> Informacion de la mariposa", inline=True)
+        pagina6.set_footer(text="> Pagina 6/6 | Cada animal tiene datos unicos")
+        
+        return [pagina1, pagina2, pagina3, pagina4, pagina5, pagina6]
+    
+    @discord.ui.button(label="<", style=discord.ButtonStyle.primary)
+    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("> Solo el usuario que ejecuto el comando puede navegar.", ephemeral=True)
+            return
+        
+        self.current_page = (self.current_page - 1) % len(self.pages)
+        await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+    
+    @discord.ui.button(label="🏠", style=discord.ButtonStyle.secondary)
+    async def home_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("> Solo el usuario que ejecuto el comando puede navegar.", ephemeral=True)
+            return
+        
+        self.current_page = 0
+        await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+    
+    @discord.ui.button(label=">", style=discord.ButtonStyle.primary)
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("> Solo el usuario que ejecuto el comando puede navegar.", ephemeral=True)
+            return
+        
+        self.current_page = (self.current_page + 1) % len(self.pages)
+        await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+    
+    @discord.ui.button(label="X", style=discord.ButtonStyle.danger)
+    async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("> Solo el usuario que ejecuto el comando puede cerrar.", ephemeral=True)
+            return
+        
+        await interaction.message.delete()
+        self.stop()
+
+
+# =========================================================
+# COMANDOS HELP (SLASH y PREFIX)
+# =========================================================
+
+@bot.tree.command(name="help", description="Muestra todos los comandos disponibles")
+async def help_slash(i: discord.Interaction):
+    view = HelpView(i.user.id)
+    await i.response.send_message(embed=view.pages[0], view=view)
+
+@bot.command(name="help")
+async def help_prefix(ctx: commands.Context):
+    view = HelpView(ctx.author.id)
+    await ctx.send(embed=view.pages[0], view=view)
 
 # -------------------------
 # FLASK WEB
