@@ -2677,7 +2677,7 @@ async def generar_qr(ctx: commands.Context, *, texto: str):
 # COLOR ALEATORIO
 # =========================================================
 
-@bot.hybrid_command(name="color", description="Genera un color aleatorio")
+@bot.hybrid_command(name="color-aleatorio", description="Genera un color aleatorio")
 async def color_random(ctx: commands.Context):
     r, g, b   = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
     hex_color = f"#{r:02x}{g:02x}{b:02x}".upper()
