@@ -2794,7 +2794,8 @@ class HelpView(discord.ui.View):
             (" Niveles",      ["/nivel", "/set-niveles", "/add-nivel", "/remove-nivel"]),
             (" Música",       ["/spotify", "/spotify-search", "/lyrics", "/ipod-player"]),
             (" Información",  ["/userinfo", "/serverinfo", "/avatar", "/roblox", "/pokemon"])
-
+        ]
+        
 # -------------------------
 # FLASK WEB
 # -------------------------
