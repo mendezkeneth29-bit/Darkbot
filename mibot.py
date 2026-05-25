@@ -1494,42 +1494,113 @@ async def lyrics(ctx, *, cancion: str):
 
 @bot.hybrid_command(name="buscar-libro", description="Busca información de un libro en Google Books")
 async def buscar_libro(ctx: commands.Context, *, query: str):
-    await ctx.defer()
+    await ctx.defer() if ctx.interaction else None
+    
     query_encoded = urllib.parse.quote(query)
     url = f"https://www.googleapis.com/books/v1/volumes?q={query_encoded}&maxResults=1"
+    
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=10) as response:
                 if response.status == 429:
-                    embed = discord.Embed(description="> Límite de búsquedas alcanzado. Espera unos minutos.", color=0x2B55B5)
+                    embed = discord.Embed(
+                        description="> Limite de busquedas alcanzado. Espera unos minutos.",
+                        color=AZUL_IPOD_NUM
+                    )
                     return await ctx.send(embed=embed)
+                
                 if response.status != 200:
-                    embed = discord.Embed(description=f"> Error de conexión ({response.status})", color=0x2B55B5)
+                    embed = discord.Embed(
+                        description=f"> Error de conexion ({response.status})",
+                        color=AZUL_IPOD_NUM
+                    )
                     return await ctx.send(embed=embed)
+                
                 data = await response.json()
+        
         if "items" not in data:
-            embed = discord.Embed(description=f"> No encontré ningún libro para: **{query}**", color=0x2B55B5)
+            embed = discord.Embed(
+                description=f"> No encontre ningun libro para: **{query}**",
+                color=AZUL_IPOD_NUM
+            )
             return await ctx.send(embed=embed)
-        info    = data["items"][0]["volumeInfo"]
-        titulo  = info.get("title", "Sin título")
+        
+        # Extraer datos del libro
+        info = data["items"][0]["volumeInfo"]
+        
+        titulo = info.get("title", "Sin titulo")
         autores = ", ".join(info.get("authors", ["Desconocido"]))
-        raw_desc    = info.get("description", "Sin descripción disponible.")
+        
+        # Descripción
+        raw_desc = info.get("description", "Sin descripcion disponible.")
         descripcion = (raw_desc[:500] + "...") if len(raw_desc) > 500 else raw_desc
-        fecha   = info.get("publishedDate", "Desconocida")
+        
+        fecha = info.get("publishedDate", "Desconocida")
         paginas = info.get("pageCount", "N/A")
+        
+        # Categorías/géneros
+        categorias = ", ".join(info.get("categories", ["Sin categoria"]))
+        
+        # Editorial
+        editorial = info.get("publisher", "Desconocida")
+        
+        # Idioma
+        idioma = info.get("language", "Desconocido")
+        if idioma == "es":
+            idioma = "Español"
+        elif idioma == "en":
+            idioma = "Inglés"
+        elif idioma == "fr":
+            idioma = "Francés"
+        elif idioma == "pt":
+            idioma = "Portugués"
+        elif idioma == "de":
+            idioma = "Alemán"
+        
+        # Portada
         portada = info.get("imageLinks", {}).get("thumbnail", "")
         if portada:
             portada = portada.replace("http://", "https://")
-        embed = discord.Embed(title=titulo, description=descripcion, color=0x2B55B5)
-        embed.add_field(name="> Autor(es)",   value=autores,      inline=True)
-        embed.add_field(name="> Publicación", value=fecha,        inline=True)
-        embed.add_field(name="> Páginas",     value=str(paginas), inline=True)
+        
+        # Enlace para comprar/ver
+        enlace = info.get("infoLink", "")
+        
+        # Crear embed
+        embed = discord.Embed(
+            title=f"{titulo}",
+            description=descripcion,
+            color=AZUL_IPOD_NUM,
+            url=enlace
+        )
+        embed.add_field(name="> Autor(es)", value=autores, inline=False)
+        embed.add_field(name="> Publicacion", value=fecha, inline=True)
+        embed.add_field(name="> Paginas", value=str(paginas), inline=True)
+        embed.add_field(name="> Editorial", value=editorial, inline=True)
+        embed.add_field(name="> Idioma", value=idioma, inline=True)
+        embed.add_field(name="> Categorias", value=categorias[:50], inline=False)
+        
         if portada:
             embed.set_thumbnail(url=portada)
-        embed.set_footer(text=f"Solicitado por {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        
+        embed.set_footer(
+            text=f"Solicitado por {ctx.author.display_name}",
+            icon_url=ctx.author.display_avatar.url
+        )
+        
         await ctx.send(embed=embed)
+        
+    except asyncio.TimeoutError:
+        embed = discord.Embed(
+            description="> Tiempo de espera agotado. Intenta de nuevo.",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        
     except Exception as e:
-        embed = discord.Embed(description=f"> Error inesperado: `{str(e)[:100]}`", color=0x2B55B5)
+        embed = discord.Embed(
+            description=f"> Error inesperado: `{str(e)[:100]}`",
+            color=AZUL_IPOD_NUM
+        )
         await ctx.send(embed=embed)
 
 # =========================================================
@@ -2775,26 +2846,225 @@ async def mariposa(ctx):
     await _animal_embed(ctx, {"nombre":"Mariposa Monarca","cientifico":"Danaus plexippus","habitat":"América del Norte, bosques y jardines","alimentacion":"Néctar de flores","curiosidad":"Saborean con sus patas","longevidad":"2-6 semanas (migratorias hasta 8 meses)","dato_extra":"Vuelan hasta 4,000 km durante la migración"}, "butterfly", "https://cdn.pixabay.com/photo/2016/03/23/16/19/butterfly-1274974_640.jpg")
 
 # =========================================================
-# HELPVIEW (CORREGIDO — crear_paginas ya no devuelve None)
+# COMANDO PRIMER MENSAJE - Ver el primer mensaje del canal
 # =========================================================
 
-class HelpView(discord.ui.View):
-    def __init__(self, author_id: int):
-        super().__init__(timeout=120)
-        self.author_id    = author_id
-        self.current_page = 0
-        self.pages        = self.crear_paginas()
+@bot.hybrid_command(name="primer-mensaje", description="Muestra el primer mensaje del canal")
+async def primer_mensaje(ctx: commands.Context):
+    """
+    Muestra el primer mensaje enviado en el canal actual
+    """
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    try:
+        # Obtener el historial del canal desde el principio
+        async for message in ctx.channel.history(limit=1, oldest_first=True):
+            primer_msg = message
+            break
+        else:
+            embed = discord.Embed(
+                title="Error",
+                description="> No se pudo encontrar el primer mensaje del canal",
+                color=AZUL_IPOD_NUM
+            )
+            await ctx.send(embed=embed)
+            return
+        
+        # Información del primer mensaje
+        autor = primer_msg.author
+        contenido = primer_msg.content if primer_msg.content else "*[Sin texto, solo embed/imagen]*"
+        fecha = primer_msg.created_at.strftime("%d/%m/%Y %H:%M:%S")
+        enlace = primer_msg.jump_url
+        
+        # Limitar contenido si es muy largo
+        if len(contenido) > 400:
+            contenido = contenido[:400] + "..."
+        
+        # Crear embed
+        embed = discord.Embed(
+            title="Primer mensaje del canal",
+            description=f"**Canal:** {ctx.channel.mention}\n**Autor:** {autor.mention}\n**Fecha:** {fecha}",
+            color=AZUL_IPOD_NUM
+        )
+        embed.add_field(name="> Contenido", value=f"```{contenido}```", inline=False)
+        embed.add_field(name="> Enlace", value=f"[Ir al mensaje]({enlace})", inline=False)
+        
+        if autor.avatar:
+            embed.set_thumbnail(url=autor.display_avatar.url)
+        
+        embed.set_footer(text=f"ID del mensaje: {primer_msg.id}")
+        
+        await ctx.send(embed=embed)
+        
+    except discord.Forbidden:
+        embed = discord.Embed(
+            title="Error",
+            description="> No tengo permisos para leer el historial de este canal",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        embed = discord.Embed(
+            title="Error",
+            description=f"> Error: `{str(e)[:100]}`",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
 
-    def crear_paginas(self):
-        paginas = []
-        categorias = [
-            (" Moderación",  ["/ban", "/kick", "/timeout", "/warn", "/warnings", "/clearwarns", "/lock", "/unlock", "/nuke", "/delete"]),
-            (" Diversión",    ["/ship", "/moneda", "/dado", "/ppt", "/ahorcado", "/adivina-numero", "/trivia", "/acertijo"]),
-            (" Economía",     ["/balance", "/daily", "/ranking", "/add-dinero", "/remove-dinero", "/crear-cupon", "/canjear-cupon"]),
-            (" Niveles",      ["/nivel", "/set-niveles", "/add-nivel", "/remove-nivel"]),
-            (" Música",       ["/spotify", "/spotify-search", "/lyrics", "/ipod-player"]),
-            (" Información",  ["/userinfo", "/serverinfo", "/avatar", "/roblox", "/pokemon"])
-        ]
+@bot.hybrid_command(name="meme", description="Meme aleatorio de Reddit")
+async def meme(ctx: commands.Context):
+    await ctx.defer()
+    subreddits = ["memes", "dankmemes", "memesESP", "goodanimemes"]
+    subreddit = random.choice(subreddits)
+    url = f"https://www.reddit.com/r/{subreddit}/random/.json"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as resp:
+            if resp.status != 200:
+                await ctx.send("> No se pudo obtener un meme")
+                return
+            data = await resp.json()
+            post = data[0]['data']['children'][0]['data']
+            embed = discord.Embed(title=post['title'], url=f"https://reddit.com{post['permalink']}", color=AZUL_IPOD_NUM)
+            embed.set_image(url=post['url'])
+            embed.set_footer(text=f"{post['ups']} | r/{subreddit}")
+            await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="8ball", description="Preguntale algo al futuro")
+async def eightball(ctx: commands.Context, *, pregunta: str):
+    respuestas = ["Si", "No", "Tal vez", "Definitivamente si", "Ni lo sueñes", "Claro que si", "Las estrellas dicen que no", "Pregunta mas tarde", "No cuentes con ello"]
+    embed = discord.Embed(title="Pregunta Magica", description=f"> **Pregunta:** {pregunta}\n> **Respuesta:** {random.choice(respuestas)}", color=AZUL_IPOD_NUM)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="horoscopo", description="Horoscopo del dia")
+async def horoscopo(ctx: commands.Context, signo: str):
+    signos = ["aries", "tauro", "geminis", "cancer", "leo", "virgo", "libra", "escorpio", "sagitario", "capricornio", "acuario", "piscis"]
+    if signo.lower() not in signos:
+        await ctx.send("> Signo no valido. Usa: aries, tauro, geminis, cancer, leo, virgo, libra, escorpio, sagitario, capricornio, acuario, piscis")
+        return
+    mensajes = ["Hoy es un buen dia para tomar decisiones importantes.", "El universo tiene planes positivos para ti.", "Evita conflictos innecesarios.", "Una oportunidad inesperada llegara a tu vida.", "La suerte esta de tu lado."]
+    embed = discord.Embed(title=f"Horoscopo de {signo.capitalize()}", description=f"> {random.choice(mensajes)}", color=AZUL_IPOD_NUM)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="say", description="El bot repite tu mensaje")
+async def say(ctx: commands.Context, *, mensaje: str):
+    await ctx.send(mensaje)
+    if ctx.interaction:
+        await ctx.interaction.followup.send("> Mensaje enviado", ephemeral=True)
+    else:
+        await ctx.message.delete()
+
+@bot.hybrid_command(name="roll", description="Elige un usuario al azar")
+async def roll(ctx: commands.Context):
+    miembros = [m for m in ctx.guild.members if not m.bot]
+    if miembros:
+        elegido = random.choice(miembros)
+        embed = discord.Embed(title="Usuario aleatorio", description=f"> {elegido.mention} ha sido seleccionado", color=AZUL_IPOD_NUM)
+        await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="timestamp", description="Convierte timestamp a fecha")
+async def timestamp(ctx: commands.Context, timestamp: int):
+    from datetime import datetime
+    fecha = datetime.fromtimestamp(timestamp).strftime("%d/%m/%Y %H:%M:%S")
+    embed = discord.Embed(title="Conversor de Timestamp", description=f"> Timestamp: `{timestamp}`\n> Fecha: `{fecha}`", color=AZUL_IPOD_NUM)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="banner", description="Banner del servidor")
+async def banner(ctx: commands.Context):
+    if ctx.guild.banner:
+        embed = discord.Embed(title=f"Banner de {ctx.guild.name}", color=AZUL_IPOD_NUM)
+        embed.set_image(url=ctx.guild.banner.url)
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send("> Este servidor no tiene banner")
+
+@bot.hybrid_command(name="tragamonedas", description="Juego de tragamonedas")
+async def tragamonedas(ctx: commands.Context, apuesta: int):
+    data = get_user_eco(ctx.guild.id, ctx.author.id)
+    if apuesta <= 0:
+        return await ctx.send("> La apuesta debe ser positiva")
+    if apuesta > data["coins"]:
+        return await ctx.send(f"> No tenes suficientes monedas. Tenes ${data['coins']}")
+    
+    emojis = ["🐬", "🧊", "🌊", "🐳", "🐋", "💎", "🪼"]
+    slot1 = random.choice(emojis)
+    slot2 = random.choice(emojis)
+    slot3 = random.choice(emojis)
+    
+    ganancia = 0
+    if slot1 == slot2 == slot3 == "7️⃣":
+        ganancia = apuesta * 10
+        mensaje = "> JACKPOT! 3 SIETES!"
+    elif slot1 == slot2 == slot3 == "💎":
+        ganancia = apuesta * 5
+        mensaje = "> PREMIO MAYOR! 3 DIAMANTES!"
+    elif slot1 == slot2 == slot3:
+        ganancia = apuesta * 3
+        mensaje = "> 3 IGUALES!"
+    elif slot1 == slot2 or slot2 == slot3 or slot1 == slot3:
+        ganancia = apuesta * 1
+        mensaje = "> PAR! Recuperas tu apuesta"
+    else:
+        ganancia = 0
+        mensaje = "> Nada, perdiste"
+    
+    data["coins"] += ganancia - apuesta
+    
+    embed = discord.Embed(title="TRAGAMONEDAS", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Resultado", value=f"```| {slot1} | {slot2} | {slot3} |```", inline=False)
+    embed.add_field(name="> Apuesta", value=f"${apuesta}", inline=True)
+    embed.add_field(name="> Ganancia", value=f"${ganancia}", inline=True)
+    embed.add_field(name="> Resultado", value=mensaje, inline=False)
+    embed.add_field(name="> Nuevo saldo", value=f"${data['coins']}", inline=False)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="gayrate", description="Nivel de gay (broma)")
+async def gayrate(ctx: commands.Context, usuario: discord.Member = None):
+    usuario = usuario or ctx.author
+    porcentaje = (usuario.id % 101)
+    barra = "█" * (porcentaje // 10) + "░" * (10 - (porcentaje // 10))
+    
+    if porcentaje >= 80:
+        texto = "> FOLLO CON UN CHICO"
+    elif porcentaje >= 50:
+        texto = "> Un poco... bastante"
+    elif porcentaje >= 20:
+        texto = "> Normal, nada del otro mundo"
+    else:
+        texto = "> Hetero nivel Dios"
+    
+    embed = discord.Embed(title=f"Nivel de gay de {usuario.display_name}", color=AZUL_IPOD_NUM)
+    embed.add_field(name="> Porcentaje", value=f"```{barra} {porcentaje}%```", inline=False)
+    embed.add_field(name="> Veredicto", value=texto, inline=False)
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="insulto", description="Insulto creativo")
+async def insulto(ctx: commands.Context, usuario: discord.Member = None):
+    insultos = [
+        "es mas lento que el inicio de Windows 95",
+        "tiene menos memoria que un pez dorado",
+        "es como un termo: util pero sin contenido propio",
+        "le falta un hervor",
+        "nacio de noche pero ese dia fue muy oscuro",
+        "le pifian las ideas",
+        "tiene menos neuronas que un pulpo en una ferreteria"
+    ]
+    insulto_elegido = random.choice(insultos)
+    if usuario:
+        await ctx.send(f"{usuario.mention} {insulto_elegido}")
+    else:
+        await ctx.send(f"{ctx.author.mention} {insulto_elegido}")
+
+@bot.hybrid_command(name="robux", description="robux gratis de parte de Ron Weasley!!")
+async def robux(ctx: commands.Context):
+    await ctx.send("> Te dirigire a mi cuenta de Bankup y te dara una oferta, dale click [aqui](https://www.youtube.com/watch?v=dQw4w9WgXcQ)")
+
+@bot.hybrid_command(name="secreto", description="Mensaje secreto")
+async def secreto(ctx: commands.Context, *, mensaje: str):
+    embed = discord.Embed(description=f"> {mensaje}", color=AZUL_IPOD_NUM)
+    await ctx.send(embed=embed, ephemeral=True)
         
 # -------------------------
 # FLASK WEB
