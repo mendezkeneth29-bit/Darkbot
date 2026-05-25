@@ -2793,7 +2793,7 @@ class HelpView(discord.ui.View):
             (" Economía",     ["/balance", "/daily", "/ranking", "/add-dinero", "/remove-dinero", "/crear-cupon", "/canjear-cupon"]),
             (" Niveles",      ["/nivel", "/set-niveles", "/add-nivel", "/remove-nivel"]),
             (" Música",       ["/spotify", "/spotify-search", "/lyrics", "/ipod-player"]),
-            (" Información",  ["/userinfo", "/serverinfo", "/avatar", "/roblox", "/pokemon
+            (" Información",  ["/userinfo", "/serverinfo", "/avatar", "/roblox", "/pokemon"])
 
 # -------------------------
 # FLASK WEB
