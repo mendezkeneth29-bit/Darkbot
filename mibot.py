@@ -3626,50 +3626,7 @@ async def buscar_lugares(ctx: commands.Context, *, lugar: str):
         embed.add_field(name=f"> {nombre}", value=f" {direccion}\n {rating} | [Mapa]({enlace})", inline=False)
     
     await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="recetas", description="Busca recetas de cocina")
-async def buscar_recetas(ctx: commands.Context, *, plato: str):
-    await ctx.defer()
     
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/search"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": f"receta {plato}", "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    # Intentar obtener recetas del campo "recipes" o de resultados orgánicos
-    recetas = data.get("recipes", [])
-    
-    if not recetas:
-        # Fallback a resultados orgánicos
-        organicos = data.get("organic", [])
-        for resultado in organicos[:5]:
-            titulo = resultado.get('title', 'Sin titulo')
-            if "receta" in titulo.lower():
-                recetas.append({
-                    "title": titulo,
-                    "link": resultado.get('link', '#'),
-                    "cookTime": resultado.get('snippet', 'Tiempo no especificado')[:50]
-                })
-    
-    if not recetas:
-        embed = discord.Embed(description=f"> No se encontraron recetas para: **{plato}**", color=AZUL_IPOD_NUM)
-        return await ctx.send(embed=embed)
-    
-    embed = discord.Embed(title=f" Recetas de: {plato}", color=AZUL_IPOD_NUM)
-    for receta in recetas[:5]:
-        titulo = receta.get('title', 'Sin titulo')
-        tiempo = receta.get('cookTime', 'Tiempo no especificado')
-        enlace = receta.get('link', '#')
-        embed.add_field(name=f"> {titulo[:60]}", value=f" {tiempo[:40]}\n [Ver receta]({enlace})", inline=False)
-    
-    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="shopping", description="Busca productos para comprar")
 async def buscar_productos(ctx: commands.Context, *, producto: str):
