@@ -3143,21 +3143,21 @@ class VistaBotonAnonimo(discord.ui.View):
     def __init__(self, canal_destino: discord.TextChannel):
         super().__init__(timeout=None)
         self.canal_destino = canal_destino
-
-     @discord.ui.button(
-        label="Enviar Anónimo",
+ 
+    @discord.ui.button(
+        label="Enviar mensaje anónimo",
         style=discord.ButtonStyle.primary,
-        custom_id="btn_panel_anonimo",
+        custom_id="btn_anonimo_enviar",
         emoji="<:share:1505393406707372104>"
     )
     async def enviar_anonimo(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(ModalAnonimo(self.canal_destino))
-
-
+ 
+ 
 # =========================================================
 # VISTA — Boton del panel principal (persistente)
 # =========================================================
-
+ 
 class VistaPanelAnonimo(discord.ui.View):
     """
     Esta vista se adjunta al embed del panel.
@@ -3167,9 +3167,9 @@ class VistaPanelAnonimo(discord.ui.View):
     def __init__(self, canal_destino: discord.TextChannel):
         super().__init__(timeout=None)
         self.canal_destino = canal_destino
-
+ 
     @discord.ui.button(
-        label="Enviar Anónimo",
+        label="Enviar mensaje anónimo",
         style=discord.ButtonStyle.primary,
         custom_id="btn_panel_anonimo",
         emoji="<:share:1505393406707372104>"
