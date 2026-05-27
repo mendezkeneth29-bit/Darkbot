@@ -3596,204 +3596,133 @@ async def buscar_imagenes(ctx: commands.Context, *, query: str):
     embed.set_image(url=imagenes[0].get('imageUrl', ''))
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps")
-async def buscar_lugares(ctx: commands.Context, *, lugar: str):
+@bot.hybrid_command(name="shopping", description="Busca productos para comprar")
+async def shopping_ddg(ctx: commands.Context, *, producto: str):
     await ctx.defer()
     
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/search"  # Usar /search, no /places
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": f"mapa {lugar}", "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    lugares = data.get("places", [])
-    if not lugares:
-        embed = discord.Embed(description=f"> No se encontraron lugares para: **{lugar}**", color=AZUL_IPOD_NUM)
-        return await ctx.send(embed=embed)
-    
-    embed = discord.Embed(title=f" Lugares: {lugar}", color=AZUL_IPOD_NUM)
-    for sitio in lugares[:5]:
-        nombre = sitio.get('title', 'Sin nombre')
-        direccion = sitio.get('address', 'Sin direccion')
-        rating = sitio.get('rating', 'Sin rating')
-        enlace = sitio.get('link', '#')
-        embed.add_field(name=f"> {nombre}", value=f" {direccion}\n {rating} | [Mapa]({enlace})", inline=False)
-    
-    await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps")
-async def buscar_lugares(ctx: commands.Context, *, lugar: str):
-    await ctx.defer()
-    
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/search"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": lugar, "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    # Los lugares vienen en 'places'
-    lugares = data.get("places", [])
-    
-    if not lugares:
-        embed = discord.Embed(description=f"> No se encontraron lugares para: **{lugar}**", color=AZUL_IPOD_NUM)
-        return await ctx.send(embed=embed)
-    
-    embed = discord.Embed(title=f" Lugares: {lugar}", color=AZUL_IPOD_NUM)
-    
-    for sitio in lugares[:5]:
-        nombre = sitio.get('title', 'Sin nombre')
-        direccion = sitio.get('address', 'Sin dirección')
-        rating = sitio.get('rating', 'Sin rating')
-        reviews = sitio.get('reviews', 0)
-        enlace = sitio.get('link', '#')
+    try:
+        with DDGS() as ddgs:
+            resultados = list(ddgs.text(f"comprar {producto} precio", max_results=5))
         
-        embed.add_field(
-            name=f"> {nombre[:50]}",
-            value=f" {direccion}\n {rating} ({reviews} reseñas)\n [Ver en Maps]({enlace})",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
+        if not resultados:
+            return await ctx.send(f"> No se encontraron productos para: **{producto}**")
+        
+        embed = discord.Embed(title=f"Productos: {producto}", color=AZUL_IPOD_NUM)
+        
+        for i, res in enumerate(resultados[:5]):
+            titulo = res.get('title', 'Sin título')
+            cuerpo = res.get('body', 'Sin descripción')[:100]
+            enlace = res.get('href', '#')
+            
+            embed.add_field(
+                name=f"{i+1}. {titulo[:50]}",
+                value=f"> {cuerpo}\n [Ver producto]({enlace})",
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"> Error: `{str(e)[:100]}`")
 
 @bot.hybrid_command(name="recetas", description="Busca recetas de cocina")
-async def buscar_recetas(ctx: commands.Context, *, plato: str):
+async def recetas_ddg(ctx: commands.Context, *, plato: str):
     await ctx.defer()
     
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/search"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": f"receta {plato}", "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    # Recetas pueden venir en 'recipes' o en 'organic'
-    recetas = data.get("recipes", [])
-    
-    if not recetas:
-        # Fallback: buscar en resultados orgánicos
-        organicos = data.get("organic", [])
-        for res in organicos[:5]:
-            if "receta" in res.get('title', '').lower() or "cocina" in res.get('title', '').lower():
-                recetas.append({
-                    "title": res.get('title', 'Sin título'),
-                    "link": res.get('link', '#'),
-                    "snippet": res.get('snippet', '')[:80]
-                })
-    
-    if not recetas:
-        embed = discord.Embed(description=f"> No se encontraron recetas para: **{plato}**", color=AZUL_IPOD_NUM)
-        return await ctx.send(embed=embed)
-    
-    embed = discord.Embed(title=f" Recetas de: {plato}", color=AZUL_IPOD_NUM)
-    
-    for receta in recetas[:5]:
-        titulo = receta.get('title', 'Sin título')
-        desc = receta.get('snippet', receta.get('description', 'Receta disponible'))
-        enlace = receta.get('link', '#')
+    try:
+        with DDGS() as ddgs:
+            resultados = list(ddgs.text(f"receta {plato} paso a paso", max_results=5))
         
-        embed.add_field(
-            name=f"> {titulo[:60]}",
-            value=f"{desc[:100]}...\n [Ver receta]({enlace})",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
+        if not resultados:
+            return await ctx.send(f"> No se encontraron recetas para: **{plato}**")
+        
+        embed = discord.Embed(title=f"Recetas de: {plato}", color=AZUL_IPOD_NUM)
+        
+        for i, res in enumerate(resultados[:5]):
+            titulo = res.get('title', 'Sin título')
+            cuerpo = res.get('body', 'Sin descripción')[:120]
+            enlace = res.get('href', '#')
+            
+            embed.add_field(
+                name=f"{i+1}. {titulo[:60]}",
+                value=f"> {cuerpo}\n [Ver receta]({enlace})",
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"> Error: `{str(e)[:100]}`")
 
-@bot.hybrid_command(name="shopping", description="Busca productos para comprar")
-async def buscar_productos(ctx: commands.Context, *, producto: str):
+@bot.hybrid_command(name="lugares", description="Busca lugares cercanos")
+async def lugares_ddg(ctx: commands.Context, *, lugar: str):
     await ctx.defer()
     
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/search"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": f"comprar {producto}", "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    # Productos vienen en 'shopping'
-    productos = data.get("shopping", [])
-    
-    if not productos:
-        embed = discord.Embed(description=f"> No se encontraron productos para: **{producto}**", color=AZUL_IPOD_NUM)
-        return await ctx.send(embed=embed)
-    
-    embed = discord.Embed(title=f" Productos: {producto}", color=AZUL_IPOD_NUM)
-    
-    for item in productos[:5]:
-        nombre = item.get('title', 'Sin nombre')
-        precio = item.get('price', 'Precio no disponible')
-        tienda = item.get('source', 'Tienda desconocida')
-        rating = item.get('rating', 'Sin rating')
-        enlace = item.get('link', '#')
+    try:
+        with DDGS() as ddgs:
+            # Agregar "map" o "ubicación" para mejores resultados
+            resultados = list(ddgs.text(f"mapa {lugar}", max_results=5))
         
-        embed.add_field(
-            name=f"> {nombre[:50]}",
-            value=f" {precio}\n {tienda} |  {rating}\n [Ver producto]({enlace})",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
+        if not resultados:
+            return await ctx.send(f"> No se encontraron lugares para: **{lugar}**")
+        
+        embed = discord.Embed(title=f"Lugares: {lugar}", color=AZUL_IPOD_NUM)
+        
+        for i, res in enumerate(resultados[:5]):
+            titulo = res.get('title', 'Sin título')
+            cuerpo = res.get('body', 'Sin descripción')[:100]
+            enlace = res.get('href', '#')
+            
+            # Si el enlace es de Google Maps, mejor
+            if "google.com/maps" in enlace:
+                embed.add_field(
+                    name=f"{i+1}. {titulo[:50]}",
+                    value=f"> {cuerpo}\n [Ver en Maps]({enlace})",
+                    inline=False
+                )
+            else:
+                embed.add_field(
+                    name=f"{i+1}. {titulo[:50]}",
+                    value=f"> {cuerpo}\n [Más info]({enlace})",
+                    inline=False
+                )
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"> Error: `{str(e)[:100]}`")
 
-@bot.hybrid_command(name="videos", description="Busca videos en YouTube")
-async def buscar_videos(ctx: commands.Context, *, query: str):
+@bot.hybrid_command(name="noticias", description="Últimas noticias")
+async def noticias_ddg(ctx: commands.Context, *, query: str = None):
     await ctx.defer()
     
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/search"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": query, "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    videos = data.get("videos", [])
-    
-    if not videos:
-        embed = discord.Embed(description=f"> No se encontraron videos para: **{query}**", color=AZUL_IPOD_NUM)
-        return await ctx.send(embed=embed)
-    
-    embed = discord.Embed(title=f" Videos de: {query}", color=AZUL_IPOD_NUM)
-    
-    for video in videos[:5]:
-        titulo = video.get('title', 'Sin título')
-        duracion = video.get('duration', '?')
-        fuente = video.get('source', 'YouTube')
-        vistas = video.get('views', 'N/D')
-        enlace = video.get('link', '#')
+    try:
+        with DDGS() as ddgs:
+            if query:
+                resultados = list(ddgs.text(f"noticias {query}", max_results=5))
+            else:
+                resultados = list(ddgs.text("últimas noticias", max_results=5))
         
-        embed.add_field(
-            name=f"> {titulo[:60]}",
-            value=f" {duracion} |  {vistas} |  {fuente}\n [Ver video]({enlace})",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
+        if not resultados:
+            return await ctx.send(f"> No se encontraron noticias")
+        
+        embed = discord.Embed(title=f"Noticias: {query if query else 'Última hora'}", color=AZUL_IPOD_NUM)
+        
+        for i, res in enumerate(resultados[:5]):
+            titulo = res.get('title', 'Sin título')
+            cuerpo = res.get('body', 'Sin descripción')[:100]
+            enlace = res.get('href', '#')
+            
+            embed.add_field(
+                name=f"{i+1}. {titulo[:60]}",
+                value=f"> {cuerpo}\n [Leer más]({enlace})",
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"> Error: `{str(e)[:100]}`")
         
 # -------------------------
 # FLASK WEB
