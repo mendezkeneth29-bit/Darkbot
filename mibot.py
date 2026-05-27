@@ -309,8 +309,8 @@ async def generar_ban(usuario: discord.Member, razon: str, moderador: discord.Me
     except:
         draw.ellipse([(37, 47), (133, 143)], fill=GRIS_G)
     draw.ellipse([(35, 45), (135, 145)], outline=AZUL_OSCURO, width=2)
-    draw.line([(50, 60), (120, 130)], fill=ROJO, width=3)
-    draw.line([(120, 60), (50, 130)], fill=ROJO, width=3)
+    draw.line([(50, 60), (120, 130)], fill=AZUL_OSCURO, width=3)
+    draw.line([(120, 60), (50, 130)], fill=AZUL_OSCURO, width=3)
     draw.text((158, 42), usuario.display_name, font=fuente(20, bold=True), fill=TEXTO_G)
     draw.rounded_rectangle([(158, 68), (228, 90)], radius=11, fill=AZUL_OSCURO)
     draw.text((193, 74), "Baneado", font=fuente(12, bold=True), fill=TEXTO_G, anchor="mt")
@@ -3072,13 +3072,9 @@ async def secreto(ctx: commands.Context, *, mensaje: str):
 # =========================================================
 
 # --- DATA (agregar junto a tus otras variables globales) ---
-# anon_config   = {}   # guild_id -> {"canal_id": int}
-# anon_data     = {}   # guild_id -> [{"numero": int, "user_id": int, "contenido": str}, ...]
-# anon_count    = {}   # guild_id -> int  (contador global)
-
-anon_config = {}
-anon_data   = {}
-anon_count  = {}
+anon_config = {}   # guild_id -> {"canal_id": int}
+anon_data   = {}   # guild_id -> [{"numero": int, "user_id": int, "username": str, "contenido": str}]
+anon_count  = {}   # guild_id -> int  (contador global)
 
 
 # =========================================================
@@ -3101,11 +3097,9 @@ class ModalAnonimo(discord.ui.Modal, title="Mensaje Anónimo"):
     async def on_submit(self, interaction: discord.Interaction):
         gid = str(interaction.guild.id)
 
-        # Inicializar estructuras si no existen
         if gid not in anon_data:  anon_data[gid]  = []
         if gid not in anon_count: anon_count[gid] = 0
 
-        # Incrementar contador y guardar registro
         anon_count[gid] += 1
         numero = anon_count[gid]
 
@@ -3116,19 +3110,14 @@ class ModalAnonimo(discord.ui.Modal, title="Mensaje Anónimo"):
             "contenido": str(self.contenido),
         })
 
-        # Embed del mensaje anonimo
         embed = discord.Embed(
             description=str(self.contenido),
             color=0x2B55B5
         )
         embed.set_footer(text=f"#{numero:03d}")
 
-        # Vista con el boton para seguir enviando
-        view = VistaBotonAnonimo(self.canal_destino)
+        await self.canal_destino.send(embed=embed)
 
-        await self.canal_destino.send(embed=embed, view=view)
-
-        # Confirmar al usuario en privado
         await interaction.response.send_message(
             "> Tu mensaje anónimo fue enviado correctamente.",
             ephemeral=True
@@ -3136,38 +3125,14 @@ class ModalAnonimo(discord.ui.Modal, title="Mensaje Anónimo"):
 
 
 # =========================================================
-# VISTA — Boton azul bajo cada mensaje
+# VISTA — Boton del panel
 # =========================================================
 
-class VistaBotonAnonimo(discord.ui.View):
-    def __init__(self, canal_destino: discord.TextChannel):
-        super().__init__(timeout=None)
-        self.canal_destino = canal_destino
- 
-    @discord.ui.button(
-        label="Enviar mensaje anónimo",
-        style=discord.ButtonStyle.primary,
-        custom_id="btn_anonimo_enviar",
-        emoji="<:share:1505393406707372104>"
-    )
-    async def enviar_anonimo(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(ModalAnonimo(self.canal_destino))
- 
- 
-# =========================================================
-# VISTA — Boton del panel principal (persistente)
-# =========================================================
- 
 class VistaPanelAnonimo(discord.ui.View):
-    """
-    Esta vista se adjunta al embed del panel.
-    Usa custom_id fijo para que sobreviva reinicios si implementas
-    persistencia; aquí se recrea en memoria al ejecutar /set-anonimos.
-    """
     def __init__(self, canal_destino: discord.TextChannel):
         super().__init__(timeout=None)
         self.canal_destino = canal_destino
- 
+
     @discord.ui.button(
         label="Enviar mensaje anónimo",
         style=discord.ButtonStyle.primary,
@@ -3179,12 +3144,12 @@ class VistaPanelAnonimo(discord.ui.View):
 
 
 # =========================================================
-# COMANDO — Configurar canal y enviar panel
+# COMANDO — Configurar canal y enviar panel (resetea contador)
 # =========================================================
 
 @bot.hybrid_command(
     name="set-anonimos",
-    description="Configura el canal de mensajes anónimos y envía el panel."
+    description="Configura el canal de mensajes anónimos y envía el panel desde cero."
 )
 @commands.has_permissions(administrator=True)
 async def set_anonimos(ctx: commands.Context, canal: discord.TextChannel):
@@ -3192,6 +3157,10 @@ async def set_anonimos(ctx: commands.Context, canal: discord.TextChannel):
 
     gid = str(ctx.guild.id)
     anon_config[gid] = {"canal_id": canal.id}
+
+    # Resetear contador y registros al configurar
+    anon_count[gid] = 0
+    anon_data[gid]  = []
 
     embed_panel = discord.Embed(
         title="Mensajes Anónimos",
@@ -3206,13 +3175,65 @@ async def set_anonimos(ctx: commands.Context, canal: discord.TextChannel):
     await canal.send(embed=embed_panel, view=vista)
 
     await ctx.followup.send(
-        f"> Panel de mensajes anónimos enviado en {canal.mention}",
+        f"> Panel de mensajes anónimos configurado en {canal.mention}.",
         ephemeral=True
     )
 
 
 # =========================================================
-# COMANDO — Revelar autor de un mensaje anonimo (solo admin)
+# COMANDO — Reenviar panel SIN resetear el contador
+# =========================================================
+
+@bot.hybrid_command(
+    name="panel-anonimos",
+    description="(ADMIN) Vuelve a enviar el panel de mensajes anónimos sin reiniciar la cuenta."
+)
+@commands.has_permissions(administrator=True)
+async def panel_anonimos(ctx: commands.Context):
+    await ctx.defer(ephemeral=True)
+
+    gid = str(ctx.guild.id)
+
+    if gid not in anon_config:
+        await ctx.followup.send(
+            "> Primero configura el canal con `/set-anonimos`.",
+            ephemeral=True
+        )
+        return
+
+    canal_id = anon_config[gid]["canal_id"]
+    canal    = ctx.guild.get_channel(canal_id)
+
+    if not canal:
+        await ctx.followup.send(
+            "> No se encontró el canal configurado. Usa `/set-anonimos` para reconfigurarlo.",
+            ephemeral=True
+        )
+        return
+
+    total_actual = anon_count.get(gid, 0)
+
+    embed_panel = discord.Embed(
+        title="Mensajes Anónimos",
+        description=(
+            "Estos son los mensajes anónimos, mensajes de cualquier usuario serán enviados aquí.\n\n"
+            "> Interactúa con el botón de abajo para mandar tu mensaje anónimo."
+        ),
+        color=0x2B55B5
+    )
+    embed_panel.set_footer(text=f"Mensajes enviados hasta ahora: {total_actual}")
+
+    vista = VistaPanelAnonimo(canal)
+    await canal.send(embed=embed_panel, view=vista)
+
+    await ctx.followup.send(
+        f"> Panel reenviado en {canal.mention}. La cuenta sigue desde **#{total_actual:03d}**.",
+        ephemeral=True
+    )
+
+
+# =========================================================
+# COMANDO — Revelar autor (solo admin)
 # =========================================================
 
 @bot.hybrid_command(
@@ -3226,14 +3247,19 @@ async def revelar_anonimo(ctx: commands.Context, numero: int):
     gid = str(ctx.guild.id)
 
     if gid not in anon_data or not anon_data[gid]:
-        await ctx.followup.send("> No hay mensajes anónimos registrados en este servidor.", ephemeral=True)
+        await ctx.followup.send(
+            "> No hay mensajes anónimos registrados en este servidor.",
+            ephemeral=True
+        )
         return
 
-    # Buscar el mensaje por número
     registro = next((r for r in anon_data[gid] if r["numero"] == numero), None)
 
     if not registro:
-        await ctx.followup.send(f"> No se encontró el mensaje anónimo **#{numero:03d}**.", ephemeral=True)
+        await ctx.followup.send(
+            f"> No se encontró el mensaje anónimo **#{numero:03d}**.",
+            ephemeral=True
+        )
         return
 
     miembro = ctx.guild.get_member(registro["user_id"])
