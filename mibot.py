@@ -3430,299 +3430,39 @@ async def logro(ctx: commands.Context, usuario: discord.Member, titulo: str, *, 
     archivo = await generar_logro(usuario, titulo, descripcion)
     await ctx.send(file=archivo)
 
-# =========================================================
-# COMANDO GOOGLE - Buscar con Serper.dev
-# =========================================================
-
-# Necesitas agregar SERPER_API_KEY a tus variables de entorno
-# y reiniciar el bot
-
-@bot.hybrid_command(name="google", description="Busquedas de Google.")
+@bot.hybrid_command(name="google", description="Busca en Google")
 async def google_search(ctx: commands.Context, *, query: str):
-    """
-    Busca en Google usando la API de Serper.dev.
-    Requiere API Key configurada en las variables de entorno.
-    """
-    
-    await ctx.defer() if ctx.interaction else None
-    
-    # Obtener API Key de las variables de entorno
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    
-    if not SERPER_API_KEY:
-        embed = discord.Embed(
-            title="Error de configuración",
-            description="> **No se encontró la API Key de Serper.dev**\n\nEl administrador debe agregar `SERPER_API_KEY` en las variables de entorno.\n\nPuedes obtener una gratis en https://serper.dev",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    # URL de la API de Serper
-    url = "https://google.serper.dev/search"
-    
-    headers = {
-        "X-API-KEY": SERPER_API_KEY,
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "q": query,
-        "gl": "es",  # Geolocalización: España
-        "hl": "es",  # Idioma: Español
-        "num": 5     # Número de resultados
-    }
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload) as response:
-                if response.status == 401:
-                    embed = discord.Embed(
-                        description="> **API Key inválida**\nVerifica que la API Key de Serper.dev sea correcta",
-                        color=AZUL_IPOD_NUM
-                    )
-                    await ctx.send(embed=embed)
-                    return
-                
-                if response.status != 200:
-                    embed = discord.Embed(
-                        description=f"> **Error en la búsqueda**\nCódigo: {response.status}",
-                        color=AZUL_IPOD_NUM
-                    )
-                    await ctx.send(embed=embed)
-                    return
-                
-                data = await response.json()
-        
-        # Extraer resultados
-        resultados_organicos = data.get("organic", [])
-        respuesta_directa = data.get("answerBox", {})
-        knowledge_graph = data.get("knowledgeGraph", {})
-        
-        if not resultados_organicos and not respuesta_directa:
-            embed = discord.Embed(
-                description=f"> No se encontraron resultados para: **{query}**",
-                color=AZUL_IPOD_NUM
-            )
-            await ctx.send(embed=embed)
-            return
-        
-        # Crear embed
-        embed = discord.Embed(
-            title=f"Resultados de Google: {query[:50]}",
-            color=AZUL_IPOD_NUM
-        )
-        
-        # Si hay respuesta directa (featured snippet)
-        if respuesta_directa:
-            if respuesta_directa.get("answer"):
-                embed.add_field(
-                    name="> Respuesta directa",
-                    value=respuesta_directa["answer"][:500],
-                    inline=False
-                )
-            elif respuesta_directa.get("snippet"):
-                embed.add_field(
-                    name="> Respuesta directa",
-                    value=respuesta_directa["snippet"][:500],
-                    inline=False
-                )
-        
-        # Si hay Knowledge Graph (información destacada)
-        if knowledge_graph:
-            titulo_kg = knowledge_graph.get("title", "")
-            desc_kg = knowledge_graph.get("description", "")
-            if titulo_kg:
-                embed.add_field(
-                    name="> Información destacada",
-                    value=f"**{titulo_kg}**\n{desc_kg[:200]}" if desc_kg else f"**{titulo_kg}**",
-                    inline=False
-                )
-        
-        # Agregar resultados orgánicos
-        for i, resultado in enumerate(resultados_organicos[:5]):
-            titulo = resultado.get("title", "Sin título")
-            enlace = resultado.get("link", "#")
-            snippet = resultado.get("snippet", "Sin descripción")
-            
-            embed.add_field(
-                name=f"{i+1}. {titulo[:80]}",
-                value=f"> {snippet[:150]}\n [Leer más]({enlace})",
-                inline=False
-            )
-        
-        embed.set_footer(text=f"Resultados de Google | Serper.dev | Plan gratuito: 2,500/mes")
-        
-        await ctx.send(embed=embed)
-        
-    except asyncio.TimeoutError:
-        embed = discord.Embed(
-            description="> **Tiempo de espera agotado**\nLa búsqueda tardó demasiado. Intenta de nuevo.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        
-    except Exception as e:
-        embed = discord.Embed(
-            description=f"> **Error inesperado**\n`{str(e)[:100]}`",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="imagenes", description="Busca imágenes en Google")
-async def buscar_imagenes(ctx: commands.Context, *, query: str):
     await ctx.defer()
     
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
+    API_KEY = os.getenv("SERPER_API_KEY")
+    if not API_KEY:
         return await ctx.send("> API Key de Serper.dev no configurada")
     
-    url = "https://google.serper.dev/images"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": query, "num": 5}
+    url = "https://google.serper.dev/search"
+    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
+    payload = {"q": query, "num": 5, "gl": "es", "hl": "es"}
     
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=payload) as resp:
             data = await resp.json()
     
-    imagenes = data.get("images", [])
-    if not imagenes:
-        return await ctx.send(f"> No se encontraron imagenes para: **{query}**")
+    resultados = data.get("organic", [])
+    if not resultados:
+        return await ctx.send(f"> No se encontraron resultados para: **{query}**")
     
-    embed = discord.Embed(title=f"Imagenes de: {query}", color=AZUL_IPOD_NUM)
-    for i, img in enumerate(imagenes[:3]):
-        embed.add_field(name=f"> Imagen {i+1}", value=f"[Ver imagen]({img.get('imageUrl', '#')})", inline=False)
+    embed = discord.Embed(title=f"Google: {query[:50]}", color=AZUL_IPOD_NUM)
     
-    embed.set_image(url=imagenes[0].get('imageUrl', ''))
+    for i, res in enumerate(resultados[:5]):
+        titulo = res.get('title', 'Sin título')
+        snippet = res.get('snippet', 'Sin descripción')
+        enlace = res.get('link', '#')
+        embed.add_field(
+            name=f"{i+1}. {titulo[:70]}",
+            value=f"> {snippet[:150]}\n[Leer más]({enlace})",
+            inline=False
+        )
+    
     await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="shopping", description="Busca productos para comprar")
-async def shopping_ddg(ctx: commands.Context, *, producto: str):
-    await ctx.defer()
-    
-    try:
-        with DDGS() as ddgs:
-            resultados = list(ddgs.text(f"comprar {producto} precio", max_results=5))
-        
-        if not resultados:
-            return await ctx.send(f"> No se encontraron productos para: **{producto}**")
-        
-        embed = discord.Embed(title=f"Productos: {producto}", color=AZUL_IPOD_NUM)
-        
-        for i, res in enumerate(resultados[:5]):
-            titulo = res.get('title', 'Sin título')
-            cuerpo = res.get('body', 'Sin descripción')[:100]
-            enlace = res.get('href', '#')
-            
-            embed.add_field(
-                name=f"{i+1}. {titulo[:50]}",
-                value=f"> {cuerpo}\n [Ver producto]({enlace})",
-                inline=False
-            )
-        
-        await ctx.send(embed=embed)
-        
-    except Exception as e:
-        await ctx.send(f"> Error: `{str(e)[:100]}`")
-
-@bot.hybrid_command(name="recetas", description="Busca recetas de cocina")
-async def recetas_ddg(ctx: commands.Context, *, plato: str):
-    await ctx.defer()
-    
-    try:
-        with DDGS() as ddgs:
-            resultados = list(ddgs.text(f"receta {plato} paso a paso", max_results=5))
-        
-        if not resultados:
-            return await ctx.send(f"> No se encontraron recetas para: **{plato}**")
-        
-        embed = discord.Embed(title=f"Recetas de: {plato}", color=AZUL_IPOD_NUM)
-        
-        for i, res in enumerate(resultados[:5]):
-            titulo = res.get('title', 'Sin título')
-            cuerpo = res.get('body', 'Sin descripción')[:120]
-            enlace = res.get('href', '#')
-            
-            embed.add_field(
-                name=f"{i+1}. {titulo[:60]}",
-                value=f"> {cuerpo}\n [Ver receta]({enlace})",
-                inline=False
-            )
-        
-        await ctx.send(embed=embed)
-        
-    except Exception as e:
-        await ctx.send(f"> Error: `{str(e)[:100]}`")
-
-@bot.hybrid_command(name="lugares", description="Busca lugares cercanos")
-async def lugares_ddg(ctx: commands.Context, *, lugar: str):
-    await ctx.defer()
-    
-    try:
-        with DDGS() as ddgs:
-            # Agregar "map" o "ubicación" para mejores resultados
-            resultados = list(ddgs.text(f"mapa {lugar}", max_results=5))
-        
-        if not resultados:
-            return await ctx.send(f"> No se encontraron lugares para: **{lugar}**")
-        
-        embed = discord.Embed(title=f"Lugares: {lugar}", color=AZUL_IPOD_NUM)
-        
-        for i, res in enumerate(resultados[:5]):
-            titulo = res.get('title', 'Sin título')
-            cuerpo = res.get('body', 'Sin descripción')[:100]
-            enlace = res.get('href', '#')
-            
-            # Si el enlace es de Google Maps, mejor
-            if "google.com/maps" in enlace:
-                embed.add_field(
-                    name=f"{i+1}. {titulo[:50]}",
-                    value=f"> {cuerpo}\n [Ver en Maps]({enlace})",
-                    inline=False
-                )
-            else:
-                embed.add_field(
-                    name=f"{i+1}. {titulo[:50]}",
-                    value=f"> {cuerpo}\n [Más info]({enlace})",
-                    inline=False
-                )
-        
-        await ctx.send(embed=embed)
-        
-    except Exception as e:
-        await ctx.send(f"> Error: `{str(e)[:100]}`")
-
-@bot.hybrid_command(name="noticias", description="Últimas noticias")
-async def noticias_ddg(ctx: commands.Context, *, query: str = None):
-    await ctx.defer()
-    
-    try:
-        with DDGS() as ddgs:
-            if query:
-                resultados = list(ddgs.text(f"noticias {query}", max_results=5))
-            else:
-                resultados = list(ddgs.text("últimas noticias", max_results=5))
-        
-        if not resultados:
-            return await ctx.send(f"> No se encontraron noticias")
-        
-        embed = discord.Embed(title=f"Noticias: {query if query else 'Última hora'}", color=AZUL_IPOD_NUM)
-        
-        for i, res in enumerate(resultados[:5]):
-            titulo = res.get('title', 'Sin título')
-            cuerpo = res.get('body', 'Sin descripción')[:100]
-            enlace = res.get('href', '#')
-            
-            embed.add_field(
-                name=f"{i+1}. {titulo[:60]}",
-                value=f"> {cuerpo}\n [Leer más]({enlace})",
-                inline=False
-            )
-        
-        await ctx.send(embed=embed)
-        
-    except Exception as e:
-        await ctx.send(f"> Error: `{str(e)[:100]}`")
         
 # -------------------------
 # FLASK WEB
