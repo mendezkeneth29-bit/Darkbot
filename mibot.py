@@ -3562,7 +3562,6 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
 async def noticias_search(ctx: commands.Context, *, query: str = None):
     await ctx.defer()
     
-    # Definir feeds fuera del bloque try para mayor claridad
     if query:
         query_encoded = urllib.parse.quote(query)
         feeds = [
@@ -3603,7 +3602,6 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
                         enlace = item.findtext("link", "#").strip()
                         fecha = item.findtext("pubDate", "")
                         
-                        # Manejo de fuente (algunos RSS usan dc:creator)
                         fuente_tag = item.find("{http://purl.org/dc/elements/1.1/}creator")
                         fuente = fuente_tag.text if fuente_tag is not None else feed_url.split("/")[2]
 
@@ -3628,16 +3626,16 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
             await ctx.send(f"> No se encontraron noticias para: **{query or 'hoy'}**")
             return
 
-        embed = discord.Embed(title=f" Noticias: {query or 'Últimas'}", color=AZUL_IPOD_NUM)
+        embed = discord.Embed(title=f"📰 Noticias: {query or 'Últimas'}", color=0x0000FF)
         for n in noticias[:5]:
             titulo_corto = (n["titulo"][:60] + "...") if len(n["titulo"]) > 60 else n["titulo"]
-            valor = f">  **{n['fuente']}** | {n['fecha']}\n>  [Leer más]({n['enlace']})"
+            valor = f"> 📌 **{n['fuente']}** | {n['fecha']}\n> 🔗 [Leer más]({n['enlace']})"
             embed.add_field(name=titulo_corto, value=valor, inline=False)
 
         await ctx.send(embed=embed)
 
     except Exception as e:
-        print(f"Error en comando noticias: {e}") # Log para revisar en Render
+        print(f"Error en comando noticias: {e}")
         await ctx.send(f"> Ocurrió un error al procesar las noticias.")
         
 # -------------------------
