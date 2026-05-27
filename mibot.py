@@ -3431,82 +3431,75 @@ async def logro(ctx: commands.Context, usuario: discord.Member, titulo: str, *, 
     await ctx.send(file=archivo)
 
 # =========================================================
-# COMANDO BUSCAR - DuckDuckGo Lite (sin API key)
+# COMANDO GOOGLE - Buscar con Serper.dev
 # =========================================================
 
-@bot.hybrid_command(name="buscar", description="Busca en DuckDuckGo sin filtros")
-async def buscar(ctx: commands.Context, *, query: str):
+# Necesitas agregar SERPER_API_KEY a tus variables de entorno
+# y reiniciar el bot
+
+@bot.hybrid_command(name="google", description="Busquedas de Google.")
+async def google_search(ctx: commands.Context, *, query: str):
     """
-    Busca información en DuckDuckGo usando su versión Lite.
-    No requiere API key, devuelve títulos, URLs y descripciones.
+    Busca en Google usando la API de Serper.dev.
+    Requiere API Key configurada en las variables de entorno.
     """
     
     await ctx.defer() if ctx.interaction else None
     
-    # Usar la versión Lite de DuckDuckGo
-    url = "https://lite.duckduckgo.com/lite/"
+    # Obtener API Key de las variables de entorno
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    
+    if not SERPER_API_KEY:
+        embed = discord.Embed(
+            title="Error de configuración",
+            description="> **No se encontró la API Key de Serper.dev**\n\nEl administrador debe agregar `SERPER_API_KEY` en las variables de entorno.\n\nPuedes obtener una gratis en https://serper.dev",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    # URL de la API de Serper
+    url = "https://google.serper.dev/search"
     
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "X-API-KEY": SERPER_API_KEY,
+        "Content-Type": "application/json"
     }
     
-    data = {"q": query}
+    payload = {
+        "q": query,
+        "gl": "es",  # Geolocalización: España
+        "hl": "es",  # Idioma: Español
+        "num": 5     # Número de resultados
+    }
     
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, data=data) as resp:
-                if resp.status != 200:
+            async with session.post(url, headers=headers, json=payload) as response:
+                if response.status == 401:
                     embed = discord.Embed(
-                        description="> Error al realizar la busqueda",
+                        description="> **API Key inválida**\nVerifica que la API Key de Serper.dev sea correcta",
                         color=AZUL_IPOD_NUM
                     )
                     await ctx.send(embed=embed)
                     return
                 
-                html = await resp.text()
+                if response.status != 200:
+                    embed = discord.Embed(
+                        description=f"> **Error en la búsqueda**\nCódigo: {response.status}",
+                        color=AZUL_IPOD_NUM
+                    )
+                    await ctx.send(embed=embed)
+                    return
+                
+                data = await response.json()
         
-        # Parsear los resultados del HTML
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, 'html.parser')
+        # Extraer resultados
+        resultados_organicos = data.get("organic", [])
+        respuesta_directa = data.get("answerBox", {})
+        knowledge_graph = data.get("knowledgeGraph", {})
         
-        # Buscar las tablas de resultados
-        resultados = []
-        tablas = soup.find_all('table')
-        
-        for tabla in tablas:
-            filas = tabla.find_all('tr')
-            for i, fila in enumerate(filas):
-                if i == 0:  # Saltar encabezado
-                    continue
-                celdas = fila.find_all('td')
-                if len(celdas) >= 3:
-                    titulo_tag = celdas[0].find('a')
-                    if titulo_tag:
-                        titulo = titulo_tag.get_text(strip=True)
-                        url_resultado = titulo_tag.get('href', '')
-                        # Limpiar URL (tienen formato /lite?uddg=...)
-                        if 'uddg=' in url_resultado:
-                            import urllib.parse
-                            import re
-                            match = re.search(r'uddg=([^&]+)', url_resultado)
-                            if match:
-                                url_resultado = urllib.parse.unquote(match.group(1))
-                        descripcion = celdas[1].get_text(strip=True) if len(celdas) > 1 else ""
-                        
-                        if titulo and url_resultado:
-                            resultados.append({
-                                "titulo": titulo[:100],
-                                "url": url_resultado[:150],
-                                "descripcion": descripcion[:200]
-                            })
-                            
-                            if len(resultados) >= 5:
-                                break
-            
-            if len(resultados) >= 5:
-                break
-        
-        if not resultados:
+        if not resultados_organicos and not respuesta_directa:
             embed = discord.Embed(
                 description=f"> No se encontraron resultados para: **{query}**",
                 color=AZUL_IPOD_NUM
@@ -3514,26 +3507,64 @@ async def buscar(ctx: commands.Context, *, query: str):
             await ctx.send(embed=embed)
             return
         
-        # Crear embed con resultados
+        # Crear embed
         embed = discord.Embed(
-            title=f"Resultados para: {query[:50]}",
+            title=f"Resultados de Google: {query[:50]}",
             color=AZUL_IPOD_NUM
         )
         
-        for i, res in enumerate(resultados[:5]):
+        # Si hay respuesta directa (featured snippet)
+        if respuesta_directa:
+            if respuesta_directa.get("answer"):
+                embed.add_field(
+                    name="> Respuesta directa",
+                    value=respuesta_directa["answer"][:500],
+                    inline=False
+                )
+            elif respuesta_directa.get("snippet"):
+                embed.add_field(
+                    name="> Respuesta directa",
+                    value=respuesta_directa["snippet"][:500],
+                    inline=False
+                )
+        
+        # Si hay Knowledge Graph (información destacada)
+        if knowledge_graph:
+            titulo_kg = knowledge_graph.get("title", "")
+            desc_kg = knowledge_graph.get("description", "")
+            if titulo_kg:
+                embed.add_field(
+                    name="> Información destacada",
+                    value=f"**{titulo_kg}**\n{desc_kg[:200]}" if desc_kg else f"**{titulo_kg}**",
+                    inline=False
+                )
+        
+        # Agregar resultados orgánicos
+        for i, resultado in enumerate(resultados_organicos[:5]):
+            titulo = resultado.get("title", "Sin título")
+            enlace = resultado.get("link", "#")
+            snippet = resultado.get("snippet", "Sin descripción")
+            
             embed.add_field(
-                name=f"{i+1}. {res['titulo']}",
-                value=f"> {res['descripcion'][:100]}\n[Link]({res['url']})",
+                name=f"{i+1}. {titulo[:80]}",
+                value=f"> {snippet[:150]}\n [Leer más]({enlace})",
                 inline=False
             )
         
-        embed.set_footer(text="Resultados de DuckDuckGo Lite | Sin filtros")
+        embed.set_footer(text=f"Resultados de Google | Serper.dev | Plan gratuito: 2,500/mes")
         
+        await ctx.send(embed=embed)
+        
+    except asyncio.TimeoutError:
+        embed = discord.Embed(
+            description="> **Tiempo de espera agotado**\nLa búsqueda tardó demasiado. Intenta de nuevo.",
+            color=AZUL_IPOD_NUM
+        )
         await ctx.send(embed=embed)
         
     except Exception as e:
         embed = discord.Embed(
-            description=f"> Error: `{str(e)[:100]}`",
+            description=f"> **Error inesperado**\n`{str(e)[:100]}`",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
