@@ -3630,36 +3630,6 @@ async def buscar_noticias(ctx: commands.Context, *, query: str = None):
     
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="shopping", description="Busca productos para comprar")
-async def buscar_productos(ctx: commands.Context, *, producto: str):
-    await ctx.defer()
-    
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/shopping"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": producto, "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    productos = data.get("shopping", [])
-    if not productos:
-        return await ctx.send(f"> No se encontraron productos para: **{producto}**")
-    
-    embed = discord.Embed(title=f" Productos: {producto}", color=AZUL_IPOD_NUM)
-    for item in productos[:5]:
-        nombre = item.get('title', 'Sin nombre')
-        precio = item.get('price', 'Precio no disponible')
-        tienda = item.get('source', 'Tienda desconocida')
-        enlace = item.get('link', '#')
-        embed.add_field(name=f"> {nombre[:50]}", value=f" {precio} |  {tienda}\n [Ver producto]({enlace})", inline=False)
-    
-    await ctx.send(embed=embed)
-
 @bot.hybrid_command(name="recetas", description="Busca recetas de cocina")
 async def buscar_recetas(ctx: commands.Context, *, plato: str):
     await ctx.defer()
