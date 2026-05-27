@@ -3496,45 +3496,6 @@ async def imagenes_search(ctx: commands.Context, *, query: str):
     
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="noticias", description="Últimas noticias")
-async def noticias_search(ctx: commands.Context, *, query: str = None):
-    await ctx.defer()
-    
-    API_KEY = os.getenv("SERPER_API_KEY")
-    if not API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/news"
-    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
-    
-    if query:
-        payload = {"q": query, "num": 5, "gl": "es", "hl": "es"}
-    else:
-        payload = {"q": "últimas noticias", "num": 5, "gl": "es", "hl": "es"}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    noticias = data.get("news", [])
-    if not noticias:
-        return await ctx.send(f"> No se encontraron noticias para: **{query if query else 'hoy'}**")
-    
-    embed = discord.Embed(title=f"Noticias: {query if query else 'Última hora'}", color=AZUL_IPOD_NUM)
-    
-    for noticia in noticias[:5]:
-        titulo = noticia.get('title', 'Sin título')
-        fuente = noticia.get('source', 'Desconocida')
-        fecha = noticia.get('date', 'Fecha desconocida')
-        enlace = noticia.get('link', '#')
-        embed.add_field(
-            name=f"> {titulo[:60]}",
-            value=f" {fuente} | {fecha}\n [Leer más]({enlace})",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
-
 @bot.hybrid_command(name="lugares", description="Busca lugares en OpenStreetMap")
 async def lugares_search(ctx: commands.Context, *, lugar: str):
     await ctx.defer() if ctx.interaction else None
