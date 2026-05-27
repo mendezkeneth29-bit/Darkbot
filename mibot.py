@@ -3367,68 +3367,48 @@ async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) 
 
     # BORDE EXTERIOR
     draw.rounded_rectangle([(0, 0), (W - 1, H - 1)], radius=14, outline=AZUL_OSCURO, width=2)
-
     # BARRA LATERAL
     draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
-    # FONDO ICONO
+    # FONDO AVATAR (reemplaza el fondo del trofeo)
     draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, fill=(25, 10, 18))
     draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, outline=AZUL_OSCURO, width=2)
 
-    # TROFEO
-    cx, cy = 68, 80
-
-    # COPA
-    draw.rounded_rectangle([(cx - 22, cy - 28), (cx + 22, cy + 8)], radius=8, fill=AZUL_OSCURO)
-    # BASE
-    draw.rounded_rectangle([(cx - 10, cy + 8), (cx + 10, cy + 18)], radius=3, fill=AZUL_OSCURO)
-    draw.rounded_rectangle([(cx - 18, cy + 18), (cx + 18, cy + 24)], radius=3, fill=AZUL_OSCURO)
-    # ASAS
-    draw.arc([(cx - 34, cy - 20), (cx - 18, cy + 2)], start=270, end=90,  fill=(255, 180, 210), width=4)
-    draw.arc([(cx + 18, cy - 20), (cx + 34, cy + 2)], start=90,  end=270, fill=(255, 180, 210), width=4)
-    # BRILLO
-    draw.ellipse([(cx - 10, cy - 22), (cx - 2, cy - 14)], fill=(255, 220, 240))
-
-    # ESTRELLA ENCIMA
-    draw.polygon([
-        (cx,      cy - 36),
-        (cx + 4,  cy - 28),
-        (cx + 12, cy - 28),
-        (cx + 5,  cy - 23),
-        (cx + 8,  cy - 15),
-        (cx,      cy - 20),
-        (cx - 8,  cy - 15),
-        (cx - 5,  cy - 23),
-        (cx - 12, cy - 28),
-        (cx - 4,  cy - 28),
-    ], fill=(255, 220, 240))
-
-    # AVATAR
+    # AVATAR GRANDE A LA IZQUIERDA (dentro del recuadro azul)
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
-        av = av.resize((56, 56))
+        av = avatar_circular(av, 80)
+        img.paste(av, (28, 40), av)
+        # Borde circular azul
+        draw.ellipse([(27, 39), (109, 121)], outline=AZUL_OSCURO, width=2)
+        # Subrayado azul debajo del avatar
+        draw.rounded_rectangle([(28, 126), (108, 132)], radius=3, fill=AZUL_OSCURO)
+    except:
+        draw.ellipse([(27, 39), (109, 121)], fill=GRIS, outline=AZUL_OSCURO, width=2)
+        draw.rounded_rectangle([(28, 126), (108, 132)], radius=3, fill=AZUL_OSCURO)
+
+    # AVATAR PEQUEÑO A LA DERECHA (se mantiene igual)
+    try:
+        av2 = await descargar_imagen(str(usuario.display_avatar.url))
+        av2 = av2.resize((56, 56))
         mask = Image.new("L", (56, 56), 0)
         ImageDraw.Draw(mask).ellipse((0, 0, 56, 56), fill=255)
-        av_r = Image.new("RGBA", (56, 56), (0, 0, 0, 0))
-        av_r.paste(av, (0, 0), mask)
-        img.paste(av_r, (W - 76, H // 2 - 28), av_r)
+        av2_r = Image.new("RGBA", (56, 56), (0, 0, 0, 0))
+        av2_r.paste(av2, (0, 0), mask)
+        img.paste(av2_r, (W - 76, H // 2 - 28), av2_r)
         draw.ellipse([(W - 77, H // 2 - 29), (W - 19, H // 2 + 29)], outline=AZUL_OSCURO, width=2)
     except:
         draw.ellipse([(W - 76, H // 2 - 28), (W - 20, H // 2 + 28)], fill=GRIS, outline=AZUL_OSCURO, width=2)
 
     # ETIQUETA
     draw.text((138, 22), "LOGRO DESBLOQUEADO", font=fuente(11), fill=AZUL_OSCURO)
-
-    # LINEA SEPARADORA ROSA
+    # LINEA SEPARADORA
     draw.rectangle([(138, 38), (W - 92, 39)], fill=AZUL_OSCURO)
-
     # TITULO
     titulo_recortado = titulo[:36] + "..." if len(titulo) > 36 else titulo
     draw.text((138, 46), titulo_recortado, font=fuente(20, bold=True), fill=TEXTO)
-
     # LINEA SEPARADORA GRIS
     draw.rectangle([(138, 76), (W - 92, 77)], fill=GRIS)
-
     # DESCRIPCION
     desc_recortada = descripcion[:72] + "..." if len(descripcion) > 72 else descripcion
     palabras = desc_recortada.split()
@@ -3441,12 +3421,10 @@ async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) 
     draw.text((138, 86),  linea1, font=fuente(13), fill=SUBTEXTO)
     if linea2:
         draw.text((138, 105), linea2, font=fuente(13), fill=SUBTEXTO)
-
     # NOMBRE USUARIO
     nombre = usuario.display_name[:18] + "..." if len(usuario.display_name) > 18 else usuario.display_name
     draw.text((W - 48, H - 18), nombre, font=fuente(11), fill=SUBTEXTO, anchor="rm")
-
-    # PARTICULAS ROSAS
+    # PARTICULAS
     import random as _r
     _r.seed(hash(titulo))
     for _ in range(14):
