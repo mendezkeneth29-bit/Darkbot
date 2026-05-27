@@ -3553,20 +3553,24 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
     except Exception as e:
         await ctx.send(f"> Error al buscar lugares: `{str(e)[:100]}`")
 
+import discord
+from discord.ext import commands
+import aiohttp
+import xml.etree.ElementTree as ET
+import re
+import urllib.parse  # <--- IMPORTANTE: Esto faltaba
+from email.utils import parsedate_to_datetime
+
 @bot.hybrid_command(name="noticias", description="Últimas noticias")
 async def noticias_search(ctx: commands.Context, *, query: str = None):
-    await ctx.defer() if ctx.interaction else None
-
-    import xml.etree.ElementTree as ET
-    import re
-
-    # Feeds RSS públicos, sin API key, sin límites
-    # Google News cambia el query en la URL directamente
+    await ctx.defer()
+    
+    # Definir feeds fuera del bloque try para mayor claridad
     if query:
         query_encoded = urllib.parse.quote(query)
         feeds = [
             f"https://news.google.com/rss/search?q={query_encoded}&hl=es&gl=ES&ceid=ES:es",
-            f"https://feeds.bbci.co.uk/mundo/rss.xml",
+            "https://feeds.bbci.co.uk/mundo/rss.xml",
         ]
     else:
         feeds = [
@@ -3576,7 +3580,6 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
         ]
 
     noticias = []
-
     headers = {"User-Agent": "Mozilla/5.0 (compatible; MistiBot/1.0)"}
 
     try:
@@ -3585,78 +3588,60 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
                 if len(noticias) >= 5:
                     break
                 try:
-                    async with session.get(feed_url, headers=headers, timeout=8) as resp:
+                    async with session.get(feed_url, headers=headers, timeout=10) as resp:
                         if resp.status != 200:
                             continue
                         contenido = await resp.text()
 
-                    # Parsear el XML del RSS
                     root = ET.fromstring(contenido)
                     canal = root.find("channel")
                     if canal is None:
                         continue
 
-                    items = canal.findall("item")
-                    for item in items:
+                    for item in canal.findall("item"):
                         if len(noticias) >= 5:
                             break
 
                         titulo = item.findtext("title", "Sin título").strip()
                         enlace = item.findtext("link", "#").strip()
-                        fecha  = item.findtext("pubDate", "")
+                        fecha = item.findtext("pubDate", "")
+                        
+                        # Manejo de fuente (algunos RSS usan dc:creator)
                         fuente_tag = item.find("{http://purl.org/dc/elements/1.1/}creator")
                         fuente = fuente_tag.text if fuente_tag is not None else feed_url.split("/")[2]
 
-                        # Limpiar etiquetas HTML del título si las hay
                         titulo = re.sub(r"<[^>]+>", "", titulo)
 
-                        # Formatear fecha si viene en formato RSS estándar
                         fecha_texto = ""
                         if fecha:
                             try:
-                                from email.utils import parsedate_to_datetime
                                 dt = parsedate_to_datetime(fecha)
                                 fecha_texto = dt.strftime("%d/%m/%Y %H:%M")
                             except:
                                 fecha_texto = fecha[:16]
 
                         noticias.append({
-                            "titulo":  titulo,
-                            "enlace":  enlace,
-                            "fuente":  fuente,
-                            "fecha":   fecha_texto,
+                            "titulo": titulo, "enlace": enlace,
+                            "fuente": fuente, "fecha": fecha_texto,
                         })
-                except:
-                    continue  # Si un feed falla, probar el siguiente
+                except Exception:
+                    continue
 
         if not noticias:
-            query_encoded = urllib.parse.quote(query or "noticias")
-            embed = discord.Embed(color=AZUL_IPOD_NUM)
-            embed.description = (
-                f"> No se encontraron noticias para: **{query or 'hoy'}**\n"
-                f"> [Buscar en Google News](https://news.google.com/search?q={query_encoded}&hl=es)"
-            )
-            await ctx.send(embed=embed)
+            await ctx.send(f"> No se encontraron noticias para: **{query or 'hoy'}**")
             return
 
-        titulo_embed = f"📰 Noticias: {query}" if query else "📰 Últimas noticias"
-        embed = discord.Embed(title=titulo_embed, color=AZUL_IPOD_NUM)
-
+        embed = discord.Embed(title=f" Noticias: {query or 'Últimas'}", color=AZUL_IPOD_NUM)
         for n in noticias[:5]:
-            titulo_corto = n["titulo"][:70] + "..." if len(n["titulo"]) > 70 else n["titulo"]
-            valor = f"> 📌 **{n['fuente']}**"
-            if n["fecha"]:
-                valor += f" | {n['fecha']}"
-            valor += f"\n> 🔗 [Leer más]({n['enlace']})"
+            titulo_corto = (n["titulo"][:60] + "...") if len(n["titulo"]) > 60 else n["titulo"]
+            valor = f">  **{n['fuente']}** | {n['fecha']}\n>  [Leer más]({n['enlace']})"
             embed.add_field(name=titulo_corto, value=valor, inline=False)
 
-        embed.set_footer(text=f"Solicitado por {ctx.author.display_name} | Google News RSS")
         await ctx.send(embed=embed)
 
     except Exception as e:
-        embed = discord.Embed(color=AZUL_IPOD_NUM)
-        embed.description = f"> Error al obtener noticias: `{str(e)[:100]}`"
-        await ctx.send(embed=embed)
+        print(f"Error en comando noticias: {e}") # Log para revisar en Render
+        await ctx.send(f"> Ocurrió un error al procesar las noticias.")
         
 # -------------------------
 # FLASK WEB
