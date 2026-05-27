@@ -3365,9 +3365,6 @@ async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    # SUBRAYADO AZUL EN LA PARTE INFERIOR DE TODA LA TARJETA
-    draw.rounded_rectangle([(0, H - 5), (W, H)], radius=3, fill=AZUL_OSCURO)
-
     # BARRA LATERAL IZQUIERDA
     draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
@@ -3432,6 +3429,107 @@ async def logro(ctx: commands.Context, usuario: discord.Member, titulo: str, *, 
     await ctx.defer()
     archivo = await generar_logro(usuario, titulo, descripcion)
     await ctx.send(file=archivo)
+
+@bot.hybrid_command(name="buscar", description="Busca en internet con DuckDuckGo")
+async def buscar(ctx: commands.Context, *, query: str):
+    await ctx.defer() if ctx.interaction else None
+
+    url    = "https://api.duckduckgo.com/"
+    params = {
+        "q":              query,
+        "format":         "json",
+        "no_html":        "1",
+        "skip_disambig":  "1",
+        "no_redirect":    "1",
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                if resp.status != 200:
+                    raise Exception(f"Error {resp.status}")
+                data = await resp.json(content_type=None)
+
+        # Resultado instantáneo (respuesta directa tipo Wikipedia)
+        respuesta_directa = data.get("AbstractText", "")
+        fuente_url        = data.get("AbstractURL", "")
+        fuente_nombre     = data.get("AbstractSource", "")
+        imagen            = data.get("Image", "")
+
+        # Resultados relacionados
+        relacionados = data.get("RelatedTopics", [])
+        resultados   = []
+        for item in relacionados:
+            if isinstance(item, dict) and item.get("Text") and item.get("FirstURL"):
+                resultados.append({
+                    "texto": item["Text"],
+                    "url":   item["FirstURL"]
+                })
+            # Algunos items son grupos con "Topics" dentro
+            elif isinstance(item, dict) and item.get("Topics"):
+                for sub in item["Topics"]:
+                    if sub.get("Text") and sub.get("FirstURL"):
+                        resultados.append({
+                            "texto": sub["Text"],
+                            "url":   sub["FirstURL"]
+                        })
+            if len(resultados) >= 4:
+                break
+
+        # Si no hay nada útil, redirigir al buscador
+        if not respuesta_directa and not resultados:
+            query_encoded = urllib.parse.quote(query)
+            embed = discord.Embed(
+                title=f"Búsqueda: {query}",
+                description="> No se encontró un resultado directo.",
+                color=AZUL_IPOD_NUM
+            )
+            embed.add_field(
+                name="> Buscar en DuckDuckGo",
+                value=f"[Haz clic aquí](https://duckduckgo.com/?q={query_encoded})",
+                inline=False
+            )
+            await ctx.send(embed=embed)
+            return
+
+        # Construir embed
+        embed = discord.Embed(
+            title=f"🔍 {query}",
+            color=AZUL_IPOD_NUM
+        )
+
+        # Respuesta directa
+        if respuesta_directa:
+            desc = respuesta_directa[:800] + "..." if len(respuesta_directa) > 800 else respuesta_directa
+            embed.description = desc
+            if fuente_nombre and fuente_url:
+                embed.add_field(name="> Fuente", value=f"[{fuente_nombre}]({fuente_url})", inline=False)
+            if imagen:
+                embed.set_thumbnail(url=f"https://duckduckgo.com{imagen}" if imagen.startswith("/") else imagen)
+
+        # Resultados relacionados
+        if resultados:
+            valor = ""
+            for r in resultados[:4]:
+                texto = r["texto"][:80] + "..." if len(r["texto"]) > 80 else r["texto"]
+                valor += f"[• {texto}]({r['url']})\n"
+            embed.add_field(name="> Resultados relacionados", value=valor, inline=False)
+
+        # Link para ver más
+        query_encoded = urllib.parse.quote(query)
+        embed.add_field(
+            name="> Ver más resultados",
+            value=f"[Buscar en DuckDuckGo](https://duckduckgo.com/?q={query_encoded})",
+            inline=False
+        )
+        embed.set_footer(text=f"Solicitado por {ctx.author.display_name} | DuckDuckGo")
+
+        await ctx.send(embed=embed)
+
+    except Exception as e:
+        embed = discord.Embed(color=AZUL_IPOD_NUM)
+        embed.description = f"> Error al buscar: `{str(e)[:100]}`"
+        await ctx.send(embed=embed)
         
 # -------------------------
 # FLASK WEB
