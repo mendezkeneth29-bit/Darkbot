@@ -3065,6 +3065,189 @@ async def robux(ctx: commands.Context):
 async def secreto(ctx: commands.Context, *, mensaje: str):
     embed = discord.Embed(description=f"> {mensaje}", color=AZUL_IPOD_NUM)
     await ctx.send(embed=embed, ephemeral=True)
+
+# =========================================================
+# MENSAJES ANONIMOS
+# Agrega este bloque a tu bot.py
+# =========================================================
+
+# --- DATA (agregar junto a tus otras variables globales) ---
+# anon_config   = {}   # guild_id -> {"canal_id": int}
+# anon_data     = {}   # guild_id -> [{"numero": int, "user_id": int, "contenido": str}, ...]
+# anon_count    = {}   # guild_id -> int  (contador global)
+
+anon_config = {}
+anon_data   = {}
+anon_count  = {}
+
+
+# =========================================================
+# MODAL — Escribir mensaje anonimo
+# =========================================================
+
+class ModalAnonimo(discord.ui.Modal, title="Mensaje Anónimo"):
+    contenido = discord.ui.TextInput(
+        label="Tu mensaje",
+        style=discord.TextStyle.long,
+        placeholder="Escribe aquí tu mensaje anónimo...",
+        min_length=1,
+        max_length=1000,
+    )
+
+    def __init__(self, canal_destino: discord.TextChannel):
+        super().__init__()
+        self.canal_destino = canal_destino
+
+    async def on_submit(self, interaction: discord.Interaction):
+        gid = str(interaction.guild.id)
+
+        # Inicializar estructuras si no existen
+        if gid not in anon_data:  anon_data[gid]  = []
+        if gid not in anon_count: anon_count[gid] = 0
+
+        # Incrementar contador y guardar registro
+        anon_count[gid] += 1
+        numero = anon_count[gid]
+
+        anon_data[gid].append({
+            "numero":    numero,
+            "user_id":   interaction.user.id,
+            "username":  str(interaction.user),
+            "contenido": str(self.contenido),
+        })
+
+        # Embed del mensaje anonimo
+        embed = discord.Embed(
+            description=str(self.contenido),
+            color=0x2B55B5
+        )
+        embed.set_footer(text=f"#{numero:03d}")
+
+        # Vista con el boton para seguir enviando
+        view = VistaBotonAnonimo(self.canal_destino)
+
+        await self.canal_destino.send(embed=embed, view=view)
+
+        # Confirmar al usuario en privado
+        await interaction.response.send_message(
+            "> Tu mensaje anónimo fue enviado correctamente.",
+            ephemeral=True
+        )
+
+
+# =========================================================
+# VISTA — Boton azul bajo cada mensaje
+# =========================================================
+
+class VistaBotonAnonimo(discord.ui.View):
+    def __init__(self, canal_destino: discord.TextChannel):
+        super().__init__(timeout=None)
+        self.canal_destino = canal_destino
+
+     @discord.ui.button(
+        label="Enviar Anónimo",
+        style=discord.ButtonStyle.primary,
+        custom_id="btn_panel_anonimo",
+        emoji="<:share:1505393406707372104>"
+    )
+    async def enviar_anonimo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(ModalAnonimo(self.canal_destino))
+
+
+# =========================================================
+# VISTA — Boton del panel principal (persistente)
+# =========================================================
+
+class VistaPanelAnonimo(discord.ui.View):
+    """
+    Esta vista se adjunta al embed del panel.
+    Usa custom_id fijo para que sobreviva reinicios si implementas
+    persistencia; aquí se recrea en memoria al ejecutar /set-anonimos.
+    """
+    def __init__(self, canal_destino: discord.TextChannel):
+        super().__init__(timeout=None)
+        self.canal_destino = canal_destino
+
+    @discord.ui.button(
+        label="Enviar Anónimo",
+        style=discord.ButtonStyle.primary,
+        custom_id="btn_panel_anonimo",
+        emoji="<:share:1505393406707372104>"
+    )
+    async def abrir_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(ModalAnonimo(self.canal_destino))
+
+
+# =========================================================
+# COMANDO — Configurar canal y enviar panel
+# =========================================================
+
+@bot.hybrid_command(
+    name="set-anonimos",
+    description="Configura el canal de mensajes anónimos y envía el panel."
+)
+@commands.has_permissions(administrator=True)
+async def set_anonimos(ctx: commands.Context, canal: discord.TextChannel):
+    await ctx.defer(ephemeral=True)
+
+    gid = str(ctx.guild.id)
+    anon_config[gid] = {"canal_id": canal.id}
+
+    embed_panel = discord.Embed(
+        title="Mensajes Anónimos",
+        description=(
+            "Estos son los mensajes anónimos, mensajes de cualquier usuario serán enviados aquí.\n\n"
+            "> Interactúa con el botón de abajo para mandar tu mensaje anónimo."
+        ),
+        color=0x2B55B5
+    )
+
+    vista = VistaPanelAnonimo(canal)
+    await canal.send(embed=embed_panel, view=vista)
+
+    await ctx.followup.send(
+        f"> Panel de mensajes anónimos enviado en {canal.mention}",
+        ephemeral=True
+    )
+
+
+# =========================================================
+# COMANDO — Revelar autor de un mensaje anonimo (solo admin)
+# =========================================================
+
+@bot.hybrid_command(
+    name="revelar-anonimo",
+    description="(ADMIN) Revela quién envió un mensaje anónimo por su número."
+)
+@commands.has_permissions(administrator=True)
+async def revelar_anonimo(ctx: commands.Context, numero: int):
+    await ctx.defer(ephemeral=True)
+
+    gid = str(ctx.guild.id)
+
+    if gid not in anon_data or not anon_data[gid]:
+        await ctx.followup.send("> No hay mensajes anónimos registrados en este servidor.", ephemeral=True)
+        return
+
+    # Buscar el mensaje por número
+    registro = next((r for r in anon_data[gid] if r["numero"] == numero), None)
+
+    if not registro:
+        await ctx.followup.send(f"> No se encontró el mensaje anónimo **#{numero:03d}**.", ephemeral=True)
+        return
+
+    miembro = ctx.guild.get_member(registro["user_id"])
+    mencion = miembro.mention if miembro else f"ID: `{registro['user_id']}`"
+
+    embed = discord.Embed(
+        title=f"Revelación — Mensaje #{numero:03d}",
+        color=0x2B55B5
+    )
+    embed.add_field(name="> Usuario",   value=f"{mencion}\n`{registro['username']}`", inline=False)
+    embed.add_field(name="> Contenido", value=registro["contenido"][:1000],           inline=False)
+    embed.set_footer(text="Esta información es solo visible para ti.")
+
+    await ctx.followup.send(embed=embed, ephemeral=True)
         
 # -------------------------
 # FLASK WEB
