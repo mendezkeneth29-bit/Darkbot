@@ -3568,6 +3568,187 @@ async def google_search(ctx: commands.Context, *, query: str):
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="imagenes", description="Busca imágenes en Google")
+async def buscar_imagenes(ctx: commands.Context, *, query: str):
+    await ctx.defer()
+    
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    if not SERPER_API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/images"
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+    payload = {"q": query, "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    imagenes = data.get("images", [])
+    if not imagenes:
+        return await ctx.send(f"> No se encontraron imagenes para: **{query}**")
+    
+    embed = discord.Embed(title=f"Imagenes de: {query}", color=AZUL_IPOD_NUM)
+    for i, img in enumerate(imagenes[:3]):
+        embed.add_field(name=f"> Imagen {i+1}", value=f"[Ver imagen]({img.get('imageUrl', '#')})", inline=False)
+    
+    embed.set_image(url=imagenes[0].get('imageUrl', ''))
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="noticias", description="Últimas noticias")
+async def buscar_noticias(ctx: commands.Context, *, query: str = None):
+    await ctx.defer()
+    
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    if not SERPER_API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/news"
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+    
+    if query:
+        payload = {"q": query, "num": 5}
+    else:
+        payload = {"q": "noticias", "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    noticias = data.get("news", [])
+    if not noticias:
+        return await ctx.send(f"> No se encontraron noticias para: **{query}**")
+    
+    embed = discord.Embed(title=f"Noticias: {query if query else 'Ultima hora'}", color=AZUL_IPOD_NUM)
+    for noticia in noticias[:5]:
+        titulo = noticia.get('title', 'Sin titulo')
+        fuente = noticia.get('source', 'Desconocida')
+        fecha = noticia.get('date', 'Fecha desconocida')
+        enlace = noticia.get('link', '#')
+        embed.add_field(name=f"> {titulo[:70]}", value=f" {fuente} | {fecha}\n [Leer mas]({enlace})", inline=False)
+    
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps")
+async def buscar_lugares(ctx: commands.Context, *, lugar: str):
+    await ctx.defer()
+    
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    if not SERPER_API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/places"
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+    payload = {"q": lugar, "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    lugares = data.get("places", [])
+    if not lugares:
+        return await ctx.send(f"> No se encontraron lugares para: **{lugar}**")
+    
+    embed = discord.Embed(title=f" Lugares: {lugar}", color=AZUL_IPOD_NUM)
+    for sitio in lugares[:5]:
+        nombre = sitio.get('title', 'Sin nombre')
+        direccion = sitio.get('address', 'Sin direccion')
+        rating = sitio.get('rating', 'Sin rating')
+        enlace = sitio.get('link', '#')
+        embed.add_field(name=f"> {nombre}", value=f" {direccion}\n {rating} | [Mapa]({enlace})", inline=False)
+    
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="videos", description="Busca videos en YouTube/Google")
+async def buscar_videos(ctx: commands.Context, *, query: str):
+    await ctx.defer()
+    
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    if not SERPER_API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/videos"
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+    payload = {"q": query, "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    videos = data.get("videos", [])
+    if not videos:
+        return await ctx.send(f"> No se encontraron videos para: **{query}**")
+    
+    embed = discord.Embed(title=f" Videos de: {query}", color=AZUL_IPOD_NUM)
+    for video in videos[:5]:
+        titulo = video.get('title', 'Sin titulo')
+        duracion = video.get('duration', '?')
+        fuente = video.get('source', 'YouTube')
+        enlace = video.get('link', '#')
+        embed.add_field(name=f"> {titulo[:60]}", value=f" {duracion} |  {fuente}\n [Ver video]({enlace})", inline=False)
+    
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="shopping", description="Busca productos para comprar")
+async def buscar_productos(ctx: commands.Context, *, producto: str):
+    await ctx.defer()
+    
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    if not SERPER_API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/shopping"
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+    payload = {"q": producto, "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    productos = data.get("shopping", [])
+    if not productos:
+        return await ctx.send(f"> No se encontraron productos para: **{producto}**")
+    
+    embed = discord.Embed(title=f" Productos: {producto}", color=AZUL_IPOD_NUM)
+    for item in productos[:5]:
+        nombre = item.get('title', 'Sin nombre')
+        precio = item.get('price', 'Precio no disponible')
+        tienda = item.get('source', 'Tienda desconocida')
+        enlace = item.get('link', '#')
+        embed.add_field(name=f"> {nombre[:50]}", value=f" {precio} |  {tienda}\n [Ver producto]({enlace})", inline=False)
+    
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="recetas", description="Busca recetas de cocina")
+async def buscar_recetas(ctx: commands.Context, *, plato: str):
+    await ctx.defer()
+    
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    if not SERPER_API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/recipes"
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+    payload = {"q": plato, "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    recetas = data.get("recipes", [])
+    if not recetas:
+        return await ctx.send(f"> No se encontraron recetas para: **{plato}**")
+    
+    embed = discord.Embed(title=f" Recetas de: {plato}", color=AZUL_IPOD_NUM)
+    for receta in recetas[:5]:
+        titulo = receta.get('title', 'Sin titulo')
+        tiempo = receta.get('cookTime', 'Tiempo no especificado')
+        calorias = receta.get('calories', 'N/D')
+        enlace = receta.get('link', '#')
+        embed.add_field(name=f"> {titulo[:60]}", value=f"⏱️ {tiempo} | 🔥 {calorias}\n🔗 [Ver receta]({enlace})", inline=False)
+    
+    await ctx.send(embed=embed)
         
 # -------------------------
 # FLASK WEB
