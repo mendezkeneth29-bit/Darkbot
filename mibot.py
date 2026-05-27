@@ -3567,9 +3567,13 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
 # import urllib.parse
 # from email.utils import parsedate_to_datetime
 
-@bot.command(name="noticias", help="Últimas noticias. Uso: !noticias o !noticias [tema]")
-async def noticias_search(ctx: commands.Context, *, query: str = None):
-    # Nota: No usamos await ctx.defer() porque es un comando de texto, no de slash.
+@bot.hybrid_command(name="noticias", description="Últimas noticias")
+async def noticias(ctx: commands.Context, *, query: str = None):
+    # Usamos defer() solo si es un comando de slash
+    if ctx.interaction:
+        await ctx.defer()
+
+    # Usamos ctx.typing() para que el bot se vea activo mientras busca
     async with ctx.typing():
         if query:
             query_encoded = urllib.parse.quote(query)
