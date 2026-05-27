@@ -3496,7 +3496,7 @@ async def imagenes_search(ctx: commands.Context, *, query: str):
     
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="google-maps", description="Busca lugares en Google Maps.")
+@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps.")
 async def lugares_search(ctx: commands.Context, *, lugar: str):
     await ctx.defer() if ctx.interaction else None
 
@@ -3553,7 +3553,7 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
     except Exception as e:
         await ctx.send(f"> Error al buscar lugares: `{str(e)[:100]}`")
 
-@bot.hybrid_command(name="goolge-noticias", description="Últimas noticias")
+@bot.hybrid_command(name="google-noticias", description="Últimas noticias")
 async def noticias_search(ctx: commands.Context, *, query: str = None):
     await ctx.defer() if ctx.interaction else None
 
