@@ -5,9 +5,12 @@ from datetime import datetime
 import asyncio
 import random
 import json
+import re
 import time
+import xml.etree.ElementTree as ET
 import aiohttp
 import urllib.parse
+from email.utils import parsedate_to_datetime
 from PIL import Image, ImageDraw, ImageFont
 from groq import AsyncGroq
 from discord.ext import commands
@@ -3552,14 +3555,8 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
 
     except Exception as e:
         await ctx.send(f"> Error al buscar lugares: `{str(e)[:100]}`")
-
-import discord
-from discord.ext import commands
-import aiohttp
-import xml.etree.ElementTree as ET
-import re
-import urllib.parse  # <--- IMPORTANTE: Esto faltaba
-from email.utils import parsedate_to_datetime
+        
+# -----------------------SECCION "2"---------------------------
 
 @bot.hybrid_command(name="noticias", description="Últimas noticias")
 async def noticias_search(ctx: commands.Context, *, query: str = None):
