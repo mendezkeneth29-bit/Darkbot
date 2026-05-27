@@ -3558,85 +3558,93 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
         
 # -----------------------SECCION "2"---------------------------
 
-@bot.hybrid_command(name="noticias", description="Últimas noticias")
+# Asegúrate de tener estas importaciones al principio de tu archivo mibot.py:
+# import discord
+# from discord.ext import commands
+# import aiohttp
+# import xml.etree.ElementTree as ET
+# import re
+# import urllib.parse
+# from email.utils import parsedate_to_datetime
+
+@bot.command(name="noticias", help="Últimas noticias. Uso: !noticias o !noticias [tema]")
 async def noticias_search(ctx: commands.Context, *, query: str = None):
-    await ctx.defer()
-    
-    if query:
-        query_encoded = urllib.parse.quote(query)
-        feeds = [
-            f"https://news.google.com/rss/search?q={query_encoded}&hl=es&gl=ES&ceid=ES:es",
-            "https://feeds.bbci.co.uk/mundo/rss.xml",
-        ]
-    else:
-        feeds = [
-            "https://news.google.com/rss?hl=es&gl=ES&ceid=ES:es",
-            "https://feeds.bbci.co.uk/mundo/rss.xml",
-            "https://www.infobae.com/feeds/rss/",
-        ]
+    # Nota: No usamos await ctx.defer() porque es un comando de texto, no de slash.
+    async with ctx.typing():
+        if query:
+            query_encoded = urllib.parse.quote(query)
+            feeds = [
+                f"https://news.google.com/rss/search?q={query_encoded}&hl=es&gl=ES&ceid=ES:es",
+                "https://feeds.bbci.co.uk/mundo/rss.xml",
+            ]
+        else:
+            feeds = [
+                "https://news.google.com/rss?hl=es&gl=ES&ceid=ES:es",
+                "https://feeds.bbci.co.uk/mundo/rss.xml",
+                "https://www.infobae.com/feeds/rss/",
+            ]
 
-    noticias = []
-    headers = {"User-Agent": "Mozilla/5.0 (compatible; MistiBot/1.0)"}
+        noticias = []
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; MistiBot/1.0)"}
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            for feed_url in feeds:
-                if len(noticias) >= 5:
-                    break
-                try:
-                    async with session.get(feed_url, headers=headers, timeout=10) as resp:
-                        if resp.status != 200:
+        try:
+            async with aiohttp.ClientSession() as session:
+                for feed_url in feeds:
+                    if len(noticias) >= 5:
+                        break
+                    try:
+                        async with session.get(feed_url, headers=headers, timeout=10) as resp:
+                            if resp.status != 200:
+                                continue
+                            contenido = await resp.text()
+
+                        root = ET.fromstring(contenido)
+                        canal = root.find("channel")
+                        if canal is None:
                             continue
-                        contenido = await resp.text()
 
-                    root = ET.fromstring(contenido)
-                    canal = root.find("channel")
-                    if canal is None:
+                        for item in canal.findall("item"):
+                            if len(noticias) >= 5:
+                                break
+
+                            titulo = item.findtext("title", "Sin título").strip()
+                            enlace = item.findtext("link", "#").strip()
+                            fecha = item.findtext("pubDate", "")
+                            
+                            fuente_tag = item.find("{http://purl.org/dc/elements/1.1/}creator")
+                            fuente = fuente_tag.text if fuente_tag is not None else feed_url.split("/")[2]
+                            titulo = re.sub(r"<[^>]+>", "", titulo)
+
+                            fecha_texto = ""
+                            if fecha:
+                                try:
+                                    dt = parsedate_to_datetime(fecha)
+                                    fecha_texto = dt.strftime("%d/%m/%Y %H:%M")
+                                except:
+                                    fecha_texto = fecha[:16]
+
+                            noticias.append({
+                                "titulo": titulo, "enlace": enlace,
+                                "fuente": fuente, "fecha": fecha_texto,
+                            })
+                    except Exception:
                         continue
 
-                    for item in canal.findall("item"):
-                        if len(noticias) >= 5:
-                            break
+            if not noticias:
+                await ctx.send(f"> No se encontraron noticias para: **{query or 'hoy'}**")
+                return
 
-                        titulo = item.findtext("title", "Sin título").strip()
-                        enlace = item.findtext("link", "#").strip()
-                        fecha = item.findtext("pubDate", "")
-                        
-                        fuente_tag = item.find("{http://purl.org/dc/elements/1.1/}creator")
-                        fuente = fuente_tag.text if fuente_tag is not None else feed_url.split("/")[2]
+            embed = discord.Embed(title=f"Noticias: {query or 'Últimas'}", color=0x0000FF)
+            for n in noticias[:5]:
+                titulo_corto = (n["titulo"][:60] + "...") if len(n["titulo"]) > 60 else n["titulo"]
+                valor = f"> **{n['fuente']}** | {n['fecha']}\n> [Leer más]({n['enlace']})"
+                embed.add_field(name=titulo_corto, value=valor, inline=False)
 
-                        titulo = re.sub(r"<[^>]+>", "", titulo)
+            await ctx.send(embed=embed)
 
-                        fecha_texto = ""
-                        if fecha:
-                            try:
-                                dt = parsedate_to_datetime(fecha)
-                                fecha_texto = dt.strftime("%d/%m/%Y %H:%M")
-                            except:
-                                fecha_texto = fecha[:16]
-
-                        noticias.append({
-                            "titulo": titulo, "enlace": enlace,
-                            "fuente": fuente, "fecha": fecha_texto,
-                        })
-                except Exception:
-                    continue
-
-        if not noticias:
-            await ctx.send(f"> No se encontraron noticias para: **{query or 'hoy'}**")
-            return
-
-        embed = discord.Embed(title=f"📰 Noticias: {query or 'Últimas'}", color=0x0000FF)
-        for n in noticias[:5]:
-            titulo_corto = (n["titulo"][:60] + "...") if len(n["titulo"]) > 60 else n["titulo"]
-            valor = f"> 📌 **{n['fuente']}** | {n['fecha']}\n> 🔗 [Leer más]({n['enlace']})"
-            embed.add_field(name=titulo_corto, value=valor, inline=False)
-
-        await ctx.send(embed=embed)
-
-    except Exception as e:
-        print(f"Error en comando noticias: {e}")
-        await ctx.send(f"> Ocurrió un error al procesar las noticias.")
+        except Exception as e:
+            print(f"Error en comando noticias: {e}")
+            await ctx.send(f"> Ocurrió un error al procesar las noticias.")
         
 # -------------------------
 # FLASK WEB
