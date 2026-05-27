@@ -3558,22 +3558,12 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
         
 # -----------------------SECCION "2"---------------------------
 
-# Asegúrate de tener estas importaciones al principio de tu archivo mibot.py:
-# import discord
-# from discord.ext import commands
-# import aiohttp
-# import xml.etree.ElementTree as ET
-# import re
-# import urllib.parse
-# from email.utils import parsedate_to_datetime
-
-@bot.hybrid_command(name="noticias", description="Últimas noticias")
+@bot.hybrid_command(name="noticias", description="Últimas noticias de actualidad")
 async def noticias(ctx: commands.Context, *, query: str = None):
-    # Usamos defer() solo si es un comando de slash
+    # Si es comando slash (/), defer() evita que el bot tarde demasiado y dé error de timeout
     if ctx.interaction:
         await ctx.defer()
-
-    # Usamos ctx.typing() para que el bot se vea activo mientras busca
+    
     async with ctx.typing():
         if query:
             query_encoded = urllib.parse.quote(query)
@@ -3594,31 +3584,25 @@ async def noticias(ctx: commands.Context, *, query: str = None):
         try:
             async with aiohttp.ClientSession() as session:
                 for feed_url in feeds:
-                    if len(noticias) >= 5:
-                        break
+                    if len(noticias) >= 5: break
                     try:
                         async with session.get(feed_url, headers=headers, timeout=10) as resp:
-                            if resp.status != 200:
-                                continue
+                            if resp.status != 200: continue
                             contenido = await resp.text()
 
                         root = ET.fromstring(contenido)
                         canal = root.find("channel")
-                        if canal is None:
-                            continue
+                        if canal is None: continue
 
                         for item in canal.findall("item"):
-                            if len(noticias) >= 5:
-                                break
-
+                            if len(noticias) >= 5: break
                             titulo = item.findtext("title", "Sin título").strip()
                             enlace = item.findtext("link", "#").strip()
                             fecha = item.findtext("pubDate", "")
-                            
                             fuente_tag = item.find("{http://purl.org/dc/elements/1.1/}creator")
                             fuente = fuente_tag.text if fuente_tag is not None else feed_url.split("/")[2]
                             titulo = re.sub(r"<[^>]+>", "", titulo)
-
+                            
                             fecha_texto = ""
                             if fecha:
                                 try:
@@ -3627,12 +3611,8 @@ async def noticias(ctx: commands.Context, *, query: str = None):
                                 except:
                                     fecha_texto = fecha[:16]
 
-                            noticias.append({
-                                "titulo": titulo, "enlace": enlace,
-                                "fuente": fuente, "fecha": fecha_texto,
-                            })
-                    except Exception:
-                        continue
+                            noticias.append({"titulo": titulo, "enlace": enlace, "fuente": fuente, "fecha": fecha_texto})
+                    except Exception: continue
 
             if not noticias:
                 await ctx.send(f"> No se encontraron noticias para: **{query or 'hoy'}**")
@@ -3645,9 +3625,8 @@ async def noticias(ctx: commands.Context, *, query: str = None):
                 embed.add_field(name=titulo_corto, value=valor, inline=False)
 
             await ctx.send(embed=embed)
-
         except Exception as e:
-            print(f"Error en comando noticias: {e}")
+            print(f"Error: {e}")
             await ctx.send(f"> Ocurrió un error al procesar las noticias.")
         
 # -------------------------
