@@ -15,6 +15,126 @@ from discord import app_commands
 from flask import Flask
 import threading
 
+# =========================================================
+# SISTEMA DE PERSISTENCIA — Agrega esto a tu bot.py
+# =========================================================
+# Reemplaza las variables globales de datos y agrega las
+# funciones de carga/guardado. Pega todo ANTES de los comandos.
+# =========================================================
+
+import json, os
+
+# =========================================================
+# ARCHIVOS DE DATOS
+# =========================================================
+
+DB_WARNINGS   = "data_warnings.json"
+DB_XP         = "data_xp.json"
+DB_ECONOMIA   = "data_economia.json"
+DB_CLAVES     = "data_claves.json"
+DB_ANONIMOS   = "data_anonimos.json"
+DB_CONFIG     = "data_config.json"    # nivel_canal, welc_config, bye_config, anon_config
+
+
+# =========================================================
+# FUNCIONES DE CARGA
+# =========================================================
+
+def _cargar(archivo: str, default=None):
+    if default is None:
+        default = {}
+    if not os.path.exists(archivo):
+        return default
+    try:
+        with open(archivo, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return default
+
+def _guardar(archivo: str, data):
+    try:
+        with open(archivo, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[ERROR] No se pudo guardar {archivo}: {e}")
+
+
+# =========================================================
+# CARGA INICIAL — reemplaza las declaraciones vacías
+# =========================================================
+
+warnings_data = _cargar(DB_WARNINGS)
+xp_data       = _cargar(DB_XP)
+economia_data = _cargar(DB_ECONOMIA)
+claves_data   = _cargar(DB_CLAVES)
+
+_anon_raw     = _cargar(DB_ANONIMOS, {"data": {}, "count": {}})
+anon_data     = _anon_raw.get("data",  {})
+anon_count    = _anon_raw.get("count", {})
+# Convertir claves de count a int
+anon_count    = {k: int(v) for k, v in anon_count.items()}
+
+_cfg          = _cargar(DB_CONFIG, {"nivel_canal": {}, "welc": {}, "bye": {}, "anon_config": {}})
+nivel_canal   = {int(k): v for k, v in _cfg.get("nivel_canal", {}).items()}
+welc_config   = {int(k): v for k, v in _cfg.get("welc", {}).items()}
+bye_config    = {int(k): v for k, v in _cfg.get("bye",  {}).items()}
+anon_config   = _cfg.get("anon_config", {})
+
+# Estos no necesitan persistencia (se reinician solos)
+afk_data      = {}
+mensaje_count = {}
+xp_cooldown   = {}
+
+
+# =========================================================
+# FUNCIONES DE GUARDADO — llama a estas después de modificar datos
+# =========================================================
+
+def guardar_warnings():
+    _guardar(DB_WARNINGS, warnings_data)
+
+def guardar_xp():
+    _guardar(DB_XP, xp_data)
+
+def guardar_economia():
+    _guardar(DB_ECONOMIA, economia_data)
+
+def guardar_claves():
+    _guardar(DB_CLAVES, claves_data)
+
+def guardar_anonimos():
+    _guardar(DB_ANONIMOS, {"data": anon_data, "count": anon_count})
+
+def guardar_config():
+    _guardar(DB_CONFIG, {
+        "nivel_canal":  {str(k): v for k, v in nivel_canal.items()},
+        "welc":         {str(k): v for k, v in welc_config.items()},
+        "bye":          {str(k): v for k, v in bye_config.items()},
+        "anon_config":  anon_config,
+    })
+
+
+# =========================================================
+# AUTOGUARDADO CADA 5 MINUTOS (tarea en segundo plano)
+# =========================================================
+
+async def tarea_autoguardado():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        guardar_warnings()
+        guardar_xp()
+        guardar_economia()
+        guardar_claves()
+        guardar_anonimos()
+        guardar_config()
+        await asyncio.sleep(300)  # cada 5 minutos
+
+
+# En setup_hook agrega esto:
+# bot.loop.create_task(tarea_autoguardado())
+# O en on_ready:
+# bot.loop.create_task(tarea_autoguardado())
+
 PLAYLIST_FILE = "playlists.json"
 
 def cargar_playlists():
@@ -3231,49 +3351,131 @@ async def panel_anonimos(ctx: commands.Context):
         ephemeral=True
     )
 
+# =========================================================
+# TARJETA DE LOGRO — Agrega este bloque a tu bot.py
+# =========================================================
+
+async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) -> discord.File:
+    W, H = 680, 160
+
+    # Fondos y colores
+    FONDO       = (12, 12, 18)
+    BORDE_COLOR = (43, 85, 181)
+    ORO         = (255, 190, 50)
+    ORO_OSCURO  = (180, 130, 20)
+    TEXTO_B     = (255, 255, 255)
+    SUB         = (160, 160, 175)
+
+    img  = Image.new("RGBA", (W, H), FONDO)
+    draw = ImageDraw.Draw(img)
+
+    # Borde exterior brillante
+    draw.rounded_rectangle([(0, 0), (W - 1, H - 1)], radius=14, outline=BORDE_COLOR, width=2)
+
+    # Barra lateral dorada
+    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
+
+    # Fondo del icono (cuadrado redondeado dorado)
+    draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, fill=AZUL_OSCURO)
+    draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, outline=AZUL_OSCURO, width=2)
+
+    # Icono de trofeo dibujado con Pillow
+    cx, cy = 68, 76
+
+    # Copa
+    draw.rounded_rectangle([(cx - 22, cy - 28), (cx + 22, cy + 8)], radius=8, fill=AZUL_OSCURO)
+    # Base
+    draw.rounded_rectangle([(cx - 10, cy + 8), (cx + 10, cy + 18)], radius=3, fill=AZUL_OSCURO)
+    draw.rounded_rectangle([(cx - 18, cy + 18), (cx + 18, cy + 22)], radius=3, fill=AZUL_OSCURO)
+    # Asas
+    draw.arc([(cx - 34, cy - 20), (cx - 18, cy + 2)], start=270, end=90, fill=ORO, width=4)
+    draw.arc([(cx + 18, cy - 20), (cx + 34, cy + 2)], start=90,  end=270, fill=ORO, width=4)
+    # Brillo
+    draw.ellipse([(cx - 10, cy - 22), (cx - 2, cy - 14)], fill=(255, 230, 130))
+
+    # Estrella pequeña encima
+    draw.polygon([
+        (cx, cy - 36),
+        (cx + 4, cy - 28),
+        (cx + 12, cy - 28),
+        (cx + 5,  cy - 23),
+        (cx + 8,  cy - 15),
+        (cx,      cy - 20),
+        (cx - 8,  cy - 15),
+        (cx - 5,  cy - 23),
+        (cx - 12, cy - 28),
+        (cx - 4,  cy - 28),
+    ], fill=ORO)
+
+    # Avatar del usuario (circular)
+    try:
+        av = await descargar_imagen(str(usuario.display_avatar.url))
+        av = av.resize((56, 56))
+        mask = Image.new("L", (56, 56), 0)
+        ImageDraw.Draw(mask).ellipse((0, 0, 56, 56), fill=255)
+        av_r = Image.new("RGBA", (56, 56), (0, 0, 0, 0))
+        av_r.paste(av, (0, 0), mask)
+        img.paste(av_r, (W - 76, H // 2 - 28), av_r)
+        draw.ellipse([(W - 77, H // 2 - 29), (W - 19, H // 2 + 29)], outline=BORDE_COLOR, width=2)
+    except:
+        draw.ellipse([(W - 76, H // 2 - 28), (W - 20, H // 2 + 28)], fill=(40, 40, 55), outline=BORDE_COLOR, width=2)
+
+    # Textos
+    # Etiqueta superior
+    draw.text((138, 22), "¡LOGRO DESBLOQUEADO!", font=fuente(11), fill=AZUL_OSCURO)
+
+    # Título del logro
+    titulo_recortado = titulo[:36] + "..." if len(titulo) > 36 else titulo
+    draw.text((138, 42), titulo_recortado, font=fuente(22, bold=True), fill=TEXTO_B)
+
+    # Línea separadora
+    draw.rectangle([(138, 74), (W - 92, 75)], fill=(40, 40, 60))
+
+    # Descripción
+    desc_recortada = descripcion[:72] + "..." if len(descripcion) > 72 else descripcion
+    # Partir en dos líneas si es largo
+    palabras = desc_recortada.split()
+    linea1, linea2 = "", ""
+    for p in palabras:
+        if len(linea1 + " " + p) <= 48:
+            linea1 = (linea1 + " " + p).strip()
+        else:
+            linea2 = (linea2 + " " + p).strip()
+    draw.text((138, 84),  linea1, font=fuente(13), fill=SUB)
+    if linea2:
+        draw.text((138, 103), linea2, font=fuente(13), fill=SUB)
+
+    # Nombre del usuario abajo a la derecha
+    nombre = usuario.display_name[:18] + "..." if len(usuario.display_name) > 18 else usuario.display_name
+    draw.text((W - 48, H - 22), nombre, font=fuente(11), fill=SUB, anchor="rm")
+
+    # Partículas decorativas (puntos dorados)
+    import random as _r
+    _r.seed(hash(titulo))
+    for _ in range(12):
+        px = _r.randint(130, W - 90)
+        py = _r.randint(10, H - 10)
+        r  = _r.randint(1, 3)
+        alpha = _r.randint(40, 120)
+        dot = Image.new("RGBA", (r * 2, r * 2), (0, 0, 0, 0))
+        ImageDraw.Draw(dot).ellipse((0, 0, r * 2, r * 2), fill=(255, 190, 50, alpha))
+        img.paste(dot, (px, py), dot)
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    buf.seek(0)
+    return discord.File(buf, filename="logro.png")
+
 
 # =========================================================
-# COMANDO — Revelar autor (solo admin)
+# COMANDO
 # =========================================================
 
-@bot.hybrid_command(
-    name="revelar-anonimo",
-    description="(ADMIN) Revela quién envió un mensaje anónimo por su número."
-)
-@commands.has_permissions(administrator=True)
-async def revelar_anonimo(ctx: commands.Context, numero: int):
-    await ctx.defer(ephemeral=True)
-
-    gid = str(ctx.guild.id)
-
-    if gid not in anon_data or not anon_data[gid]:
-        await ctx.followup.send(
-            "> No hay mensajes anónimos registrados en este servidor.",
-            ephemeral=True
-        )
-        return
-
-    registro = next((r for r in anon_data[gid] if r["numero"] == numero), None)
-
-    if not registro:
-        await ctx.followup.send(
-            f"> No se encontró el mensaje anónimo **#{numero:03d}**.",
-            ephemeral=True
-        )
-        return
-
-    miembro = ctx.guild.get_member(registro["user_id"])
-    mencion = miembro.mention if miembro else f"ID: `{registro['user_id']}`"
-
-    embed = discord.Embed(
-        title=f"Revelación — Mensaje #{numero:03d}",
-        color=0x2B55B5
-    )
-    embed.add_field(name="> Usuario",   value=f"{mencion}\n`{registro['username']}`", inline=False)
-    embed.add_field(name="> Contenido", value=registro["contenido"][:1000],           inline=False)
-    embed.set_footer(text="Esta información es solo visible para ti.")
-
-    await ctx.followup.send(embed=embed, ephemeral=True)
+@bot.hybrid_command(name="logro", description="Genera una tarjeta de logro desbloqueado para un usuario")
+async def logro(ctx: commands.Context, usuario: discord.Member, titulo: str, *, descripcion: str = "Ha completado un gran desafío"):
+    await ctx.defer()
+    archivo = await generar_logro(usuario, titulo, descripcion)
+    await ctx.send(file=archivo)
         
 # -------------------------
 # FLASK WEB
