@@ -3365,76 +3365,57 @@ async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    # BORDE EXTERIOR
-    draw.rounded_rectangle([(0, 0), (W - 1, H - 1)], radius=14, outline=AZUL_OSCURO, width=2)
-    # BARRA LATERAL
+    # SUBRAYADO AZUL EN LA PARTE INFERIOR DE TODA LA TARJETA
+    draw.rounded_rectangle([(0, H - 5), (W, H)], radius=3, fill=AZUL_OSCURO)
+
+    # BARRA LATERAL IZQUIERDA
     draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
-    # FONDO AVATAR (reemplaza el fondo del trofeo)
-    draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, fill=(25, 10, 18))
-    draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, outline=AZUL_OSCURO, width=2)
+    # ── CÍRCULO AVATAR A LA IZQUIERDA ──────────────────────
+    cx, cy, radio = 80, 76, 48
 
-    # AVATAR GRANDE A LA IZQUIERDA (dentro del recuadro azul)
+    # Fondo del círculo
+    draw.ellipse([(cx - radio, cy - radio), (cx + radio, cy + radio)],
+                 fill=(25, 25, 25), outline=AZUL_OSCURO, width=2)
+
+    # Intentar cargar avatar real, si falla dibujar silueta genérica
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
-        av = avatar_circular(av, 80)
-        img.paste(av, (28, 40), av)
-        # Borde circular azul
-        draw.ellipse([(27, 39), (109, 121)], outline=AZUL_OSCURO, width=2)
-        # Subrayado azul debajo del avatar
-        draw.rounded_rectangle([(28, 126), (108, 132)], radius=3, fill=AZUL_OSCURO)
+        av = avatar_circular(av, radio * 2)
+        img.paste(av, (cx - radio, cy - radio), av)
+        draw.ellipse([(cx - radio, cy - radio), (cx + radio, cy + radio)],
+                     outline=AZUL_OSCURO, width=2)
     except:
-        draw.ellipse([(27, 39), (109, 121)], fill=GRIS, outline=AZUL_OSCURO, width=2)
-        draw.rounded_rectangle([(28, 126), (108, 132)], radius=3, fill=AZUL_OSCURO)
+        # Silueta genérica: cabeza + cuerpo
+        draw.ellipse([(cx - 14, cy - 28), (cx + 14, cy)],
+                     fill=GRIS)
+        draw.ellipse([(cx - 26, cy + 2), (cx + 26, cy + 46)],
+                     fill=GRIS)
 
-    # AVATAR PEQUEÑO A LA DERECHA (se mantiene igual)
-    try:
-        av2 = await descargar_imagen(str(usuario.display_avatar.url))
-        av2 = av2.resize((56, 56))
-        mask = Image.new("L", (56, 56), 0)
-        ImageDraw.Draw(mask).ellipse((0, 0, 56, 56), fill=255)
-        av2_r = Image.new("RGBA", (56, 56), (0, 0, 0, 0))
-        av2_r.paste(av2, (0, 0), mask)
-        img.paste(av2_r, (W - 76, H // 2 - 28), av2_r)
-        draw.ellipse([(W - 77, H // 2 - 29), (W - 19, H // 2 + 29)], outline=AZUL_OSCURO, width=2)
-    except:
-        draw.ellipse([(W - 76, H // 2 - 28), (W - 20, H // 2 + 28)], fill=GRIS, outline=AZUL_OSCURO, width=2)
+    # ── TEXTOS A LA DERECHA ────────────────────────────────
+    tx = 155  # X de inicio del texto
 
-    # ETIQUETA
-    draw.text((138, 22), "LOGRO DESBLOQUEADO", font=fuente(11), fill=AZUL_OSCURO)
-    # LINEA SEPARADORA
-    draw.rectangle([(138, 38), (W - 92, 39)], fill=AZUL_OSCURO)
-    # TITULO
-    titulo_recortado = titulo[:36] + "..." if len(titulo) > 36 else titulo
-    draw.text((138, 46), titulo_recortado, font=fuente(20, bold=True), fill=TEXTO)
-    # LINEA SEPARADORA GRIS
-    draw.rectangle([(138, 76), (W - 92, 77)], fill=GRIS)
-    # DESCRIPCION
-    desc_recortada = descripcion[:72] + "..." if len(descripcion) > 72 else descripcion
-    palabras = desc_recortada.split()
-    linea1, linea2 = "", ""
-    for p in palabras:
-        if len(linea1 + " " + p) <= 48:
-            linea1 = (linea1 + " " + p).strip()
-        else:
-            linea2 = (linea2 + " " + p).strip()
-    draw.text((138, 86),  linea1, font=fuente(13), fill=SUBTEXTO)
-    if linea2:
-        draw.text((138, 105), linea2, font=fuente(13), fill=SUBTEXTO)
-    # NOMBRE USUARIO
-    nombre = usuario.display_name[:18] + "..." if len(usuario.display_name) > 18 else usuario.display_name
-    draw.text((W - 48, H - 18), nombre, font=fuente(11), fill=SUBTEXTO, anchor="rm")
-    # PARTICULAS
-    import random as _r
-    _r.seed(hash(titulo))
-    for _ in range(14):
-        px    = _r.randint(130, W - 90)
-        py    = _r.randint(10, H - 10)
-        r     = _r.randint(1, 3)
-        alpha = _r.randint(40, 120)
-        dot   = Image.new("RGBA", (r * 2, r * 2), (0, 0, 0, 0))
-        ImageDraw.Draw(dot).ellipse((0, 0, r * 2, r * 2), fill=(*AZUL_OSCURO, alpha))
-        img.paste(dot, (px, py), dot)
+    # "LOGRO DESBLOQUEADO"
+    draw.text((tx, 18), "LOGRO DESBLOQUEADO",
+              font=fuente(12, bold=True), fill=AZUL_OSCURO)
+
+    # Línea separadora
+    draw.rectangle([(tx, 38), (W - 24, 39)], fill=GRIS)
+
+    # Título
+    titulo_recortado = titulo[:38] + "..." if len(titulo) > 38 else titulo
+    draw.text((tx, 48), titulo_recortado,
+              font=fuente(20, bold=True), fill=TEXTO)
+
+    # Descripción / logro
+    desc_recortada = descripcion[:60] + "..." if len(descripcion) > 60 else descripcion
+    draw.text((tx, 80), desc_recortada,
+              font=fuente(13), fill=SUBTEXTO)
+
+    # "Logrado por {user}"
+    nombre = usuario.display_name[:22] + "..." if len(usuario.display_name) > 22 else usuario.display_name
+    draw.text((tx, 114), f"Logrado por {nombre}",
+              font=fuente(12), fill=SUBTEXTO)
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
