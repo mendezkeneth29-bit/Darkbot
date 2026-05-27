@@ -3535,8 +3535,8 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
     
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="videos", description="Busca videos en YouTube")
-async def videos_search(ctx: commands.Context, *, query: str):
+@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps")
+async def lugares_search(ctx: commands.Context, *, lugar: str):
     await ctx.defer()
     
     API_KEY = os.getenv("SERPER_API_KEY")
@@ -3545,25 +3545,26 @@ async def videos_search(ctx: commands.Context, *, query: str):
     
     url = "https://google.serper.dev/search"
     headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
-    payload = {"q": query, "num": 5}
+    payload = {"q": lugar, "num": 5}
     
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=payload) as resp:
             data = await resp.json()
     
-    videos = data.get("videos", [])
-    if not videos:
-        return await ctx.send(f"> No se encontraron videos para: **{query}**")
+    lugares = data.get("places", [])
+    if not lugares:
+        return await ctx.send(f"> No se encontraron lugares para: **{lugar}**")
     
-    embed = discord.Embed(title=f"Videos: {query[:50]}", color=AZUL_IPOD_NUM)
+    embed = discord.Embed(title=f" Lugares: {lugar}", color=AZUL_IPOD_NUM)
     
-    for video in videos[:5]:
-        titulo = video.get('title', 'Sin título')
-        duracion = video.get('duration', '?')
-        enlace = video.get('link', '#')
+    for sitio in lugares[:5]:
+        nombre = sitio.get('title', 'Sin nombre')
+        direccion = sitio.get('address', 'Sin dirección')
+        rating = sitio.get('rating', 'Sin rating')
+        enlace = sitio.get('link', '#')
         embed.add_field(
-            name=f"> {titulo[:60]}",
-            value=f" {duracion}\n [Ver video]({enlace})",
+            name=f"> {nombre[:50]}",
+            value=f" {direccion}\n {rating}\n [Ver mapa]({enlace})",
             inline=False
         )
     
