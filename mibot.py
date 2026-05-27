@@ -3356,47 +3356,43 @@ async def panel_anonimos(ctx: commands.Context):
 # =========================================================
 
 async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) -> discord.File:
-    W, H = 680, 160
-
-    # Fondos y colores
-    FONDO       = (12, 12, 18)
-    BORDE_COLOR = (43, 85, 181)
-    ORO         = (255, 190, 50)
-    ORO_OSCURO  = (180, 130, 20)
-    TEXTO_B     = (255, 255, 255)
-    SUB         = (160, 160, 175)
+    W, H     = 680, 160
+    FONDO    = (10, 10, 10)
+    TEXTO    = (255, 255, 255)
+    SUBTEXTO = (160, 163, 172)
+    GRIS     = (42, 42, 42)
 
     img  = Image.new("RGBA", (W, H), FONDO)
     draw = ImageDraw.Draw(img)
 
-    # Borde exterior brillante
-    draw.rounded_rectangle([(0, 0), (W - 1, H - 1)], radius=14, outline=BORDE_COLOR, width=2)
+    # BORDE EXTERIOR
+    draw.rounded_rectangle([(0, 0), (W - 1, H - 1)], radius=14, outline=AZUL_OSCURO, width=2)
 
-    # Barra lateral dorada
+    # BARRA LATERAL
     draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
 
-    # Fondo del icono (cuadrado redondeado dorado)
-    draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, fill=AZUL_OSCURO)
+    # FONDO ICONO
+    draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, fill=(25, 10, 18))
     draw.rounded_rectangle([(18, 18), (118, 142)], radius=12, outline=AZUL_OSCURO, width=2)
 
-    # Icono de trofeo dibujado con Pillow
-    cx, cy = 68, 76
+    # TROFEO
+    cx, cy = 68, 80
 
-    # Copa
+    # COPA
     draw.rounded_rectangle([(cx - 22, cy - 28), (cx + 22, cy + 8)], radius=8, fill=AZUL_OSCURO)
-    # Base
+    # BASE
     draw.rounded_rectangle([(cx - 10, cy + 8), (cx + 10, cy + 18)], radius=3, fill=AZUL_OSCURO)
-    draw.rounded_rectangle([(cx - 18, cy + 18), (cx + 18, cy + 22)], radius=3, fill=AZUL_OSCURO)
-    # Asas
-    draw.arc([(cx - 34, cy - 20), (cx - 18, cy + 2)], start=270, end=90, fill=ORO, width=4)
-    draw.arc([(cx + 18, cy - 20), (cx + 34, cy + 2)], start=90,  end=270, fill=ORO, width=4)
-    # Brillo
-    draw.ellipse([(cx - 10, cy - 22), (cx - 2, cy - 14)], fill=(255, 230, 130))
+    draw.rounded_rectangle([(cx - 18, cy + 18), (cx + 18, cy + 24)], radius=3, fill=AZUL_OSCURO)
+    # ASAS
+    draw.arc([(cx - 34, cy - 20), (cx - 18, cy + 2)], start=270, end=90,  fill=(255, 180, 210), width=4)
+    draw.arc([(cx + 18, cy - 20), (cx + 34, cy + 2)], start=90,  end=270, fill=(255, 180, 210), width=4)
+    # BRILLO
+    draw.ellipse([(cx - 10, cy - 22), (cx - 2, cy - 14)], fill=(255, 220, 240))
 
-    # Estrella pequeña encima
+    # ESTRELLA ENCIMA
     draw.polygon([
-        (cx, cy - 36),
-        (cx + 4, cy - 28),
+        (cx,      cy - 36),
+        (cx + 4,  cy - 28),
         (cx + 12, cy - 28),
         (cx + 5,  cy - 23),
         (cx + 8,  cy - 15),
@@ -3405,9 +3401,9 @@ async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) 
         (cx - 5,  cy - 23),
         (cx - 12, cy - 28),
         (cx - 4,  cy - 28),
-    ], fill=ORO)
+    ], fill=(255, 220, 240))
 
-    # Avatar del usuario (circular)
+    # AVATAR
     try:
         av = await descargar_imagen(str(usuario.display_avatar.url))
         av = av.resize((56, 56))
@@ -3416,24 +3412,25 @@ async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) 
         av_r = Image.new("RGBA", (56, 56), (0, 0, 0, 0))
         av_r.paste(av, (0, 0), mask)
         img.paste(av_r, (W - 76, H // 2 - 28), av_r)
-        draw.ellipse([(W - 77, H // 2 - 29), (W - 19, H // 2 + 29)], outline=BORDE_COLOR, width=2)
+        draw.ellipse([(W - 77, H // 2 - 29), (W - 19, H // 2 + 29)], outline=AZUL_OSCURO, width=2)
     except:
-        draw.ellipse([(W - 76, H // 2 - 28), (W - 20, H // 2 + 28)], fill=(40, 40, 55), outline=BORDE_COLOR, width=2)
+        draw.ellipse([(W - 76, H // 2 - 28), (W - 20, H // 2 + 28)], fill=GRIS, outline=AZUL_OSCURO, width=2)
 
-    # Textos
-    # Etiqueta superior
-    draw.text((138, 22), "¡LOGRO DESBLOQUEADO!", font=fuente(11), fill=AZUL_OSCURO)
+    # ETIQUETA
+    draw.text((138, 22), "LOGRO DESBLOQUEADO", font=fuente(11), fill=AZUL_OSCURO)
 
-    # Título del logro
+    # LINEA SEPARADORA ROSA
+    draw.rectangle([(138, 38), (W - 92, 39)], fill=AZUL_OSCURO)
+
+    # TITULO
     titulo_recortado = titulo[:36] + "..." if len(titulo) > 36 else titulo
-    draw.text((138, 42), titulo_recortado, font=fuente(22, bold=True), fill=TEXTO_B)
+    draw.text((138, 46), titulo_recortado, font=fuente(20, bold=True), fill=TEXTO)
 
-    # Línea separadora
-    draw.rectangle([(138, 74), (W - 92, 75)], fill=(40, 40, 60))
+    # LINEA SEPARADORA GRIS
+    draw.rectangle([(138, 76), (W - 92, 77)], fill=GRIS)
 
-    # Descripción
+    # DESCRIPCION
     desc_recortada = descripcion[:72] + "..." if len(descripcion) > 72 else descripcion
-    # Partir en dos líneas si es largo
     palabras = desc_recortada.split()
     linea1, linea2 = "", ""
     for p in palabras:
@@ -3441,24 +3438,24 @@ async def generar_logro(usuario: discord.Member, titulo: str, descripcion: str) 
             linea1 = (linea1 + " " + p).strip()
         else:
             linea2 = (linea2 + " " + p).strip()
-    draw.text((138, 84),  linea1, font=fuente(13), fill=SUB)
+    draw.text((138, 86),  linea1, font=fuente(13), fill=SUBTEXTO)
     if linea2:
-        draw.text((138, 103), linea2, font=fuente(13), fill=SUB)
+        draw.text((138, 105), linea2, font=fuente(13), fill=SUBTEXTO)
 
-    # Nombre del usuario abajo a la derecha
+    # NOMBRE USUARIO
     nombre = usuario.display_name[:18] + "..." if len(usuario.display_name) > 18 else usuario.display_name
-    draw.text((W - 48, H - 22), nombre, font=fuente(11), fill=SUB, anchor="rm")
+    draw.text((W - 48, H - 18), nombre, font=fuente(11), fill=SUBTEXTO, anchor="rm")
 
-    # Partículas decorativas (puntos dorados)
+    # PARTICULAS ROSAS
     import random as _r
     _r.seed(hash(titulo))
-    for _ in range(12):
-        px = _r.randint(130, W - 90)
-        py = _r.randint(10, H - 10)
-        r  = _r.randint(1, 3)
+    for _ in range(14):
+        px    = _r.randint(130, W - 90)
+        py    = _r.randint(10, H - 10)
+        r     = _r.randint(1, 3)
         alpha = _r.randint(40, 120)
-        dot = Image.new("RGBA", (r * 2, r * 2), (0, 0, 0, 0))
-        ImageDraw.Draw(dot).ellipse((0, 0, r * 2, r * 2), fill=(255, 190, 50, alpha))
+        dot   = Image.new("RGBA", (r * 2, r * 2), (0, 0, 0, 0))
+        ImageDraw.Draw(dot).ellipse((0, 0, r * 2, r * 2), fill=(*AZUL_OSCURO, alpha))
         img.paste(dot, (px, py), dot)
 
     buf = io.BytesIO()
