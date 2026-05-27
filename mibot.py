@@ -3535,7 +3535,7 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
     
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps")
+@bot.hybrid_command(name="maps", description="Busca lugares en Google Maps")
 async def lugares_search(ctx: commands.Context, *, lugar: str):
     await ctx.defer()
     
@@ -3543,32 +3543,44 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
     if not API_KEY:
         return await ctx.send("> API Key de Serper.dev no configurada")
     
-    url = "https://google.serper.dev/search"
+    # CORRECCIÓN: Usar el endpoint '/places' para búsquedas geográficas
+    url = "https://google.serper.dev/places" 
     headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
-    payload = {"q": lugar, "num": 5}
+    payload = {"q": lugar}
     
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    lugares = data.get("places", [])
-    if not lugares:
-        return await ctx.send(f"> No se encontraron lugares para: **{lugar}**")
-    
-    embed = discord.Embed(title=f" Lugares: {lugar}", color=AZUL_IPOD_NUM)
-    
-    for sitio in lugares[:5]:
-        nombre = sitio.get('title', 'Sin nombre')
-        direccion = sitio.get('address', 'Sin dirección')
-        rating = sitio.get('rating', 'Sin rating')
-        enlace = sitio.get('link', '#')
-        embed.add_field(
-            name=f"> {nombre[:50]}",
-            value=f" {direccion}\n {rating}\n [Ver mapa]({enlace})",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as resp:
+                if resp.status != 200:
+                    return await ctx.send(f"> Error en la API: {resp.status}")
+                data = await resp.json()
+        
+        # En el endpoint /places, los resultados vienen en la clave "places"
+        lugares = data.get("places", [])
+        
+        if not lugares:
+            return await ctx.send(f"> No se encontraron lugares para: **{lugar}**")
+        
+        embed = discord.Embed(title=f" Lugares encontrados: {lugar}", color=0x0000FF) # Asegúrate de tener AZUL_IPOD_NUM definido
+        
+        for sitio in lugares[:5]:
+            nombre = sitio.get('title', 'Sin nombre')
+            direccion = sitio.get('address', 'Sin dirección')
+            rating = sitio.get('rating', 'N/A')
+            # El enlace suele estar bajo 'placeId' o 'website', 
+            # pero en /places a veces es 'link' o se construye con el placeId
+            enlace = sitio.get('website') or sitio.get('link') or "#"
+            
+            embed.add_field(
+                name=f" {nombre[:50]}",
+                value=f" {direccion}\n Rating: {rating}\n[Ver en Google Maps]({enlace})",
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"> Ocurrió un error al buscar: {str(e)}")
         
 # -------------------------
 # FLASK WEB
