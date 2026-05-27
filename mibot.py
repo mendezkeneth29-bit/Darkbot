@@ -3595,6 +3595,37 @@ async def buscar_imagenes(ctx: commands.Context, *, query: str):
     
     embed.set_image(url=imagenes[0].get('imageUrl', ''))
     await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps")
+async def buscar_lugares(ctx: commands.Context, *, lugar: str):
+    await ctx.defer()
+    
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    if not SERPER_API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/search"  # Usar /search, no /places
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+    payload = {"q": f"mapa {lugar}", "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    lugares = data.get("places", [])
+    if not lugares:
+        embed = discord.Embed(description=f"> No se encontraron lugares para: **{lugar}**", color=AZUL_IPOD_NUM)
+        return await ctx.send(embed=embed)
+    
+    embed = discord.Embed(title=f" Lugares: {lugar}", color=AZUL_IPOD_NUM)
+    for sitio in lugares[:5]:
+        nombre = sitio.get('title', 'Sin nombre')
+        direccion = sitio.get('address', 'Sin direccion')
+        rating = sitio.get('rating', 'Sin rating')
+        enlace = sitio.get('link', '#')
+        embed.add_field(name=f"> {nombre}", value=f" {direccion}\n {rating} | [Mapa]({enlace})", inline=False)
+    
+    await ctx.send(embed=embed)
         
 # -------------------------
 # FLASK WEB
