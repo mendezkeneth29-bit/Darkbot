@@ -3534,6 +3534,40 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
         )
     
     await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="videos", description="Busca videos en YouTube")
+async def videos_search(ctx: commands.Context, *, query: str):
+    await ctx.defer()
+    
+    API_KEY = os.getenv("SERPER_API_KEY")
+    if not API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/search"
+    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
+    payload = {"q": query, "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    videos = data.get("videos", [])
+    if not videos:
+        return await ctx.send(f"> No se encontraron videos para: **{query}**")
+    
+    embed = discord.Embed(title=f"Videos: {query[:50]}", color=AZUL_IPOD_NUM)
+    
+    for video in videos[:5]:
+        titulo = video.get('title', 'Sin título')
+        duracion = video.get('duration', '?')
+        enlace = video.get('link', '#')
+        embed.add_field(
+            name=f"> {titulo[:60]}",
+            value=f" {duracion}\n [Ver video]({enlace})",
+            inline=False
+        )
+    
+    await ctx.send(embed=embed)
         
 # -------------------------
 # FLASK WEB
