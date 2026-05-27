@@ -3535,7 +3535,7 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
     
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="maps", description="Busca lugares en Google Maps")
+@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps")
 async def lugares_search(ctx: commands.Context, *, lugar: str):
     await ctx.defer()
     
