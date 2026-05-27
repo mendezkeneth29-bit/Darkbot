@@ -3463,6 +3463,38 @@ async def google_search(ctx: commands.Context, *, query: str):
         )
     
     await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="imagenes", description="Busca imágenes en Google")
+async def imagenes_search(ctx: commands.Context, *, query: str):
+    await ctx.defer()
+    
+    API_KEY = os.getenv("SERPER_API_KEY")
+    if not API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/images"
+    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
+    payload = {"q": query, "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    imagenes = data.get("images", [])
+    if not imagenes:
+        return await ctx.send(f"> No se encontraron imágenes para: **{query}**")
+    
+    embed = discord.Embed(title=f"Imágenes: {query[:50]}", color=AZUL_IPOD_NUM)
+    embed.set_image(url=imagenes[0].get('imageUrl', ''))
+    
+    for i, img in enumerate(imagenes[:3]):
+        embed.add_field(
+            name=f"> Imagen {i+1}",
+            value=f"[Ver imagen]({img.get('imageUrl', '#')})",
+            inline=True
+        )
+    
+    await ctx.send(embed=embed)
         
 # -------------------------
 # FLASK WEB
