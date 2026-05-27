@@ -3535,52 +3535,62 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
     
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="lugares", description="Busca lugares en Google Maps")
+@bot.hybrid_command(name="lugares", description="Busca lugares en OpenStreetMap")
 async def lugares_search(ctx: commands.Context, *, lugar: str):
-    await ctx.defer()
-    
-    API_KEY = os.getenv("SERPER_API_KEY")
-    if not API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    # CORRECCIÓN: Usar el endpoint '/places' para búsquedas geográficas
-    url = "https://google.serper.dev/places" 
-    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
-    payload = {"q": lugar}
-    
+    await ctx.defer() if ctx.interaction else None
+
+    url    = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "q":              lugar,
+        "format":         "json",
+        "limit":          "5",
+        "addressdetails": "1",
+    }
+    headers = {"User-Agent": "MistiBot/1.0"}  # Nominatim requiere User-Agent
+
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload) as resp:
+            async with session.get(url, params=params, headers=headers) as resp:
                 if resp.status != 200:
-                    return await ctx.send(f"> Error en la API: {resp.status}")
+                    await ctx.send(f"> Error al conectar con OpenStreetMap: `{resp.status}`")
+                    return
                 data = await resp.json()
-        
-        # En el endpoint /places, los resultados vienen en la clave "places"
-        lugares = data.get("places", [])
-        
-        if not lugares:
-            return await ctx.send(f"> No se encontraron lugares para: **{lugar}**")
-        
-        embed = discord.Embed(title=f" Lugares encontrados: {lugar}", color=0x0000FF) # Asegúrate de tener AZUL_IPOD_NUM definido
-        
-        for sitio in lugares[:5]:
-            nombre = sitio.get('title', 'Sin nombre')
-            direccion = sitio.get('address', 'Sin dirección')
-            rating = sitio.get('rating', 'N/A')
-            # El enlace suele estar bajo 'placeId' o 'website', 
-            # pero en /places a veces es 'link' o se construye con el placeId
-            enlace = sitio.get('website') or sitio.get('link') or "#"
-            
+
+        if not data:
+            await ctx.send(f"> No se encontraron lugares para: **{lugar}**")
+            return
+
+        embed = discord.Embed(
+            title=f"Lugares: {lugar}",
+            color=AZUL_IPOD_NUM
+        )
+
+        for sitio in data[:5]:
+            nombre    = sitio.get("display_name", "Sin nombre")
+            lat       = sitio.get("lat", "")
+            lon       = sitio.get("lon", "")
+            tipo      = sitio.get("type", "lugar").replace("_", " ").capitalize()
+            maps_link = f"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}#map=17/{lat}/{lon}"
+            gmaps_link = f"https://www.google.com/maps?q={lat},{lon}"
+
+            # Recortar nombre largo
+            nombre_corto = nombre[:60] + "..." if len(nombre) > 60 else nombre
+
             embed.add_field(
-                name=f" {nombre[:50]}",
-                value=f" {direccion}\n Rating: {rating}\n[Ver en Google Maps]({enlace})",
+                name=f"{nombre_corto}",
+                value=(
+                    f"> **Tipo:** {tipo}\n"
+                    f"> **Coords:** `{float(lat):.4f}, {float(lon):.4f}`\n"
+                    f"> [Ver en OpenStreetMap]({maps_link}) • [Google Maps]({gmaps_link})"
+                ),
                 inline=False
             )
-        
+
+        embed.set_footer(text=f"Solicitado por {ctx.author.display_name} | OpenStreetMap")
         await ctx.send(embed=embed)
-        
+
     except Exception as e:
-        await ctx.send(f"> Ocurrió un error al buscar: {str(e)}")
+        await ctx.send(f"> Error al buscar lugares: `{str(e)[:100]}`")
         
 # -------------------------
 # FLASK WEB
