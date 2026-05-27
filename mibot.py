@@ -3630,36 +3630,6 @@ async def buscar_noticias(ctx: commands.Context, *, query: str = None):
     
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="videos", description="Busca videos en YouTube/Google")
-async def buscar_videos(ctx: commands.Context, *, query: str):
-    await ctx.defer()
-    
-    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-    if not SERPER_API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/videos"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": query, "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    videos = data.get("videos", [])
-    if not videos:
-        return await ctx.send(f"> No se encontraron videos para: **{query}**")
-    
-    embed = discord.Embed(title=f" Videos de: {query}", color=AZUL_IPOD_NUM)
-    for video in videos[:5]:
-        titulo = video.get('title', 'Sin titulo')
-        duracion = video.get('duration', '?')
-        fuente = video.get('source', 'YouTube')
-        enlace = video.get('link', '#')
-        embed.add_field(name=f"> {titulo[:60]}", value=f" {duracion} |  {fuente}\n [Ver video]({enlace})", inline=False)
-    
-    await ctx.send(embed=embed)
-
 @bot.hybrid_command(name="shopping", description="Busca productos para comprar")
 async def buscar_productos(ctx: commands.Context, *, producto: str):
     await ctx.defer()
