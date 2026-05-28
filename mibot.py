@@ -1612,182 +1612,6 @@ async def lyrics(ctx, *, cancion: str):
         else: await ctx.send(embed=embed)
 
 # =========================================================
-# BUSCAR LIBRO
-# =========================================================
-
-@bot.hybrid_command(name="buscar-libro", description="Busca información de un libro en Google Books")
-async def buscar_libro(ctx: commands.Context, *, query: str):
-    await ctx.defer() if ctx.interaction else None
-    
-    query_encoded = urllib.parse.quote(query)
-    url = f"https://www.googleapis.com/books/v1/volumes?q={query_encoded}&maxResults=1"
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=10) as response:
-                if response.status == 429:
-                    embed = discord.Embed(
-                        description="> Limite de busquedas alcanzado. Espera unos minutos.",
-                        color=AZUL_IPOD_NUM
-                    )
-                    return await ctx.send(embed=embed)
-                
-                if response.status != 200:
-                    embed = discord.Embed(
-                        description=f"> Error de conexion ({response.status})",
-                        color=AZUL_IPOD_NUM
-                    )
-                    return await ctx.send(embed=embed)
-                
-                data = await response.json()
-        
-        if "items" not in data:
-            embed = discord.Embed(
-                description=f"> No encontre ningun libro para: **{query}**",
-                color=AZUL_IPOD_NUM
-            )
-            return await ctx.send(embed=embed)
-        
-        # Extraer datos del libro
-        info = data["items"][0]["volumeInfo"]
-        
-        titulo = info.get("title", "Sin titulo")
-        autores = ", ".join(info.get("authors", ["Desconocido"]))
-        
-        # Descripción
-        raw_desc = info.get("description", "Sin descripcion disponible.")
-        descripcion = (raw_desc[:500] + "...") if len(raw_desc) > 500 else raw_desc
-        
-        fecha = info.get("publishedDate", "Desconocida")
-        paginas = info.get("pageCount", "N/A")
-        
-        # Categorías/géneros
-        categorias = ", ".join(info.get("categories", ["Sin categoria"]))
-        
-        # Editorial
-        editorial = info.get("publisher", "Desconocida")
-        
-        # Idioma
-        idioma = info.get("language", "Desconocido")
-        if idioma == "es":
-            idioma = "Español"
-        elif idioma == "en":
-            idioma = "Inglés"
-        elif idioma == "fr":
-            idioma = "Francés"
-        elif idioma == "pt":
-            idioma = "Portugués"
-        elif idioma == "de":
-            idioma = "Alemán"
-        
-        # Portada
-        portada = info.get("imageLinks", {}).get("thumbnail", "")
-        if portada:
-            portada = portada.replace("http://", "https://")
-        
-        # Enlace para comprar/ver
-        enlace = info.get("infoLink", "")
-        
-        # Crear embed
-        embed = discord.Embed(
-            title=f"{titulo}",
-            description=descripcion,
-            color=AZUL_IPOD_NUM,
-            url=enlace
-        )
-        embed.add_field(name="> Autor(es)", value=autores, inline=False)
-        embed.add_field(name="> Publicacion", value=fecha, inline=True)
-        embed.add_field(name="> Paginas", value=str(paginas), inline=True)
-        embed.add_field(name="> Editorial", value=editorial, inline=True)
-        embed.add_field(name="> Idioma", value=idioma, inline=True)
-        embed.add_field(name="> Categorias", value=categorias[:50], inline=False)
-        
-        if portada:
-            embed.set_thumbnail(url=portada)
-        
-        embed.set_footer(
-            text=f"Solicitado por {ctx.author.display_name}",
-            icon_url=ctx.author.display_avatar.url
-        )
-        
-        await ctx.send(embed=embed)
-        
-    except asyncio.TimeoutError:
-        embed = discord.Embed(
-            description="> Tiempo de espera agotado. Intenta de nuevo.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        
-    except Exception as e:
-        embed = discord.Embed(
-            description=f"> Error inesperado: `{str(e)[:100]}`",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-
-# =========================================================
-# TRIVIA
-# =========================================================
-
-PREGUNTAS_TRIVIA = [
-    {"pregunta": "Cual es la capital de Francia?",               "respuestas": ["Paris", "Londres", "Berlin"],           "correcta": 0},
-    {"pregunta": "Cual es el planeta mas grande?",               "respuestas": ["Jupiter", "Saturno", "Tierra"],         "correcta": 0},
-    {"pregunta": "En que año termino la 2da Guerra Mundial?",    "respuestas": ["1943", "1944", "1945"],                  "correcta": 2},
-    {"pregunta": "Cual es el elemento quimico con simbolo Au?",  "respuestas": ["Plata", "Oro", "Aluminio"],             "correcta": 1},
-    {"pregunta": "Quien escribio Don Quijote?",                  "respuestas": ["Borges", "Cervantes", "Garcia Marquez"], "correcta": 1},
-]
-
-puntuaciones_trivia = {}
-
-class TriviaView(discord.ui.View):
-    def __init__(self, pregunta_data, user_id):
-        super().__init__(timeout=30)
-        self.pregunta_data = pregunta_data
-        self.user_id       = user_id
-        self.respondio     = False
-        for n, respuesta in enumerate(pregunta_data['respuestas']):
-            button          = discord.ui.Button(label=respuesta, style=discord.ButtonStyle.primary, custom_id=f"trivia_{n}")
-            button.callback = self.responder
-            self.add_item(button)
-
-    async def responder(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("Esta no es tu trivia", ephemeral=True)
-            return
-        if self.respondio:
-            return
-        self.respondio    = True
-        respuesta_num     = int(interaction.data['custom_id'].split('_')[1])
-        correcta          = respuesta_num == self.pregunta_data['correcta']
-        gid, uid          = str(interaction.guild.id), str(self.user_id)
-        if gid not in puntuaciones_trivia: puntuaciones_trivia[gid] = {}
-        if uid not in puntuaciones_trivia[gid]: puntuaciones_trivia[gid][uid] = 0
-        if correcta:
-            puntuaciones_trivia[gid][uid] += 10
-            embed = discord.Embed(color=0x2B55B5)
-            embed.description = "> Correcto! +10 puntos"
-        else:
-            embed = discord.Embed(color=0x2B55B5)
-            embed.description = f"> Incorrecto! La respuesta era: **{self.pregunta_data['respuestas'][self.pregunta_data['correcta']]}**"
-        embed.add_field(name="Puntos Totales", value=puntuaciones_trivia[gid][uid])
-        await interaction.response.edit_message(embed=embed, view=None)
-
-@bot.hybrid_command(name="trivia", description="Juega una trivia")
-async def trivia(ctx):
-    pregunta_data = random.choice(PREGUNTAS_TRIVIA)
-    embed         = discord.Embed(color=0x2B55B5, title="Trivia")
-    embed.description = pregunta_data['pregunta']
-    await ctx.send(embed=embed, view=TriviaView(pregunta_data, ctx.author.id))
-
-@bot.hybrid_command(name="mi-puntuacion-trivia", description="Ver tu puntuacion en trivia")
-async def mi_puntuacion_trivia(ctx):
-    puntos = puntuaciones_trivia.get(str(ctx.guild.id), {}).get(str(ctx.author.id), 0)
-    embed  = discord.Embed(color=0x2B55B5, title="Tu Puntuacion de Trivia")
-    embed.description = f"> Puntos: **{puntos}**"
-    await ctx.send(embed=embed)
-
-# =========================================================
 # COMANDOS UTILES
 # =========================================================
 
@@ -1803,94 +1627,9 @@ async def calcular(ctx, *, operacion: str):
         embed.description = "> Operacion invalida"
         await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
 
-@bot.hybrid_command(name="generar-password", description="Genera una contrasena segura")
-async def generar_password(ctx, longitud: int = 16):
-    import string
-    password = ''.join(random.choice(string.ascii_letters + string.digits + string.punctuation) for _ in range(longitud))
-    embed    = discord.Embed(color=0x2B55B5)
-    embed.description = f"> Contrasena: `{password}`"
-    await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
-
-@bot.hybrid_command(name="base64-codificar", description="Codifica un texto en base64")
-async def base64_codificar(ctx, *, texto: str):
-    import base64
-    codificado = base64.b64encode(texto.encode()).decode()
-    embed = discord.Embed(color=0x2B55B5)
-    embed.add_field(name="Original", value=texto,              inline=False)
-    embed.add_field(name="Base64",   value=f"`{codificado}`", inline=False)
-    await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="base64-decodificar", description="Decodifica un texto base64")
-async def base64_decodificar(ctx, *, texto: str):
-    try:
-        import base64
-        decodificado = base64.b64decode(texto).decode()
-        embed = discord.Embed(color=0x2B55B5)
-        embed.add_field(name="Base64",   value=texto,        inline=False)
-        embed.add_field(name="Original", value=decodificado, inline=False)
-        await ctx.send(embed=embed)
-    except:
-        embed = discord.Embed(color=0x2B55B5)
-        embed.description = "> Texto base64 invalido"
-        await ctx.send(embed=embed, ephemeral=True if ctx.interaction else None)
-
 # =========================================================
 # MINIJUEGOS
 # =========================================================
-
-@bot.hybrid_command(name="adivina-numero", description="Adivina un numero del 1 al 100")
-async def adivina_numero(ctx):
-    numero_secreto = random.randint(1, 100)
-    embed          = discord.Embed(color=0x2B55B5, title="Adivina el Numero")
-    embed.description = "> Piensa un numero entre 1 y 100. Tienes 10 intentos"
-    await ctx.send(embed=embed)
-    def check(m): return m.author == ctx.author and ctx.channel == m.channel
-    for intento in range(10):
-        try:
-            mensaje = await bot.wait_for('message', check=check, timeout=60)
-            numero  = int(mensaje.content)
-            if numero == numero_secreto:
-                embed = discord.Embed(color=0x2B55B5)
-                embed.description = f"> Correcto! El numero era **{numero_secreto}**\n> Intentaste **{intento + 1}** veces"
-                await ctx.send(embed=embed)
-                return
-            elif numero < numero_secreto:
-                embed = discord.Embed(color=0x2B55B5)
-                embed.description = f"> El numero es **mayor** ({intento + 1}/10)"
-            else:
-                embed = discord.Embed(color=0x2B55B5)
-                embed.description = f"> El numero es **menor** ({intento + 1}/10)"
-            await ctx.send(embed=embed)
-        except (ValueError, asyncio.TimeoutError):
-            break
-    embed = discord.Embed(color=0x2B55B5)
-    embed.description = f"> Se acabaron los intentos! El numero era **{numero_secreto}**"
-    await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="ppt", description="Piedra papel o tijera")
-async def ppt_mejorado(ctx):
-    opciones = ["Piedra", "Papel", "Tijera"]
-    async def ppt_seleccionar(interaction: discord.Interaction, opcion_usuario: str):
-        opcion_bot = random.choice(opciones)
-        if opcion_usuario == opcion_bot:
-            resultado = "EMPATE"
-        elif (opcion_usuario == "Piedra" and opcion_bot == "Tijera") or \
-             (opcion_usuario == "Papel"  and opcion_bot == "Piedra") or \
-             (opcion_usuario == "Tijera" and opcion_bot == "Papel"):
-            resultado = "GANASTE"
-        else:
-            resultado = "PERDISTE"
-        embed = discord.Embed(color=0x2B55B5)
-        embed.description = f"> Tu: **{opcion_usuario}**\n> Bot: **{opcion_bot}**\n> **{resultado}**"
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-    view = discord.ui.View()
-    for opcion in opciones:
-        button          = discord.ui.Button(label=opcion, style=discord.ButtonStyle.primary)
-        button.callback = lambda interaction, op=opcion: ppt_seleccionar(interaction, op)
-        view.add_item(button)
-    embed = discord.Embed(color=0x2B55B5, title="Piedra, Papel o Tijera")
-    embed.description = "> Elige tu opcion"
-    await ctx.send(embed=embed, view=view)
 
 @bot.hybrid_command(name="ahorcado", description="Juega al ahorcado")
 async def ahorcado(ctx):
@@ -2226,43 +1965,6 @@ async def pelicula(ctx: commands.Context, *, nombre: str):
     await ctx.send(embed=embed)
 
 # =========================================================
-# POKEMON
-# =========================================================
-
-@bot.hybrid_command(name="pokemon", description="Información de un Pokémon")
-async def pokemon(ctx: commands.Context, *, nombre: str):
-    await ctx.defer() if ctx.interaction else None
-    nombre = nombre.lower().strip()
-    url    = f"https://pokeapi.co/api/v2/pokemon/{nombre}"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status != 200:
-                await ctx.send(f"> No se encontró el Pokémon: **{nombre}**")
-                return
-            data = await resp.json()
-    nombre_oficial = data.get('name', nombre).capitalize()
-    id_pokemon     = data.get('id', 0)
-    altura         = data.get('height', 0) / 10
-    peso           = data.get('weight', 0) / 10
-    tipos          = ", ".join([t['type']['name'].capitalize() for t in data.get('types', [])])
-    habilidades    = ", ".join([h['ability']['name'].capitalize() for h in data.get('abilities', [])[:3]])
-    stats = {}
-    for s in data.get('stats', []):
-        stats[s['stat']['name']] = s['base_stat']
-    sprite = data.get('sprites', {}).get('front_default', '')
-    embed = discord.Embed(title=f"{nombre_oficial} #{id_pokemon}", color=0x2B55B5)
-    embed.add_field(name="> Altura",      value=f"{altura} m",  inline=True)
-    embed.add_field(name="> Peso",        value=f"{peso} kg",   inline=True)
-    embed.add_field(name="> Tipo",        value=tipos,          inline=True)
-    embed.add_field(name="> Habilidades", value=habilidades,    inline=False)
-    if stats:
-        embed.add_field(name="> HP",      value=stats.get('hp', 0),      inline=True)
-        embed.add_field(name="> Ataque",  value=stats.get('attack', 0),  inline=True)
-        embed.add_field(name="> Defensa", value=stats.get('defense', 0), inline=True)
-    if sprite: embed.set_thumbnail(url=sprite)
-    await ctx.send(embed=embed)
-
-# =========================================================
 # NASA
 # =========================================================
 
@@ -2517,67 +2219,6 @@ async def mostrar_color(ctx: commands.Context, hex_code: str = None):
     if es_aleatorio:
         embed.set_footer(text="Usa /color [HEX] para ver un color específico")
     await ctx.send(embed=embed, file=archivo)
-
-# =========================================================
-# IP INFO
-# =========================================================
-
-@bot.hybrid_command(name="ip", description="Obtiene información de una dirección IP")
-async def ip_info(ctx: commands.Context, direccion_ip: str):
-    await ctx.defer() if ctx.interaction else None
-    url = f"http://ip-api.com/json/{direccion_ip}?lang=es"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status != 200:
-                await ctx.send("> Error al obtener información de la IP")
-                return
-            data = await resp.json()
-    if data.get('status') == 'fail':
-        await ctx.send(f"> IP **{direccion_ip}** no válida o no encontrada")
-        return
-    embed = discord.Embed(title=f"Información de IP: {direccion_ip}", color=0x2B55B5)
-    embed.add_field(name="> País",          value=data.get('country', 'Desconocido'),    inline=True)
-    embed.add_field(name="> Ciudad",        value=data.get('city', 'Desconocida'),       inline=True)
-    embed.add_field(name="> ISP",           value=data.get('isp', 'Desconocido'),        inline=True)
-    embed.add_field(name="> Región",        value=data.get('regionName', 'Desconocida'), inline=True)
-    embed.add_field(name="> Código Postal", value=data.get('zip', 'Desconocido'),        inline=True)
-    embed.add_field(name="> Tipo",          value="Móvil" if data.get('mobile') else "Fijo", inline=True)
-    await ctx.send(embed=embed)
-
-# =========================================================
-# ACERTIJO
-# =========================================================
-
-acertijos = [
-    {"pregunta": "Blanco por dentro, verde por fuera. Si quieres que te lo diga, espera.",  "respuesta": "pera"},
-    {"pregunta": "Oro parece, plata no es. Abre las cortinas y verás lo que es.",           "respuesta": "plátano"},
-    {"pregunta": "Tiene dientes pero no come, tiene cabeza pero no es hombre.",             "respuesta": "ajo"},
-    {"pregunta": "Viste de verde y vive en el mar, si te pilla te hará llorar.",            "respuesta": "cebolla"},
-    {"pregunta": "¿Qué cosa es que cuanto más le quitas, más grande se hace?",             "respuesta": "agujero"},
-    {"pregunta": "Vuelo sin alas, lloro sin ojos. ¿Quién soy?",                            "respuesta": "nube"},
-    {"pregunta": "Siempre en la boca pero nunca se come.",                                  "respuesta": "sonrisa"},
-]
-
-@bot.hybrid_command(name="acertijo", description="Resuelve un acertijo")
-async def acertijo(ctx: commands.Context):
-    acertijo_actual = random.choice(acertijos)
-    embed = discord.Embed(title="Acertijo", description=f"**{acertijo_actual['pregunta']}**", color=0x2B55B5)
-    embed.set_footer(text="Responde con >respuesta [tu respuesta] (tienes 30 segundos)")
-    await ctx.send(embed=embed)
-    def check(m):
-        return m.author == ctx.author and m.content.startswith(">respuesta")
-    try:
-        msg               = await bot.wait_for("message", timeout=30.0, check=check)
-        respuesta_usuario = msg.content.replace(">respuesta", "").strip().lower()
-        if respuesta_usuario == acertijo_actual["respuesta"]:
-            data       = get_user_eco(ctx.guild.id, ctx.author.id)
-            recompensa = random.randint(50, 150)
-            data["coins"] += recompensa
-            await msg.reply(f"> **¡Correcto!** \nGanaste **${recompensa}**")
-        else:
-            await msg.reply(f"> **Incorrecto**\nLa respuesta era: **{acertijo_actual['respuesta']}**")
-    except asyncio.TimeoutError:
-        await ctx.send(f"> Tiempo agotado. La respuesta era: **{acertijo_actual['respuesta']}**")
 
 # =========================================================
 # COVID
@@ -2903,71 +2544,7 @@ async def recordar(ctx: commands.Context, tiempo: str, *, mensaje: str):
     embed_recordatorio = discord.Embed(title="RECORDATORIO", description=f"> {ctx.author.mention}\n**{mensaje}**", color=0x2B55B5)
     await ctx.channel.send(content=ctx.author.mention, embed=embed_recordatorio)
     recordatorios_activos.pop(ctx.author.id, None)
-
-# =========================================================
-# ANIMALES
-# =========================================================
-
-async def _animal_embed(ctx, datos: dict, query_unsplash: str, fallback_url: str):
-    await ctx.defer()
-    img_url = fallback_url
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"https://api.unsplash.com/photos/random?query={query_unsplash}&orientation=landscape") as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    img_url = data.get('urls', {}).get('regular', fallback_url)
-    except:
-        pass
-    embed = discord.Embed(title=f"{datos['nombre']} ({datos['cientifico']})", color=0x2B55B5)
-    embed.add_field(name="> Hábitat",         value=datos['habitat'],      inline=False)
-    embed.add_field(name="> Alimentación",    value=datos['alimentacion'], inline=True)
-    embed.add_field(name="> Longevidad",      value=datos['longevidad'],   inline=True)
-    embed.add_field(name="> Dato curioso",    value=datos['curiosidad'],   inline=False)
-    embed.add_field(name="> Más información", value=datos['dato_extra'],   inline=False)
-    embed.set_image(url=img_url)
-    await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="leon",     description="Información y foto de un león")
-async def leon(ctx):
-    await _animal_embed(ctx, {"nombre":"León","cientifico":"Panthera leo","habitat":"Sabanas y pastizales de África","alimentacion":"Carnívoro (cazan en manada)","curiosidad":"Los leones duermen entre 16 y 20 horas al día","longevidad":"10-14 años en libertad","dato_extra":"La melena del macho le sirve para atraer hembras"}, "lion", "https://cdn.pixabay.com/photo/2017/07/24/19/57/lion-2535885_640.jpg")
-
-@bot.hybrid_command(name="elefante", description="Información y foto de un elefante")
-async def elefante(ctx):
-    await _animal_embed(ctx, {"nombre":"Elefante Africano","cientifico":"Loxodonta africana","habitat":"Sabanas, bosques y desiertos de África","alimentacion":"Herbívoro (come hasta 150kg al día)","curiosidad":"Tienen la memoria más larga de los animales terrestres","longevidad":"60-70 años","dato_extra":"Su trompa tiene más de 40,000 músculos"}, "elephant", "https://cdn.pixabay.com/photo/2016/03/27/22/16/elephant-1284299_640.jpg")
-
-@bot.hybrid_command(name="jirafa",   description="Información y foto de una jirafa")
-async def jirafa(ctx):
-    await _animal_embed(ctx, {"nombre":"Jirafa","cientifico":"Giraffa camelopardalis","habitat":"Sabanas y bosques abiertos de África","alimentacion":"Herbívoro (come hojas de acacia)","curiosidad":"Las jirafas duermen solo 30 minutos al día","longevidad":"20-25 años","dato_extra":"Su lengua mide hasta 45 cm y es de color negro"}, "giraffe", "https://cdn.pixabay.com/photo/2020/07/05/12/08/giraffe-5372115_640.jpg")
-
-@bot.hybrid_command(name="pinguino", description="Información y foto de un pingüino")
-async def pinguino(ctx):
-    await _animal_embed(ctx, {"nombre":"Pingüino Emperador","cientifico":"Aptenodytes forsteri","habitat":"Antártida y costas del hemisferio sur","alimentacion":"Carnívoro (peces, calamares y krill)","curiosidad":"No pueden volar pero nadan a 25 km/h","longevidad":"15-20 años","dato_extra":"El macho incuba el huevo 60 días sin comer"}, "penguin", "https://cdn.pixabay.com/photo/2017/06/28/12/53/penguins-2450977_640.jpg")
-
-@bot.hybrid_command(name="delfin",   description="Información y foto de un delfín")
-async def delfin(ctx):
-    await _animal_embed(ctx, {"nombre":"Delfín Nariz de Botella","cientifico":"Tursiops truncatus","habitat":"Océanos de todo el mundo","alimentacion":"Carnívoro (peces y calamares)","curiosidad":"Duermen con un ojo abierto","longevidad":"40-50 años","dato_extra":"Se reconocen en un espejo"}, "dolphin", "https://cdn.pixabay.com/photo/2014/11/19/21/49/dolphin-537891_640.jpg")
-
-@bot.hybrid_command(name="panda",    description="Información y foto de un panda")
-async def panda(ctx):
-    await _animal_embed(ctx, {"nombre":"Panda Gigante","cientifico":"Ailuropoda melanoleuca","habitat":"Bosques de bambú de China","alimentacion":"Herbívoro (99% bambú)","curiosidad":"Pasan 12 horas al día comiendo","longevidad":"15-20 años en libertad","dato_extra":"Tienen un hueso extra en la muñeca para sujetar el bambú"}, "panda", "https://cdn.pixabay.com/photo/2017/09/13/01/08/panda-2744094_640.jpg")
-
-@bot.hybrid_command(name="tiburon",  description="Información y foto de un tiburón")
-async def tiburon(ctx):
-    await _animal_embed(ctx, {"nombre":"Tiburón Blanco","cientifico":"Carcharodon carcharias","habitat":"Océanos de todo el mundo","alimentacion":"Carnívoro (focas, peces, calamares)","curiosidad":"Tienen electroreceptores para detectar presas","longevidad":"30-40 años","dato_extra":"Pueden perder hasta 30,000 dientes en su vida"}, "shark", "https://cdn.pixabay.com/photo/2013/10/02/23/10/shark-190274_640.jpg")
-
-@bot.hybrid_command(name="buho",     description="Información y foto de un búho")
-async def buho(ctx):
-    await _animal_embed(ctx, {"nombre":"Búho Real","cientifico":"Bubo bubo","habitat":"Bosques y montañas de Europa, Asia y África","alimentacion":"Carnívoro (roedores, aves, insectos)","curiosidad":"Pueden girar la cabeza 270 grados","longevidad":"10-20 años","dato_extra":"Su vuelo es silencioso gracias a sus plumas"}, "owl", "https://cdn.pixabay.com/photo/2017/03/02/16/00/owl-2111222_640.jpg")
-
-@bot.hybrid_command(name="cangrejo", description="Información y foto de un cangrejo")
-async def cangrejo(ctx):
-    await _animal_embed(ctx, {"nombre":"Cangrejo Ermitaño","cientifico":"Paguroidea","habitat":"Playas y océanos de todo el mundo","alimentacion":"Omnívoro (algas, restos de animales)","curiosidad":"Usan conchas de otros animales como casa","longevidad":"10-30 años","dato_extra":"Pueden regenerar sus pinzas"}, "crab", "https://cdn.pixabay.com/photo/2020/06/07/19/48/crab-5270499_640.jpg")
-
-@bot.hybrid_command(name="mariposa", description="Información y foto de una mariposa")
-async def mariposa(ctx):
-    await _animal_embed(ctx, {"nombre":"Mariposa Monarca","cientifico":"Danaus plexippus","habitat":"América del Norte, bosques y jardines","alimentacion":"Néctar de flores","curiosidad":"Saborean con sus patas","longevidad":"2-6 semanas (migratorias hasta 8 meses)","dato_extra":"Vuelan hasta 4,000 km durante la migración"}, "butterfly", "https://cdn.pixabay.com/photo/2016/03/23/16/19/butterfly-1274974_640.jpg")
-
+    
 # =========================================================
 # COMANDO PRIMER MENSAJE - Ver el primer mensaje del canal
 # =========================================================
@@ -3036,24 +2613,6 @@ async def primer_mensaje(ctx: commands.Context):
         )
         await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="meme", description="Meme aleatorio de Reddit")
-async def meme(ctx: commands.Context):
-    await ctx.defer()
-    subreddits = ["memes", "dankmemes", "memesESP", "goodanimemes"]
-    subreddit = random.choice(subreddits)
-    url = f"https://www.reddit.com/r/{subreddit}/random/.json"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers) as resp:
-            if resp.status != 200:
-                await ctx.send("> No se pudo obtener un meme")
-                return
-            data = await resp.json()
-            post = data[0]['data']['children'][0]['data']
-            embed = discord.Embed(title=post['title'], url=f"https://reddit.com{post['permalink']}", color=AZUL_IPOD_NUM)
-            embed.set_image(url=post['url'])
-            embed.set_footer(text=f"{post['ups']} | r/{subreddit}")
-            await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="8ball", description="Preguntale algo al futuro")
 async def eightball(ctx: commands.Context, *, pregunta: str):
@@ -3087,62 +2646,6 @@ async def roll(ctx: commands.Context):
         embed = discord.Embed(title="Usuario aleatorio", description=f"> {elegido.mention} ha sido seleccionado", color=AZUL_IPOD_NUM)
         await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="timestamp", description="Convierte timestamp a fecha")
-async def timestamp(ctx: commands.Context, timestamp: int):
-    from datetime import datetime
-    fecha = datetime.fromtimestamp(timestamp).strftime("%d/%m/%Y %H:%M:%S")
-    embed = discord.Embed(title="Conversor de Timestamp", description=f"> Timestamp: `{timestamp}`\n> Fecha: `{fecha}`", color=AZUL_IPOD_NUM)
-    await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="banner", description="Banner del servidor")
-async def banner(ctx: commands.Context):
-    if ctx.guild.banner:
-        embed = discord.Embed(title=f"Banner de {ctx.guild.name}", color=AZUL_IPOD_NUM)
-        embed.set_image(url=ctx.guild.banner.url)
-        await ctx.send(embed=embed)
-    else:
-        await ctx.send("> Este servidor no tiene banner")
-
-@bot.hybrid_command(name="tragamonedas", description="Juego de tragamonedas")
-async def tragamonedas(ctx: commands.Context, apuesta: int):
-    data = get_user_eco(ctx.guild.id, ctx.author.id)
-    if apuesta <= 0:
-        return await ctx.send("> La apuesta debe ser positiva")
-    if apuesta > data["coins"]:
-        return await ctx.send(f"> No tenes suficientes monedas. Tenes ${data['coins']}")
-    
-    emojis = ["🐬", "🧊", "🌊", "🐳", "🐋", "💎", "🪼"]
-    slot1 = random.choice(emojis)
-    slot2 = random.choice(emojis)
-    slot3 = random.choice(emojis)
-    
-    ganancia = 0
-    if slot1 == slot2 == slot3 == "7️⃣":
-        ganancia = apuesta * 10
-        mensaje = "> JACKPOT! 3 SIETES!"
-    elif slot1 == slot2 == slot3 == "💎":
-        ganancia = apuesta * 5
-        mensaje = "> PREMIO MAYOR! 3 DIAMANTES!"
-    elif slot1 == slot2 == slot3:
-        ganancia = apuesta * 3
-        mensaje = "> 3 IGUALES!"
-    elif slot1 == slot2 or slot2 == slot3 or slot1 == slot3:
-        ganancia = apuesta * 1
-        mensaje = "> PAR! Recuperas tu apuesta"
-    else:
-        ganancia = 0
-        mensaje = "> Nada, perdiste"
-    
-    data["coins"] += ganancia - apuesta
-    
-    embed = discord.Embed(title="TRAGAMONEDAS", color=AZUL_IPOD_NUM)
-    embed.add_field(name="> Resultado", value=f"```| {slot1} | {slot2} | {slot3} |```", inline=False)
-    embed.add_field(name="> Apuesta", value=f"${apuesta}", inline=True)
-    embed.add_field(name="> Ganancia", value=f"${ganancia}", inline=True)
-    embed.add_field(name="> Resultado", value=mensaje, inline=False)
-    embed.add_field(name="> Nuevo saldo", value=f"${data['coins']}", inline=False)
-    await ctx.send(embed=embed)
-
 @bot.hybrid_command(name="gayrate", description="Nivel de gay (broma)")
 async def gayrate(ctx: commands.Context, usuario: discord.Member = None):
     usuario = usuario or ctx.author
@@ -3162,32 +2665,6 @@ async def gayrate(ctx: commands.Context, usuario: discord.Member = None):
     embed.add_field(name="> Porcentaje", value=f"```{barra} {porcentaje}%```", inline=False)
     embed.add_field(name="> Veredicto", value=texto, inline=False)
     await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="insulto", description="Insulto creativo")
-async def insulto(ctx: commands.Context, usuario: discord.Member = None):
-    insultos = [
-        "es mas lento que el inicio de Windows 95",
-        "tiene menos memoria que un pez dorado",
-        "es como un termo: util pero sin contenido propio",
-        "le falta un hervor",
-        "nacio de noche pero ese dia fue muy oscuro",
-        "le pifian las ideas",
-        "tiene menos neuronas que un pulpo en una ferreteria"
-    ]
-    insulto_elegido = random.choice(insultos)
-    if usuario:
-        await ctx.send(f"{usuario.mention} {insulto_elegido}")
-    else:
-        await ctx.send(f"{ctx.author.mention} {insulto_elegido}")
-
-@bot.hybrid_command(name="robux", description="robux gratis de parte de Ron Weasley!!")
-async def robux(ctx: commands.Context):
-    await ctx.send("> Te dirigire a mi cuenta de Bankup y te dara una oferta, dale click [aqui](https://www.youtube.com/watch?v=dQw4w9WgXcQ)")
-
-@bot.hybrid_command(name="secreto", description="Mensaje secreto")
-async def secreto(ctx: commands.Context, *, mensaje: str):
-    embed = discord.Embed(description=f"> {mensaje}", color=AZUL_IPOD_NUM)
-    await ctx.send(embed=embed, ephemeral=True)
 
 # =========================================================
 # MENSAJES ANONIMOS
