@@ -3558,52 +3558,72 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
         
 # -----------------------SECCION "2"----------------------------
 
-@bot.hybrid_command(name="recetas", description="Busca recetas de cocina")
-async def recetas_search(ctx: commands.Context, *, plato: str):
-    await ctx.defer()
-    
-    API_KEY = os.getenv("SERPER_API_KEY")
-    if not API_KEY:
-        return await ctx.send("> API Key de Serper.dev no configurada")
-    
-    url = "https://google.serper.dev/search"
-    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
-    payload = {"q": f"receta {plato}", "num": 5}
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
-    
-    # Buscar en recipes primero
-    recetas = data.get("recipes", [])
-    
-    if not recetas:
-        # Fallback a resultados orgánicos
-        organicos = data.get("organic", [])
-        for res in organicos:
-            if "receta" in res.get('title', '').lower():
-                recetas.append({
-                    "title": res.get('title', 'Sin título'),
-                    "link": res.get('link', '#'),
-                    "snippet": res.get('snippet', 'Receta disponible')[:100]
-                })
-    
-    if not recetas:
-        return await ctx.send(f"> No se encontraron recetas para: **{plato}**")
-    
-    embed = discord.Embed(title=f" Recetas de: {plato}", color=AZUL_IPOD_NUM)
-    
-    for receta in recetas[:5]:
-        titulo = receta.get('title', 'Sin título')
-        desc = receta.get('snippet', receta.get('description', 'Receta disponible'))
-        enlace = receta.get('link', '#')
-        embed.add_field(
-            name=f"> {titulo[:60]}",
-            value=f"{desc[:100]}\n [Ver receta]({enlace})",
-            inline=False
+# Variable global para guardar el pensamiento activo
+pensamiento_actual = {"texto": None, "expira": None}
+
+# 1. Definir el menú de selección de tiempo
+class DuracionSelect(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="1 Hora", value="1_h"),
+            discord.SelectOption(label="5 Horas", value="5_h"),
+            discord.SelectOption(label="1 Día", value="1_d"),
+            discord.SelectOption(label="1 Semana", value="1_w"),
+            discord.SelectOption(label="1 Mes", value="1_m"),
+            discord.SelectOption(label="Para Siempre", value="forever"),
+        ]
+        super().__init__(placeholder="Elige cuánto durará el pensamiento...", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        seleccion = self.values[0]
+        ahora = datetime.utcnow()
+        
+        # Calcular duración
+        duraciones = {
+            "1_h": timedelta(hours=1),
+            "5_h": timedelta(hours=5),
+            "1_d": timedelta(days=1),
+            "1_w": timedelta(weeks=1),
+            "1_m": timedelta(days=30),
+            "forever": None
+        }
+
+        delta = duraciones[seleccion]
+        expira = ahora + delta if delta else None
+        
+        # Guardar en la variable global (esto persiste mientras el bot esté prendido)
+        pensamiento_actual["expira"] = expira
+        
+        await interaction.response.send_message(
+            f"> Pensamiento guardado: *{pensamiento_actual['texto']}*\n"
+            f"> Expira: {'Nunca' if expira is None else expira.strftime('%d/%m %H:%M')} UTC",
+            ephemeral=True
         )
+
+class PensamientoView(discord.ui.View):
+    def __init__(self, texto):
+        super().__init__()
+        self.add_item(DuracionSelect())
+
+# 2. El comando híbrido
+@bot.hybrid_command(name="pensamiento", description="Establece un pensamiento para el bot")
+async def set_pensamiento(ctx: commands.Context, *, texto: str):
+    # Guardamos el texto temporalmente
+    pensamiento_actual["texto"] = texto
     
-    await ctx.send(embed=embed)
+    view = PensamientoView(texto)
+    await ctx.send(f"Has escrito: *{texto}*\nAhora elige la duración:", view=view)
+
+# 3. (Opcional) Un comando para mostrarlo
+@bot.hybrid_command(name="ver_pensamiento", description="Ver el pensamiento activo")
+async def ver_pensamiento(ctx: commands.Context):
+    p = pensamiento_actual["texto"]
+    expira = pensamiento_actual["expira"]
+    
+    if not p or (expira and datetime.utcnow() > expira):
+        await ctx.send("No hay pensamientos activos en este momento.")
+    else:
+        await ctx.send(f"> **Pensamiento del bot:**\n> {p}")
         
 # -------------------------
 # FLASK WEB
