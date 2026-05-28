@@ -3035,44 +3035,141 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
         
 # -----------------------SECCION "2"----------------------------
 
-# --- CLASES PARA EL SELECTOR ---
+# 1. MODAL: Para pedir el texto del pensamiento
+class PensamientoModal(discord.ui.Modal, title='Nuevo Pensamiento'):
+    texto_input = discord.ui.TextInput(
+        label='¿Qué estás pensando?',
+        style=discord.TextStyle.paragraph,
+        placeholder='Escribe aquí tu pensamiento...',
+        min_length=1,
+        max_length=500,
+    )
 
+    async def on_submit(self, interaction: discord.Interaction):
+        texto = self.texto_input.value
+        # Enviamos la vista con el selector después de recibir el texto
+        await interaction.response.send_message(
+            f"Pensamiento registrado: *{texto}*\nAhora elige la duración:",
+            view=PensamientoView(texto),
+            ephemeral=True
+        )
+
+# 2. SELECTOR: Para elegir la duración
 class DuracionSelect(discord.ui.Select):
-    def __init__(self):
+    def __init__(self, texto):
+        self.texto = texto
         options = [
             discord.SelectOption(label="1 Hora", value="1_h"),
             discord.SelectOption(label="5 Horas", value="5_h"),
             discord.SelectOption(label="1 Día", value="1_d"),
             discord.SelectOption(label="1 Semana", value="1_w"),
-            discord.SelectOption(label="1 Mes", value="1_m"),
             discord.SelectOption(label="Para Siempre", value="forever"),
         ]
-        super().__init__(placeholder="Elige cuánto durará el pensamiento...", options=options)
+        super().__init__(placeholder="Selecciona la duración...", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        # Lógica cuando el usuario selecciona una opción
-        seleccion = self.values[0]
-        # Aquí puedes guardar en tu base de datos o variable global
-        await interaction.response.send_message(f"> Pensamiento activo por: {seleccion}", ephemeral=True)
+        duracion = self.values[0]
+        # AQUÍ guardarías en tu base de datos o variable global:
+        # pensamiento = {"texto": self.texto, "duracion": duracion}
+        await interaction.response.send_message(
+            f"> Pensamiento guardado con éxito por un tiempo de: **{duracion}**",
+            ephemeral=True
+        )
 
 class PensamientoView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None) # Timeout None para que no expire
-        self.add_item(DuracionSelect())
+    def __init__(self, texto):
+        super().__init__(timeout=60)
+        self.add_item(DuracionSelect(texto))
 
-# --- COMANDO HÍBRIDO ---
-
+# 3. COMANDO HÍBRIDO
 @bot.hybrid_command(name="pensamiento", description="Establece un pensamiento para el bot")
-async def set_pensamiento(ctx: commands.Context, *, texto: str):
-    # Si es slash command, requerimos defer para evitar el error de "interacción fallida"
-    if ctx.interaction:
-        await ctx.defer()
+async def pensamiento(ctx: commands.Context):
+    # Al ser un comando con Modal, no necesita parámetros en la función
+    await ctx.send_modal(PensamientoModal())
+
+@bot.hybrid_command(name="recetas", description="Busca recetas de cocina")
+async def recetas_search(ctx: commands.Context, *, plato: str):
+    await ctx.defer()
     
-    # Aquí guardarías el texto en tu base de datos o variable global
-    pensamiento_actual["texto"] = texto
+    API_KEY = os.getenv("SERPER_API_KEY")
+    if not API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
     
-    # Enviamos la vista con el selector
-    await ctx.send(f"Has escrito: *{texto}*\nAhora elige la duración:", view=PensamientoView())
+    url = "https://google.serper.dev/search"
+    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
+    payload = {"q": f"receta {plato}", "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    # Buscar en recipes primero
+    recetas = data.get("recipes", [])
+    
+    if not recetas:
+        # Fallback a resultados orgánicos
+        organicos = data.get("organic", [])
+        for res in organicos:
+            if "receta" in res.get('title', '').lower():
+                recetas.append({
+                    "title": res.get('title', 'Sin título'),
+                    "link": res.get('link', '#'),
+                    "snippet": res.get('snippet', 'Receta disponible')[:100]
+                })
+    
+    if not recetas:
+        return await ctx.send(f"> No se encontraron recetas para: **{plato}**")
+    
+    embed = discord.Embed(title=f"Recetas de: {plato}", color=AZUL_IPOD_NUM)
+
+    
+    for receta in recetas[:5]:
+        titulo = receta.get('title', 'Sin título')
+        desc = receta.get('snippet', receta.get('description', 'Receta disponible'))
+        enlace = receta.get('link', '#')
+        embed.add_field(
+            name=f"> {titulo[:60]}",
+            value=f"{desc[:100]}\n [Ver receta]({enlace})",
+            inline=False
+        )
+    
+    await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="shopping", description="Busca productos para comprar")
+async def shopping_search(ctx: commands.Context, *, producto: str):
+    await ctx.defer()
+    
+    API_KEY = os.getenv("SERPER_API_KEY")
+    if not API_KEY:
+        return await ctx.send("> API Key de Serper.dev no configurada")
+    
+    url = "https://google.serper.dev/search"
+    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
+    payload = {"q": producto, "num": 5}
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            data = await resp.json()
+    
+    productos = data.get("shopping", [])
+    
+    if not productos:
+        return await ctx.send(f"> No se encontraron productos para: **{producto}**")
+    
+    embed = discord.Embed(title=f"Productos: {producto}", color=AZUL_IPOD_NUM)
+    
+    for item in productos[:5]:
+        nombre = item.get('title', 'Sin nombre')
+        precio = item.get('price', 'Precio no disponible')
+        tienda = item.get('source', 'Tienda desconocida')
+        enlace = item.get('link', '#')
+        embed.add_field(
+            name=f"> {nombre[:50]}",
+            value=f" {precio}\n {tienda}\n [Ver producto]({enlace})",
+            inline=False
+        )
+    
+    await ctx.send(embed=embed)
         
 # -------------------------
 # FLASK WEB
