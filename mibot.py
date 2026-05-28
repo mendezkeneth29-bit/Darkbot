@@ -3035,63 +3035,55 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
         
 # -----------------------SECCION "2"----------------------------
 
-# 1. MODAL: Para pedir el texto del pensamiento
+# 1. MODAL: Para pedir el texto
 class PensamientoModal(discord.ui.Modal, title='Nuevo Pensamiento'):
-    texto_input = discord.ui.TextInput(
-        label='¿Qué estás pensando?',
-        style=discord.TextStyle.paragraph,
-        placeholder='Escribe aquí tu pensamiento...',
-        min_length=1,
-        max_length=500,
-    )
+    def __init__(self):
+        super().__init__()
+        self.texto_input = discord.ui.TextInput(
+            label='¿Qué estás pensando?',
+            style=discord.TextStyle.paragraph,
+            placeholder='Escribe aquí tu pensamiento...',
+            min_length=1, max_length=100,
+        )
+        self.add_item(self.texto_input)
 
     async def on_submit(self, interaction: discord.Interaction):
+        # Guardamos el texto temporalmente
         texto = self.texto_input.value
-        # Enviamos la vista con el selector después de recibir el texto
-        await interaction.response.send_message(
-            f"Pensamiento registrado: *{texto}*\nAhora elige la duración:",
-            view=PensamientoView(texto),
-            ephemeral=True
-        )
-
-# 2. SELECTOR: Para elegir la duración
-class DuracionSelect(discord.ui.Select):
-    def __init__(self, texto):
-        self.texto = texto
-        options = [
-            discord.SelectOption(label="1 Hora", value="1_h"),
-            discord.SelectOption(label="5 Horas", value="5_h"),
-            discord.SelectOption(label="1 Día", value="1_d"),
-            discord.SelectOption(label="1 Semana", value="1_w"),
-            discord.SelectOption(label="Para Siempre", value="forever"),
-        ]
-        super().__init__(placeholder="Selecciona la duración...", options=options)
-
-async def callback(self, interaction: discord.Interaction):
-        seleccion = self.values[0]
         
-        # --- AQUÍ ESTÁ EL CAMBIO ---
-        # Cambiamos la actividad del bot para que muestre el pensamiento
-        await interaction.client.change_presence(
-            activity=discord.Game(name=f"Pensando: {self.texto}")
+        # 2. SELECTOR (Creado dentro del mismo flujo para evitar errores de referencia)
+        view = discord.ui.View()
+        select = discord.ui.Select(
+            placeholder="Selecciona la duración...",
+            options=[
+                discord.SelectOption(label="1 Hora", value="1_h"),
+                discord.SelectOption(label="5 Horas", value="5_h"),
+                discord.SelectOption(label="Para Siempre", value="forever"),
+            ]
         )
+
+        async def select_callback(i: discord.Interaction):
+            duracion = select.values[0]
+            # --- ESTO CAMBIA EL ESTADO DEL BOT ---
+            await i.client.change_presence(activity=discord.Game(name=f"Pensando en: {texto}"))
+            
+            await i.response.edit_message(
+                content=f"> ¡Pensamiento actualizado! Ahora estoy pensando en: **{texto}** (Duración: {duracion})", 
+                view=None # Quitamos el menú para que no se pueda volver a clicar
+            )
+
+        select.callback = select_callback
+        view.add_item(select)
         
-        await interaction.response.send_message(
-            f"> ¡Ahora estoy pensando en: **{self.texto}**!", 
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"Has escrito: *{texto}*\nAhora elige la duración:", view=view, ephemeral=True)
 
-class PensamientoView(discord.ui.View):
-    def __init__(self, texto):
-        super().__init__(timeout=60)
-        self.add_item(DuracionSelect(texto))
-
-# 3. COMANDO HÍBRIDO
-@bot.tree.command(name="pensamiento", description="Establece un pensamiento para el bot")
-async def pensamiento(interaction: discord.Interaction):
-    await interaction.response.send_modal(PensamientoModal())
-    # Al ser un comando con Modal, no necesita parámetros en la función
-    await ctx.send_modal(PensamientoModal())
+# 3. EL COMANDO
+@bot.hybrid_command(name="pensamiento", description="Establece un pensamiento para el bot")
+async def pensamiento(ctx: commands.Context):
+    if ctx.interaction:
+        await ctx.send_modal(PensamientoModal())
+    else:
+        await ctx.send("Este comando solo funciona como slash command (/pensamiento).")
 
 @bot.hybrid_command(name="noticias", description="Últimas noticias")
 async def noticias_search(ctx: commands.Context, *, query: str = None):
