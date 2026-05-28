@@ -3292,47 +3292,58 @@ async def noticias_search(ctx: commands.Context, *, query: str = None):
 
 @bot.hybrid_command(name="recetas", description="Busca recetas de cocina")
 async def recetas_search(ctx: commands.Context, *, plato: str):
+
     if ctx.interaction:
         await ctx.defer()
 
     API_KEY = os.getenv("SERPER_API_KEY")
+
     if not API_KEY:
         return await ctx.send("> API Key de Serper.dev no configurada")
 
-    url = "https://google.serper.dev/recipes"  # endpoint correcto para recetas
-    headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
-    payload = {"q": plato, "num": 5}
+    url = "https://google.serper.dev/search"
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
+    headers = {
+        "X-API-KEY": API_KEY,
+        "Content-Type": "application/json"
+    }
 
-    recetas = data.get("recipes", [])
+    payload = {
+        "q": f"{plato} receta",
+        "num": 5
+    }
 
-    if not recetas:
-        organicos = data.get("organic", [])
-        for res in organicos:
-            if "receta" in res.get("title", "").lower():
-                recetas.append({
-                    "title": res.get("title", "Sin título"),
-                    "link": res.get("link", "#"),
-                    "snippet": res.get("snippet", "Receta disponible")[:100],
-                })
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as resp:
+                data = await resp.json()
 
-    if not recetas:
+    except Exception as e:
+        return await ctx.send(f"> Error buscando recetas:\n```{e}```")
+
+    resultados = data.get("organic", [])
+
+    if not resultados:
         return await ctx.send(f"> No se encontraron recetas para: **{plato}**")
 
-    embed = discord.Embed(title=f"Recetas de: {plato}", color=AZUL_IPOD_NUM)
+    embed = discord.Embed(
+        title=f"Recetas de: {plato}",
+        color=AZUL_IPOD_NUM
+    )
 
-    for receta in recetas[:5]:
+    for receta in resultados[:5]:
+
         titulo = receta.get("title", "Sin título")
-        desc = receta.get("snippet", receta.get("description", "Receta disponible"))[:100]
+        descripcion = receta.get("snippet", "Sin descripción")[:120]
         enlace = receta.get("link", "#")
+
         embed.add_field(
             name=f"> {titulo[:60]}",
-            value=f"{desc}\n [Ver receta]({enlace})",
-            inline=False,
+            value=f"{descripcion}\n [Ver receta]({enlace})",
+            inline=False
         )
+
+    embed.set_footer(text="Resultados obtenidos desde Google")
 
     await ctx.send(embed=embed)
 
