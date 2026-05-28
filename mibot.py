@@ -3033,57 +3033,40 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
     except Exception as e:
         await ctx.send(f"> Error al buscar lugares: `{str(e)[:100]}`")
         
-# -----------------------SECCION "2"----------------------------
+# -----------------------SECCION "2"-----------------------------
 
-# 1. MODAL: Para pedir el texto
-class PensamientoModal(discord.ui.Modal, title='Nuevo Pensamiento'):
-    def __init__(self):
-        super().__init__()
-        self.texto_input = discord.ui.TextInput(
-            label='¿Qué estás pensando?',
-            style=discord.TextStyle.paragraph,
-            placeholder='Escribe aquí tu pensamiento...',
-            min_length=1, max_length=100,
-        )
-        self.add_item(self.texto_input)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        # Guardamos el texto temporalmente
-        texto = self.texto_input.value
+@bot.hybrid_command(name="pensamiento", description="Cambia el pensamiento del bot")
+async def pensamiento_simple(ctx: commands.Context, *, texto: str):
+    
+    # Verificar permisos (solo administradores)
+    if not ctx.author.guild_permissions.administrator:
+        return await ctx.send("> Solo los administradores pueden cambiar mi estado.")
+    
+    if len(texto) > 120:
+        return await ctx.send("> El pensamiento es demasiado largo. Máximo 120 caracteres.")
+    
+    try:
+        await bot.change_presence(activity=discord.CustomActivity(name=texto))
         
-        # 2. SELECTOR (Creado dentro del mismo flujo para evitar errores de referencia)
-        view = discord.ui.View()
-        select = discord.ui.Select(
-            placeholder="Selecciona la duración...",
-            options=[
-                discord.SelectOption(label="1 Hora", value="1_h"),
-                discord.SelectOption(label="5 Horas", value="5_h"),
-                discord.SelectOption(label="Para Siempre", value="forever"),
-            ]
+        embed = discord.Embed(
+            title="Pensamiento actualizado",
+            description=f"> **Pensamiento:** {texto}",
+            color=AZUL_IPOD_NUM
         )
-
-        async def select_callback(i: discord.Interaction):
-            duracion = select.values[0]
-            # --- ESTO CAMBIA EL ESTADO DEL BOT ---
-            await i.client.change_presence(activity=discord.Game(name=f"Pensando en: {texto}"))
-            
-            await i.response.edit_message(
-                content=f"> ¡Pensamiento actualizado! Ahora estoy pensando en: **{texto}** (Duración: {duracion})", 
-                view=None # Quitamos el menú para que no se pueda volver a clicar
-            )
-
-        select.callback = select_callback
-        view.add_item(select)
+        await ctx.send(embed=embed)
         
-        await interaction.response.send_message(f"Has escrito: *{texto}*\nAhora elige la duración:", view=view, ephemeral=True)
+    except Exception as e:
+        await ctx.send(f"> Error: `{str(e)[:100]}`")
 
-# 3. EL COMANDO
-@bot.hybrid_command(name="pensamiento", description="Establece un pensamiento para el bot")
-async def pensamiento(ctx: commands.Context):
-    if ctx.interaction:
-        await ctx.send_modal(PensamientoModal())
-    else:
-        await ctx.send("Este comando solo funciona como slash command (/pensamiento).")
+
+@bot.hybrid_command(name="reset-pensamiento", description="Elimina el pensamiento del bot")
+async def reset_pensamiento_simple(ctx: commands.Context):
+    
+    if not ctx.author.guild_permissions.administrator:
+        return await ctx.send("> Solo los administradores pueden eliminar mi estado.")
+    
+    await bot.change_presence(activity=None)
+    await ctx.send("> Pensamiento eliminado.")
 
 @bot.hybrid_command(name="noticias", description="Últimas noticias")
 async def noticias_search(ctx: commands.Context, *, query: str = None):
