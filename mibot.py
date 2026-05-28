@@ -3386,14 +3386,18 @@ async def shopping_search(ctx: commands.Context, *, producto: str):
     await ctx.send(embed=embed)
 
 # =========================================================
-# COMANDO GIVEAWAY - Sistema de sorteos con premio en monedas
+# COMANDO GIVEAWAY - Versión Corregida
 # =========================================================
+
+import datetime
+import asyncio
+import random
 
 # Almacenar giveaways activos
 giveaways_activos = {}
 
 class GiveawayView(discord.ui.View):
-    def __init__(self, premio: int, duracion_segundos: int, duracion_texto: str, organizador_id: int, mensaje_id: int, canal_id: int):
+    def __init__(self, premio: int, duracion_segundos: int, duracion_texto: str, organizador_id: int, mensaje_id: int, canal_id: int, guild_id: int):
         super().__init__(timeout=duracion_segundos)
         self.premio = premio
         self.duracion_segundos = duracion_segundos
@@ -3401,6 +3405,7 @@ class GiveawayView(discord.ui.View):
         self.organizador_id = organizador_id
         self.mensaje_id = mensaje_id
         self.canal_id = canal_id
+        self.guild_id = guild_id
         self.participantes = []
         self.finalizado = False
     
@@ -3423,52 +3428,29 @@ class GiveawayView(discord.ui.View):
             try:
                 mensaje = await canal.fetch_message(self.mensaje_id)
                 embed = mensaje.embeds[0]
-                embed.set_field_at(1, name="> Participantes", value=f"```{len(self.participantes)} personas```", inline=False)
-                await mensaje.edit(embed=embed, view=self)
+                # Actualizar el campo de participantes
+                new_embed = discord.Embed(
+                    title=embed.title,
+                    description=embed.description,
+                    color=embed.color
+                )
+                for field in embed.fields:
+                    if field.name == "> Participantes":
+                        new_embed.add_field(name=field.name, value=f"```{len(self.participantes)} personas```", inline=field.inline)
+                    else:
+                        new_embed.add_field(name=field.name, value=field.value, inline=field.inline)
+                new_embed.set_footer(text=embed.footer.text)
+                await mensaje.edit(embed=new_embed, view=self)
             except:
                 pass
-    
-    async def finalizar(self):
-        """Finaliza el giveaway y elige al ganador"""
-        self.finalizado = True
-        
-        if not self.participantes:
-            embed_final = discord.Embed(
-                title="GIVEAWAY FINALIZADO",
-                description=f"> **Sin participantes**\n\nEl giveaway ha terminado pero **nadie participó**.\n\n**Premio:** ${self.premio:,}",
-                color=AZUL_IPOD_NUM
-            )
-        else:
-            ganador_id = random.choice(self.participantes)
-            
-            # Dar el premio al ganador
-            data = get_user_eco(None, ganador_id)  # Necesitas pasar guild_id
-            # Nota: necesitas acceder al guild_id, lo manejamos en el comando principal
-            
-            embed_final = discord.Embed(
-                title="GIVEAWAY FINALIZADO",
-                description=f"> **GANADOR:** <@{ganador_id}>\n> **Premio:** ${self.premio:,}\n\n ¡Felicitaciones!",
-                color=AZUL_IPOD_NUM
-            )
-        
-        # Buscar el canal y mensaje original
-        canal = None
-        for guild in bot.guilds:
-            canal = guild.get_channel(self.canal_id)
-            if canal:
-                break
-        
-        if canal:
-            try:
-                mensaje = await canal.fetch_message(self.mensaje_id)
-                await mensaje.edit(embed=embed_final, view=None)
-            except:
-                await canal.send(embed=embed_final)
 
 
 class GiveawayModal(discord.ui.Modal, title="Crear Giveaway"):
-    def __init__(self):
+    def __init__(self, ctx, canal_id, guild_id):
         super().__init__(timeout=300)
+        self.ctx = ctx
+        self.canal_id = canal_id
+        self.guild_id = guild_id
         
         self.premio = discord.ui.TextInput(
             label="Cantidad del premio (monedas)",
@@ -3542,7 +3524,7 @@ class GiveawayModal(discord.ui.Modal, title="Crear Giveaway"):
             await interaction.response.send_message("> La duración mínima es 1 minuto.", ephemeral=True)
             return
         
-        if segundos > 604800:  # 7 días
+        if segundos > 604800:
             await interaction.response.send_message("> La duración máxima es 7 días.", ephemeral=True)
             return
         
@@ -3550,21 +3532,22 @@ class GiveawayModal(discord.ui.Modal, title="Crear Giveaway"):
         
         # Crear embed del giveaway
         fecha_fin = datetime.datetime.now() + datetime.timedelta(seconds=segundos)
+        timestamp_fin = int(fecha_fin.timestamp())
         
         embed = discord.Embed(
             title="¡NUEVO GIVEAWAY!",
             description=f"> **Premio:** ${premio:,} monedas\n> **Motivo:** {motivo}\n\n🎲 **Haz clic en el botón debajo para participar!**",
             color=AZUL_IPOD_NUM
         )
-        embed.add_field(name="> Termina", value=f"<t:{int(fecha_fin.timestamp())}:R>", inline=True)
+        embed.add_field(name="> Termina", value=f"<t:{timestamp_fin}:R>", inline=True)
         embed.add_field(name="> Participantes", value="```0 personas```", inline=False)
         embed.add_field(name="> Organizado por", value=interaction.user.mention, inline=False)
-        embed.set_footer(text=f"ID: {interaction.id} | ¡Suerte a todos!")
+        embed.set_footer(text=f"¡Suerte a todos!")
         
         # Enviar mensaje del giveaway
         await interaction.response.defer()
         
-        view = GiveawayView(premio, segundos, duracion_texto, interaction.user.id, None, interaction.channel_id)
+        view = GiveawayView(premio, segundos, duracion_texto, interaction.user.id, None, interaction.channel_id, interaction.guild_id)
         mensaje = await interaction.followup.send(embed=embed, view=view, wait=True)
         
         # Actualizar el mensaje_id en el view
@@ -3574,10 +3557,10 @@ class GiveawayModal(discord.ui.Modal, title="Crear Giveaway"):
         giveaways_activos[mensaje.id] = view
         
         # Programar finalización automática
-        asyncio.create_task(finalizar_giveaway_despues(mensaje.id, segundos, view, interaction.channel_id))
+        asyncio.create_task(finalizar_giveaway_despues(mensaje.id, segundos, view, interaction.channel_id, interaction.guild_id))
 
 
-async def finalizar_giveaway_despues(mensaje_id: int, segundos: int, view: GiveawayView, canal_id: int):
+async def finalizar_giveaway_despues(mensaje_id: int, segundos: int, view: GiveawayView, canal_id: int, guild_id: int):
     await asyncio.sleep(segundos)
     
     if mensaje_id in giveaways_activos:
@@ -3586,34 +3569,34 @@ async def finalizar_giveaway_despues(mensaje_id: int, segundos: int, view: Givea
             ganador_id = random.choice(view.participantes)
             
             # Dar el premio al ganador
-            # Buscar el guild a través del canal
-            canal = None
-            for guild in bot.guilds:
-                canal = guild.get_channel(canal_id)
-                if canal:
-                    break
+            data = get_user_eco(guild_id, ganador_id)
+            data["coins"] += view.premio
             
-            if canal and canal.guild:
-                data = get_user_eco(canal.guild.id, ganador_id)
-                data["coins"] += view.premio
-                
-                embed_final = discord.Embed(
-                    title="GIVEAWAY FINALIZADO",
-                    description=f"> **GANADOR:** <@{ganador_id}>\n> **Premio:** ${view.premio:,}\n\n ¡Felicitaciones!",
-                    color=AZUL_IPOD_NUM
-                )
-                
-                try:
-                    mensaje = await canal.fetch_message(mensaje_id)
-                    await mensaje.edit(embed=embed_final, view=None)
-                    
-                    # Anunciar al ganador
-                    await canal.send(f"¡Felicidades <@{ganador_id}>! Ganaste **${view.premio:,}** en el giveaway! 🎉")
-                except:
-                    pass
+            embed_final = discord.Embed(
+                title="GIVEAWAY FINALIZADO ",
+                description=f"> **GANADOR:** <@{ganador_id}>\n> **Premio:** ${view.premio:,}\n\n ¡Felicitaciones!",
+                color=AZUL_IPOD_NUM
+            )
+            
+            # Buscar canal y mensaje
+            for guild in bot.guilds:
+                if guild.id == guild_id:
+                    canal = guild.get_channel(canal_id)
+                    if canal:
+                        try:
+                            mensaje = await canal.fetch_message(mensaje_id)
+                            await mensaje.edit(embed=embed_final, view=None)
+                            await canal.send(f"¡Felicidades <@{ganador_id}>! Ganaste **${view.premio:,}** en el giveaway! 🎉")
+                        except:
+                            pass
+                    break
         
         giveaways_activos.pop(mensaje_id, None)
 
+
+# =========================================================
+# COMANDO GIVEAWAY - VERSIÓN CORREGIDA
+# =========================================================
 
 @bot.hybrid_command(name="giveaway", description="Crea un nuevo giveaway con premio en monedas")
 async def giveaway(ctx: commands.Context):
@@ -3628,57 +3611,16 @@ async def giveaway(ctx: commands.Context):
         await ctx.send(embed=embed)
         return
     
-    modal = GiveawayModal()
-    await ctx.send("> Responde las siguientes preguntas para crear el giveaway:", ephemeral=True)
-    await ctx.interaction.response.send_modal(modal) if ctx.interaction else await modal.send(ctx)
-
-
-@bot.hybrid_command(name="giveaway-finish", description="Finaliza un giveaway anticipadamente")
-async def giveaway_finish(ctx: commands.Context, mensaje_id: str):
-    """Finaliza un giveaway activo (solo admin)"""
+    # Crear y mostrar el modal (funciona tanto para slash como para prefijo)
+    modal = GiveawayModal(ctx, ctx.channel.id, ctx.guild.id)
     
-    if not ctx.author.guild_permissions.administrator:
-        embed = discord.Embed(
-            description="> No tienes permisos para finalizar giveaways.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    try:
-        msg_id = int(mensaje_id)
-    except:
-        await ctx.send("> ID de mensaje inválido.")
-        return
-    
-    if msg_id not in giveaways_activos:
-        await ctx.send("> No se encontró un giveaway activo con ese ID.")
-        return
-    
-    view = giveaways_activos[msg_id]
-    
-    # Finalizar anticipadamente
-    if view.participantes:
-        ganador_id = random.choice(view.participantes)
-        
-        data = get_user_eco(ctx.guild.id, ganador_id)
-        data["coins"] += view.premio
-        
-        embed_final = discord.Embed(
-            title="GIVEAWAY FINALIZADO (ANTICIPADO)",
-            description=f"> **GANADOR:** <@{ganador_id}>\n> **Premio:** ${view.premio:,}\n\n ¡Felicitaciones!",
-            color=AZUL_IPOD_NUM
-        )
-        
-        try:
-            canal = ctx.channel
-            mensaje = await canal.fetch_message(msg_id)
-            await mensaje.edit(embed=embed_final, view=None)
-            await ctx.send(f"¡Giveaway finalizado! Ganador: <@{ganador_id}>")
-        except:
-            pass
-    
-    giveaways_activos.pop(msg_id, None)
+    # Si es comando slash, usar response.send_modal
+    if ctx.interaction:
+        await ctx.interaction.response.send_modal(modal)
+    else:
+        # Si es comando de prefijo, enviar mensaje ephemeral y luego el modal
+        await ctx.send("> Abriendo formulario de giveaway...", ephemeral=True)
+        await ctx.send(modal)
         
 # -------------------------
 # FLASK WEB
