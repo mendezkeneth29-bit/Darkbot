@@ -3035,38 +3035,155 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
         
 # -----------------------SECCION "2"-----------------------------
 
-@bot.hybrid_command(name="pensamiento", description="Cambia el pensamiento del bot")
-async def pensamiento_simple(ctx: commands.Context, *, texto: str):
+# =========================================================
+# SISTEMA DE PENSAMIENTO/ESTADO DEL BOT
+# =========================================================
+
+import datetime
+import asyncio
+
+# Diccionario para almacenar pensamientos temporales
+pensamiento_tarea = {}
+
+class PensamientoView(discord.ui.View):
+    def __init__(self, autor_id: int, texto: str):
+        super().__init__(timeout=60)
+        self.autor_id = autor_id
+        self.texto = texto
     
-    # Verificar permisos (solo administradores)
-    if not ctx.author.guild_permissions.administrator:
-        return await ctx.send("> Solo los administradores pueden cambiar mi estado.")
-    
-    if len(texto) > 120:
-        return await ctx.send("> El pensamiento es demasiado largo. Máximo 120 caracteres.")
-    
-    try:
-        await bot.change_presence(activity=discord.CustomActivity(name=texto))
+    @discord.ui.select(
+        placeholder="⏰ Selecciona la duración del pensamiento",
+        options=[
+            discord.SelectOption(label="1 hora", value="1h", emoji="🕐", description="El pensamiento durará 1 hora"),
+            discord.SelectOption(label="5 horas", value="5h", emoji="🕔", description="El pensamiento durará 5 horas"),
+            discord.SelectOption(label="1 día", value="1d", emoji="📅", description="El pensamiento durará 1 día"),
+            discord.SelectOption(label="1 semana", value="1w", emoji="📆", description="El pensamiento durará 1 semana"),
+            discord.SelectOption(label="1 mes", value="1m", emoji="🗓️", description="El pensamiento durará 1 mes"),
+            discord.SelectOption(label="Para siempre", value="forever", emoji="♾️", description="El pensamiento durará para siempre"),
+        ]
+    )
+    async def select_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
+        if interaction.user.id != self.autor_id:
+            await interaction.response.send_message("> Solo quien ejecutó el comando puede seleccionar la duración.", ephemeral=True)
+            return
         
+        duracion = select.values[0]
+        
+        # Convertir duración a segundos
+        if duracion == "1h":
+            segundos = 3600
+            texto_duracion = "1 hora"
+        elif duracion == "5h":
+            segundos = 18000
+            texto_duracion = "5 horas"
+        elif duracion == "1d":
+            segundos = 86400
+            texto_duracion = "1 día"
+        elif duracion == "1w":
+            segundos = 604800
+            texto_duracion = "1 semana"
+        elif duracion == "1m":
+            segundos = 2592000
+            texto_duracion = "1 mes"
+        else:
+            segundos = None
+            texto_duracion = "para siempre"
+        
+        # Cambiar el estado del bot
+        try:
+            # Limitar texto a 128 caracteres (máximo de Discord)
+            texto_pensamiento = self.texto[:120] + "..." if len(self.texto) > 120 else self.texto
+            await bot.change_presence(activity=discord.CustomActivity(name=texto_pensamiento))
+            
+            embed = discord.Embed(
+                title="Pensamiento actualizado",
+                description=f"> **Pensamiento:** {texto_pensamiento}\n> **Duración:** {texto_duracion}",
+                color=AZUL_IPOD_NUM
+            )
+            
+            if segundos:
+                embed.set_footer(text=f"El pensamiento se eliminará automáticamente")
+            
+            await interaction.response.edit_message(embed=embed, view=None)
+            
+            # Programar eliminación si no es para siempre
+            if segundos:
+                await asyncio.sleep(segundos)
+                # Verificar que siga siendo el mismo pensamiento
+                actividad_actual = bot.activity
+                if actividad_actual and isinstance(actividad_actual, discord.CustomActivity) and actividad_actual.name == texto_pensamiento:
+                    await bot.change_presence(activity=None)
+                    # Notificar al canal donde se ejecutó
+                    try:
+                        canal = interaction.channel
+                        embed_fin = discord.Embed(
+                            description=f"> El pensamiento **{texto_pensamiento}** ha expirado después de {texto_duracion}",
+                            color=AZUL_IPOD_NUM
+                        )
+                        await canal.send(embed=embed_fin)
+                    except:
+                        pass
+            
+        except Exception as e:
+            await interaction.response.edit_message(content=f"> Error: `{str(e)[:100]}`", view=None)
+
+
+@bot.hybrid_command(name="pensamiento", description="Cambia el pensamiento/estado del bot")
+async def pensamiento(ctx: commands.Context, *, texto: str):
+    """
+    Cambia el estado personalizado del bot.
+    
+    Ejemplos:
+    >mt pensamiento Hola, soy un bot
+    >mt pensamiento Estoy aprendiendo a programar
+    """
+    
+    # Verificar permisos (solo administradores o dueño del bot)
+    if not ctx.author.guild_permissions.administrator and ctx.author.id != bot.owner_id:
         embed = discord.Embed(
-            title="Pensamiento actualizado",
-            description=f"> **Pensamiento:** {texto}",
+            description="> No tienes permisos para cambiar el estado del bot.\n> Solo los administradores pueden usar este comando.",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
-        
-    except Exception as e:
-        await ctx.send(f"> Error: `{str(e)[:100]}`")
-
-
-@bot.hybrid_command(name="reset-pensamiento", description="Elimina el pensamiento del bot")
-async def reset_pensamiento_simple(ctx: commands.Context):
+        return
     
-    if not ctx.author.guild_permissions.administrator:
-        return await ctx.send("> Solo los administradores pueden eliminar mi estado.")
+    if len(texto) > 120:
+        embed = discord.Embed(
+            description="> El pensamiento es demasiado largo. Máximo 120 caracteres.",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    embed = discord.Embed(
+        title="Establecer pensamiento",
+        description=f"> **Pensamiento:** {texto[:120]}\n\n Selecciona cuánto tiempo durará este pensamiento:",
+        color=AZUL_IPOD_NUM
+    )
+    
+    view = PensamientoView(ctx.author.id, texto)
+    await ctx.send(embed=embed, view=view)
+
+
+@bot.hybrid_command(name="reset-pensamiento", description="Elimina el pensamiento actual del bot")
+async def reset_pensamiento(ctx: commands.Context):
+    """Elimina el estado personalizado del bot"""
+    
+    if not ctx.author.guild_permissions.administrator and ctx.author.id != bot.owner_id:
+        embed = discord.Embed(
+            description="> No tienes permisos para eliminar el estado del bot.",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
     
     await bot.change_presence(activity=None)
-    await ctx.send("> Pensamiento eliminado.")
+    
+    embed = discord.Embed(
+        description="> Pensamiento eliminado. El bot ya no tiene estado personalizado.",
+        color=AZUL_IPOD_NUM
+    )
+    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="noticias", description="Últimas noticias")
 async def noticias_search(ctx: commands.Context, *, query: str = None):
