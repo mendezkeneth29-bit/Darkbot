@@ -3563,192 +3563,7 @@ async def giveaway(ctx: commands.Context):
         await ctx.send(modal)
 
 # =========================================================
-# COMANDO ARTISTA - Last.fm (Español + Imagen real)
-# =========================================================
-
-# Obtener API Key gratis en: https://www.last.fm/api/account/create
-# Agregar LASTFM_API_KEY a las variables de entorno
-
-LASTFM_API_KEY = os.getenv("LASTFM_API_KEY")
-
-@bot.hybrid_command(name="artista", description="Busca información de un artista musical")
-async def artista(ctx: commands.Context, *, nombre: str):
-    """
-    Muestra información de un artista: imagen real, oyentes, reproducciones, biografía en español.
-    
-    Ejemplos:
-    >mt artista Bad Bunny
-    >mt artista Taylor Swift
-    >mt artista Duki
-    """
-    
-    await ctx.defer() if ctx.interaction else None
-    
-    if not LASTFM_API_KEY:
-        embed = discord.Embed(
-            description=">  API Key de Last.fm no configurada.\n> El administrador debe agregar `LASTFM_API_KEY` en las variables de entorno.\n> 📝 Obtén tu clave gratis en: https://www.last.fm/api/account/create",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    # Limpiar nombre del artista
-    nombre_limpio = nombre.strip().replace(" ", "%20")
-    
-    # URL de la API de Last.fm
-    url = f"https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist={nombre_limpio}&api_key={LASTFM_API_KEY}&format=json&lang=es"
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                if resp.status != 200:
-                    embed = discord.Embed(
-                        description=f">  Error al buscar artista. Código: {resp.status}",
-                        color=AZUL_IPOD_NUM
-                    )
-                    await ctx.send(embed=embed)
-                    return
-                
-                data = await resp.json()
-        
-        # Verificar si hay error
-        if "error" in data:
-            if data["error"] == 6:
-                embed = discord.Embed(
-                    description=f">  No se encontró el artista: **{nombre}**\n> Verifica el nombre e intenta de nuevo.",
-                    color=AZUL_IPOD_NUM
-                )
-                await ctx.send(embed=embed)
-                return
-            else:
-                embed = discord.Embed(
-                    description=f">  Error de API: {data.get('message', 'Error desconocido')}",
-                    color=AZUL_IPOD_NUM
-                )
-                await ctx.send(embed=embed)
-                return
-        
-        artista_data = data.get("artist", {})
-        
-        # Datos básicos
-        nombre_artista = artista_data.get("name", nombre)
-        
-        # Oyentes y reproducciones
-        stats = artista_data.get("stats", {})
-        oyentes = stats.get("listeners", "0")
-        plays = stats.get("playcount", "0")
-        
-        # Formatear números
-        try:
-            oyentes_num = int(oyentes)
-            if oyentes_num >= 1000000:
-                oyentes_texto = f"{oyentes_num / 1000000:.1f}M"
-            elif oyentes_num >= 1000:
-                oyentes_texto = f"{oyentes_num / 1000:.1f}K"
-            else:
-                oyentes_texto = str(oyentes_num)
-        except:
-            oyentes_texto = oyentes
-        
-        try:
-            plays_num = int(plays)
-            if plays_num >= 1000000:
-                plays_texto = f"{plays_num / 1000000:.1f}M"
-            elif plays_num >= 1000:
-                plays_texto = f"{plays_num / 1000:.1f}K"
-            else:
-                plays_texto = str(plays_num)
-        except:
-            plays_texto = plays
-        
-        # Biografía (en español)
-        bio = artista_data.get("bio", {})
-        biografia = bio.get("summary", "Sin biografía disponible para este artista.")
-        
-        # Limpiar biografía de etiquetas HTML y acortar
-        biografia = re.sub(r'<[^>]+>', '', biografia)
-        biografia = biografia.replace("read more", "").replace("Leer más", "").strip()
-        
-        if len(biografia) > 500:
-            biografia = biografia[:500] + "..."
-        
-        # Etiquetas (géneros)
-        tags = artista_data.get("tags", {}).get("tag", [])
-        if tags:
-            tags_texto = ", ".join([t.get("name", "") for t in tags[:5]])
-        else:
-            tags_texto = "No disponible"
-        
-        # Obtener imagen REAL del artista (última es la más grande)
-        imagenes = artista_data.get("image", [])
-        imagen_url = ""
-        if imagenes:
-            for img in imagenes:
-                if img.get("size") == "extralarge" and img.get("#text"):
-                    imagen_url = img.get("#text")
-                    break
-            if not imagen_url and imagenes:
-                imagen_url = imagenes[-1].get("#text", "")
-        
-        # Si no hay imagen, usar placeholder
-        if not imagen_url:
-            imagen_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-        
-        # URL del perfil en Last.fm
-        perfil_url = artista_data.get("url", f"https://www.last.fm/music/{nombre_artista.replace(' ', '+')}")
-        
-        # Similitudes (artistas similares)
-        similares = artista_data.get("similar", {}).get("artist", [])
-        similares_texto = ""
-        if similares:
-            similares_nombres = [s.get("name", "") for s in similares[:3]]
-            similares_texto = ", ".join(similares_nombres)
-        
-        # Crear embed
-        embed = discord.Embed(
-            title=f"{nombre_artista}",
-            description=f"[Ver perfil]({perfil_url})",
-            color=AZUL_IPOD_NUM,
-            url=perfil_url
-        )
-        
-        # Agregar campos
-        embed.add_field(name=">  Oyentes", value=oyentes_texto, inline=True)
-        embed.add_field(name=">  Reproducciones", value=plays_texto, inline=True)
-        embed.add_field(name=">  Géneros", value=tags_texto[:80], inline=False)
-        
-        if similares_texto:
-            embed.add_field(name="> Artistas similares", value=similares_texto, inline=False)
-        
-        # Biografía
-        embed.add_field(name="> Biografía", value=biografia, inline=False)
-        
-        # Agregar imagen REAL del artista
-        if imagen_url and "cdn-icons-png" not in imagen_url:
-            embed.set_thumbnail(url=imagen_url)
-        else:
-            embed.set_thumbnail(url=imagen_url)
-        
-        embed.set_footer(text=f"Solicitado por {ctx.author.display_name} | Last.fm")
-        
-        await ctx.send(embed=embed)
-        
-    except asyncio.TimeoutError:
-        embed = discord.Embed(
-            description="> Tiempo de espera agotado. Intenta de nuevo.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        
-    except Exception as e:
-        embed = discord.Embed(
-            description=f"> Error: `{str(e)[:100]}`",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-
-# =========================================================
-# SPOTIFY SEARCH CON JAMENDO API - Versión Embed Completa
+# SPOTIFY SEARCH CON SPOTIFY23 API (RapidAPI)
 # =========================================================
 
 import aiohttp
@@ -3763,20 +3578,16 @@ import asyncio
 # CONFIGURACIÓN
 # =========================================================
 
-# Obtener Client ID de las variables de entorno
-JAMENDO_CLIENT_ID = os.getenv("JAMENDO_CLIENT_ID")
-
-# Colores
-AZUL_IPOD_NUM = 0x5AC8FA
-
+# Obtener API Key de RapidAPI
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 
 # =========================================================
-# FUNCIÓN PARA BUSCAR EN JAMENDO
+# FUNCIÓN PARA BUSCAR EN SPOTIFY23
 # =========================================================
 
-async def buscar_jamendo(cancion: str) -> list:
+async def buscar_spotify(cancion: str) -> list:
     """
-    Busca canciones en Jamendo Music (35000 requests/mes gratis)
+    Busca canciones en Spotify usando la API de Spotify23 (RapidAPI)
     
     Args:
         cancion: Nombre de la canción a buscar
@@ -3785,91 +3596,119 @@ async def buscar_jamendo(cancion: str) -> list:
         Lista de diccionarios con información de las canciones
     """
     
-    if not JAMENDO_CLIENT_ID:
-        print("JAMENDO_CLIENT_ID no configurada")
+    if not RAPIDAPI_KEY:
+        print("RAPIDAPI_KEY no configurada")
         return []
     
-    # Limpiar la búsqueda para la URL
-    query = urllib.parse.quote(cancion)
+    # URL del endpoint de búsqueda de Spotify23
+    url = "https://spotify23.p.rapidapi.com/search/"
     
-    # URL de búsqueda de tracks en Jamendo
-    url = f"https://api.jamendo.com/v3.0/tracks/?client_id={JAMENDO_CLIENT_ID}&format=json&limit=5&search={query}&include=musicinfo"
+    headers = {
+        "X-RapidAPI-Key": RAPIDAPI_KEY,
+        "X-RapidAPI-Host": "spotify23.p.rapidapi.com"
+    }
+    
+    params = {
+        "q": cancion,
+        "type": "tracks",
+        "offset": "0",
+        "limit": "5"
+    }
     
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            async with session.get(url, headers=headers, params=params, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status != 200:
-                    print(f"Error en Jamendo API: {resp.status}")
+                    print(f"Error en Spotify23 API: {resp.status}")
                     return []
                 data = await resp.json()
         
         tracks = []
         
-        # Verificar si la respuesta es exitosa
-        if data.get("headers", {}).get("status") != "success":
-            print(f"Error en respuesta de Jamendo: {data.get('headers', {})}")
-            return []
+        # Extraer resultados
+        items = data.get("tracks", {}).get("items", [])
         
-        # Procesar resultados
-        for track in data.get("results", []):
-            nombre = track.get("name", "Sin nombre")
-            artista = track.get("artist_name", "Desconocido")
-            album = track.get("album_name", "Sin álbum")
-            duracion_seg = track.get("duration", 0)
-            id_track = track.get("id", "")
+        for item in items:
+            track_data = item.get("data", {})
             
-            # Formatear duración (segundos a mm:ss)
-            if duracion_seg:
-                minutos = int(duracion_seg) // 60
-                segundos = int(duracion_seg) % 60
-                duracion_texto = f"{minutos}:{segundos:02d}"
+            # Datos básicos
+            nombre = track_data.get("name", "Sin nombre")
+            artistas = track_data.get("artists", {}).get("items", [])
+            artista_nombre = ", ".join([a.get("profile", {}).get("name", "") for a in artistas])
+            
+            # Álbum
+            album_data = track_data.get("albumOfTrack", {})
+            album_nombre = album_data.get("name", "Sin álbum")
+            
+            # Duración (viene en milisegundos)
+            duracion_ms = track_data.get("duration", {}).get("totalMilliseconds", 0)
+            if duracion_ms:
+                segundos = duracion_ms // 1000
+                minutos = segundos // 60
+                segs = segundos % 60
+                duracion_texto = f"{minutos}:{segs:02d}"
             else:
                 duracion_texto = "Desconocida"
             
-            # Obtener imagen de portada del álbum
-            imagen_url = track.get("album_image", "") or track.get("image", "")
+            # URL de la imagen
+            cover_art = album_data.get("coverArt", {}).get("sources", [])
+            imagen_url = ""
+            if cover_art:
+                # Buscar la imagen de mayor calidad (última en la lista)
+                imagen_url = cover_art[-1].get("url", "") if cover_art else ""
             
-            # Enlace a la página de Jamendo
-            share_url = track.get("shareurl", "")
+            # ID y URL de Spotify
+            track_uri = track_data.get("uri", "")
+            track_id = track_uri.split(":")[-1] if track_uri else ""
+            spotify_url = f"https://open.spotify.com/track/{track_id}" if track_id else ""
+            
+            # Popularidad (si está disponible)
+            popularidad = track_data.get("stats", {}).get("popularity", "N/A")
+            
+            # Año de lanzamiento
+            año = ""
+            if album_data.get("releases", {}).get("items"):
+                año = album_data.get("releases", {}).get("items", [])[0].get("date", {}).get("year", "")
             
             tracks.append({
                 "nombre": nombre,
-                "artista": artista,
-                "album": album,
+                "artista": artista_nombre,
+                "album": album_nombre,
                 "duracion": duracion_texto,
                 "cover": imagen_url,
-                "url": share_url or f"https://www.jamendo.com/track/{id_track}",
-                "id": id_track
+                "url": spotify_url,
+                "id": track_id,
+                "popularidad": popularidad,
+                "año": año
             })
         
         return tracks
         
     except asyncio.TimeoutError:
-        print("Timeout en Jamendo API")
+        print("Timeout en Spotify23 API")
         return []
     except Exception as e:
-        print(f"Error en buscar_jamendo: {e}")
+        print(f"Error en buscar_spotify: {e}")
         return []
 
 
 # =========================================================
-# VISTA CON BOTONES (Lista de enlaces)
+# VISTA CON BOTONES (Lista de enlaces a Spotify)
 # =========================================================
 
-class ResultadosMusicaView(discord.ui.View):
+class ResultadosSpotifyView(discord.ui.View):
     def __init__(self, tracks: list):
         super().__init__(timeout=60)
         
         # Crear un botón por cada canción (máximo 5)
         for i, track in enumerate(tracks[:5]):
-            # Limitar el nombre del botón a 50 caracteres
-            nombre_boton = track['nombre'][:45] + "..." if len(track['nombre']) > 45 else track['nombre']
+            nombre_boton = track['nombre'][:40] + "..." if len(track['nombre']) > 40 else track['nombre']
             
             self.add_item(discord.ui.Button(
                 label=f"{i+1}. {nombre_boton}",
                 url=track['url'],
                 style=discord.ButtonStyle.link,
-                emoji="<:music:1504691247619641404>"
+                emoji="<:musica:1504691247619641404>"
             ))
     
     @discord.ui.button(label="Cerrar", style=discord.ButtonStyle.danger)
@@ -3885,19 +3724,12 @@ class ResultadosMusicaView(discord.ui.View):
 
 async def generar_embed_resultados(tracks: list, query: str) -> discord.Embed:
     """
-    Genera un embed con todos los resultados de búsqueda
-    
-    Args:
-        tracks: Lista de canciones encontradas
-        query: Término de búsqueda original
-        
-    Returns:
-        Discord Embed con los resultados formateados
+    Genera un embed con todos los resultados de búsqueda de Spotify
     """
     
     embed = discord.Embed(
-        title=f"Resultados para: {query[:50]}",
-        description=f"Se encontraron **{len(tracks)}** canciones en Jamendo Music",
+        title=f"Resultados de Spotify",
+        description=f"**Búsqueda:** {query[:50]}\n**Canciones encontradas:** {len(tracks)}",
         color=AZUL_IPOD_NUM
     )
     
@@ -3905,28 +3737,28 @@ async def generar_embed_resultados(tracks: list, query: str) -> discord.Embed:
     for i, track in enumerate(tracks[:5]):
         # Construir el texto de la canción
         texto_cancion = (
-            f"> **Artista:** {track['artista']}\n"
-            f"> **Álbum:** {track['album'][:50]}\n"
-            f"> **Duración:** {track['duracion']}\n"
-            f"> **[Escuchar en Jamendo]({track['url']})**"
+            f" **Artista:** {track['artista']}\n"
+            f" **Álbum:** {track['album'][:40]}\n"
+            f" **Duración:** {track['duracion']}"
         )
         
-        # Agregar portada si existe (como thumbnail en el campo)
-        if track['cover']:
-            # No podemos poner imágenes en campos, así que solo mostramos el nombre
-            pass
+        if track.get('año'):
+            texto_cancion += f"\n **Año:** {track['año']}"
+        
+        if track.get('popularidad') and track['popularidad'] != "N/A":
+            texto_cancion += f"\n **Popularidad:** {track['popularidad']}/100"
         
         embed.add_field(
-            name=f"**{i+1}. {track['nombre'][:60]}**",
+            name=f"**{i+1}. {track['nombre'][:55]}**",
             value=texto_cancion,
             inline=False
         )
     
-    # Agregar imagen de portada de la primera canción si existe
+    # Agregar imagen de portada de la primera canción (si existe)
     if tracks and tracks[0].get('cover'):
         embed.set_thumbnail(url=tracks[0]['cover'])
     
-    embed.set_footer(text="Música con licencias Creative Commons | Jamendo API")
+    embed.set_footer(text="Spotify | Los resultados son enlaces directos a Spotify")
     embed.set_author(name="Misti Music", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
     
     return embed
@@ -3936,29 +3768,30 @@ async def generar_embed_resultados(tracks: list, query: str) -> discord.Embed:
 # COMANDOS PRINCIPALES (SLASH y PREFIX)
 # =========================================================
 
-@bot.tree.command(name="spotify-search", description="Busca canciones en Jamendo Music")
+@bot.tree.command(name="spotify-search", description="Busca canciones en Spotify")
 async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
     """
-    Busca canciones en la base de datos de Jamendo Music
+    Busca canciones en Spotify usando la API de Spotify23
     
     Ejemplos:
     /spotify-search play date
     /spotify-search despacito
+    /spotify-search blinding lights
     """
     
     await i.response.defer()
     
     # Verificar que la API Key esté configurada
-    if not JAMENDO_CLIENT_ID:
+    if not RAPIDAPI_KEY:
         embed = discord.Embed(
             title="Error de configuración",
-            description="> **API Key de Jamendo no configurada**\n\n"
-                       "El administrador debe agregar `JAMENDO_CLIENT_ID` en las variables de entorno de Render.\n\n"
+            description="> **API Key de RapidAPI no configurada**\n\n"
+                       "El administrador debe agregar `RAPIDAPI_KEY` en las variables de entorno de Render.\n\n"
                        "**Cómo obtener una clave gratis:**\n"
-                       "1. Ve [aqui](https://devportal.jamendo.com)\n"
-                       "2. Regístrate y crea una aplicación\n"
-                       "3. Copia tu Client ID\n"
-                       "4. Agrégalo como `JAMENDO_CLIENT_ID` en Render",
+                       "1. Ve a https://rapidapi.com/raygun.ravi/api/spotify23\n"
+                       "2. Regístrate y suscríbete al plan **Basic (gratis)**\n"
+                       "3. Copia tu `X-RapidAPI-Key`\n"
+                       "4. Agrégalo como `RAPIDAPI_KEY` en Render",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
@@ -3967,7 +3800,7 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
     # Verificar que se ingresó una búsqueda
     if not cancion or len(cancion.strip()) < 2:
         embed = discord.Embed(
-            description=">  Por favor, ingresa un nombre de canción válido (mínimo 2 caracteres)",
+            description="> Por favor, ingresa un nombre de canción válido (mínimo 2 caracteres)",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
@@ -3975,13 +3808,13 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
     
     try:
         # Buscar canciones
-        tracks = await buscar_jamendo(cancion)
+        tracks = await buscar_spotify(cancion)
         
         # Verificar si hay resultados
         if not tracks:
             embed = discord.Embed(
                 title="Sin resultados",
-                description=f"> No se encontraron canciones para: **{cancion}**\n\n"
+                description=f"> No se encontraron canciones en Spotify para: **{cancion}**\n\n"
                            f"**Sugerencias:**\n"
                            f"• Verifica la ortografía\n"
                            f"• Intenta con el nombre del artista\n"
@@ -3995,7 +3828,7 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
         embed_resultados = await generar_embed_resultados(tracks, cancion)
         
         # Crear vista con botones de enlace
-        view = ResultadosMusicaView(tracks)
+        view = ResultadosSpotifyView(tracks)
         
         # Enviar resultado
         await i.followup.send(embed=embed_resultados, view=view)
@@ -4009,7 +3842,7 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
         
     except Exception as e:
         embed = discord.Embed(
-            title=" Error inesperado",
+            title="Error inesperado",
             description=f"> ```{str(e)[:200]}```\n\nSi el problema persiste, contacta al administrador.",
             color=AZUL_IPOD_NUM
         )
@@ -4019,7 +3852,7 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
 @bot.command(name="spotify-search")
 async def spotify_buscar_prefix(ctx, *, cancion: str):
     """
-    Busca canciones en Jamendo Music (comando con prefijo)
+    Busca canciones en Spotify (comando con prefijo)
     
     Ejemplos:
     >mt spotify-search play date
@@ -4027,9 +3860,9 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
     """
     
     # Verificar API Key
-    if not JAMENDO_CLIENT_ID:
+    if not RAPIDAPI_KEY:
         embed = discord.Embed(
-            description=">  API Key de Jamendo no configurada.\nEl administrador debe agregar `JAMENDO_CLIENT_ID` en Render.",
+            description=">  API Key de RapidAPI no configurada.\nEl administrador debe agregar `RAPIDAPI_KEY` en Render.",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
@@ -4047,12 +3880,12 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
     async with ctx.typing():
         try:
             # Buscar canciones
-            tracks = await buscar_jamendo(cancion)
+            tracks = await buscar_spotify(cancion)
             
             # Verificar resultados
             if not tracks:
                 embed = discord.Embed(
-                    description=f">  No se encontraron canciones para: **{cancion}**",
+                    description=f">  No se encontraron canciones en Spotify para: **{cancion}**",
                     color=AZUL_IPOD_NUM
                 )
                 await ctx.send(embed=embed)
@@ -4060,7 +3893,7 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
             
             # Generar embed y vista
             embed_resultados = await generar_embed_resultados(tracks, cancion)
-            view = ResultadosMusicaView(tracks)
+            view = ResultadosSpotifyView(tracks)
             
             await ctx.send(embed=embed_resultados, view=view)
             
@@ -4069,91 +3902,88 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
 
 
 # =========================================================
-# COMANDO ADICIONAL: INFO DE CANCIÓN ESPECÍFICA
+# COMANDO ADICIONAL: INFO DE ARTISTA
 # =========================================================
 
-@bot.hybrid_command(name="track-info", description="Información detallada de una canción")
-async def track_info(ctx: commands.Context, artista: str, cancion: str):
+@bot.hybrid_command(name="artista-spotify", description="Busca información de un artista en Spotify")
+async def artista_spotify(ctx: commands.Context, *, nombre: str):
     """
-    Obtiene información detallada de una canción específica por artista y título
+    Busca información de un artista en Spotify
     
     Ejemplos:
-    >mt track-info Melanie Martinez Play Date
-    /track-info artista:Melanie Martinez cancion:Play Date
+    >mt artista-spotify Bad Bunny
+    /artista-spotify nombre:Taylor Swift
     """
     
     await ctx.defer() if ctx.interaction else None
     
-    if not JAMENDO_CLIENT_ID:
+    if not RAPIDAPI_KEY:
         embed = discord.Embed(
-            description=">  API Key de Jamendo no configurada.",
+            description=">  API Key de RapidAPI no configurada.",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
     
-    query = urllib.parse.quote(f"{artista} {cancion}")
-    url = f"https://api.jamendo.com/v3.0/tracks/?client_id={JAMENDO_CLIENT_ID}&format=json&limit=1&search={query}"
+    # Buscar artista
+    url = "https://spotify23.p.rapidapi.com/search/"
+    headers = {"X-RapidAPI-Key": RAPIDAPI_KEY, "X-RapidAPI-Host": "spotify23.p.rapidapi.com"}
+    params = {"q": nombre, "type": "artists", "offset": "0", "limit": "1"}
     
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
+            async with session.get(url, headers=headers, params=params) as resp:
                 if resp.status != 200:
-                    await ctx.send(f">  Error al buscar la canción")
+                    await ctx.send(f">  Error al buscar artista")
                     return
                 data = await resp.json()
         
-        if data.get("headers", {}).get("status") != "success":
-            await ctx.send(f">  No se encontró la canción: **{cancion}** de **{artista}**")
+        items = data.get("artists", {}).get("items", [])
+        if not items:
+            await ctx.send(f"> No se encontró el artista: **{nombre}**")
             return
         
-        tracks = data.get("results", [])
-        if not tracks:
-            await ctx.send(f">  No se encontró la canción: **{cancion}** de **{artista}**")
-            return
+        artista_data = items[0].get("data", {})
+        perfil = artista_data.get("profile", {})
         
-        track = tracks[0]
+        nombre_artista = perfil.get("name", nombre)
+        seguidores = perfil.get("followers", {}).get("total", "N/A")
+        popularidad = perfil.get("stats", {}).get("popularity", "N/A")
+        imagen = artista_data.get("visuals", {}).get("avatar", [])
+        imagen_url = imagen[0].get("url", "") if imagen else ""
         
-        nombre = track.get("name", cancion)
-        artista_nombre = track.get("artist_name", artista)
-        album = track.get("album_name", "Sin álbum")
-        duracion_seg = track.get("duration", 0)
-        id_track = track.get("id", "")
-        imagen_url = track.get("album_image", "") or track.get("image", "")
-        share_url = track.get("shareurl", "")
+        # Enlace de Spotify
+        uri = artista_data.get("uri", "")
+        artista_id = uri.split(":")[-1] if uri else ""
+        spotify_url = f"https://open.spotify.com/artist/{artista_id}" if artista_id else ""
         
-        # Formatear duración
-        if duracion_seg:
-            minutos = int(duracion_seg) // 60
-            segundos = int(duracion_seg) % 60
-            duracion_texto = f"{minutos}:{segundos:02d}"
-        else:
-            duracion_texto = "Desconocida"
-        
-        # Crear embed
         embed = discord.Embed(
-            title=f"{nombre}",
-            description=f"**Artista:** {artista_nombre}\n**Álbum:** {album}",
+            title=f"{nombre_artista}",
+            description=f"[Ver perfil en Spotify]({spotify_url})",
             color=AZUL_IPOD_NUM,
-            url=share_url or f"https://www.jamendo.com/track/{id_track}"
+            url=spotify_url
         )
-        embed.add_field(name=">  Duración", value=duracion_texto, inline=True)
+        
+        # Formatear seguidores
+        if seguidores != "N/A" and isinstance(seguidores, int):
+            if seguidores >= 1000000:
+                seguidores_texto = f"{seguidores / 1000000:.1f}M"
+            elif seguidores >= 1000:
+                seguidores_texto = f"{seguidores / 1000:.1f}K"
+            else:
+                seguidores_texto = str(seguidores)
+        else:
+            seguidores_texto = "N/A"
+        
+        embed.add_field(name=">  Seguidores", value=seguidores_texto, inline=True)
+        embed.add_field(name=">  Popularidad", value=f"{popularidad}/100" if popularidad != "N/A" else "N/A", inline=True)
         
         if imagen_url:
             embed.set_thumbnail(url=imagen_url)
         
-        embed.set_footer(text="Jamendo Music | Creative Commons")
+        embed.set_footer(text=f"Solicitado por {ctx.author.display_name} | Spotify")
         
-        # Agregar botón de escuchar
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(
-            label="Escuchar",
-            url=share_url or f"https://www.jamendo.com/track/{id_track}",
-            style=discord.ButtonStyle.link,
-            emoji="<:headphones:1509700089948405840>"
-        ))
-        
-        await ctx.send(embed=embed, view=view)
+        await ctx.send(embed=embed)
         
     except Exception as e:
         await ctx.send(f"> Error: `{str(e)[:100]}`")
