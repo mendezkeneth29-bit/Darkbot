@@ -3067,12 +3067,17 @@ class DuracionSelect(discord.ui.Select):
         ]
         super().__init__(placeholder="Selecciona la duración...", options=options)
 
-    async def callback(self, interaction: discord.Interaction):
-        duracion = self.values[0]
-        # AQUÍ guardarías en tu base de datos o variable global:
-        # pensamiento = {"texto": self.texto, "duracion": duracion}
+async def callback(self, interaction: discord.Interaction):
+        seleccion = self.values[0]
+        
+        # --- AQUÍ ESTÁ EL CAMBIO ---
+        # Cambiamos la actividad del bot para que muestre el pensamiento
+        await interaction.client.change_presence(
+            activity=discord.Game(name=f"Pensando: {self.texto}")
+        )
+        
         await interaction.response.send_message(
-            f"> Pensamiento guardado con éxito por un tiempo de: **{duracion}**",
+            f"> ¡Ahora estoy pensando en: **{self.texto}**!", 
             ephemeral=True
         )
 
