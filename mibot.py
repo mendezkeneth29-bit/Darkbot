@@ -155,9 +155,9 @@ groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 TOKEN        = os.getenv("TOKEN")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 
-AZUL_OSCURO   = (43, 85, 181)
-AZUL_IPOD     = (43, 85, 181)
-AZUL_IPOD_NUM = 0x2B55B5
+AZUL_OSCURO   = (24, 50, 110)
+AZUL_IPOD     = (24, 50, 110)
+AZUL_IPOD_NUM = 0x18326e
 ROSA_RGB      = (255, 105, 180)
 ROSA_HEX      = 0x2B55B5
 BLANCO        = (255, 255, 255)
