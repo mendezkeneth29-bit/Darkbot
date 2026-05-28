@@ -3622,156 +3622,101 @@ async def giveaway(ctx: commands.Context):
         await ctx.send("> Abriendo formulario de giveaway...", ephemeral=True)
         await ctx.send(modal)
 
-# =========================================================
-# COMANDO ARTISTA - Buscar información de artistas musicales
-# =========================================================
-
 @bot.hybrid_command(name="artista", description="Busca información de un artista musical")
-async def artista(ctx: commands.Context, *, nombre: str):
-    """
-    Muestra información de un artista musical: nombre, oyentes, popularidad, géneros, imagen, etc.
+async def artista_lastfm(ctx: commands.Context, *, nombre: str):
+    await ctx.defer()
     
-    Ejemplos:
-    >mt artista Bad Bunny
-    >mt artista Taylor Swift
-    >mt artista Drake
-    """
+    # Usar API de Last.fm (requiere API Key gratis)
+    LASTFM_API_KEY = os.getenv("LASTFM_API_KEY")
     
-    await ctx.defer() if ctx.interaction else None
-    
-    # Usar API de Spotify vía RapidAPI
-    RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
-    
-    if not RAPIDAPI_KEY:
-        embed = discord.Embed(
-            description="> API Key de RapidAPI no configurada.\n> El administrador debe agregar `RAPIDAPI_KEY` en las variables de entorno.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
+    if not LASTFM_API_KEY:
+        # Fallback: búsqueda en Wikipedia
+        await artista_wikipedia(ctx, nombre)
         return
     
-    # Buscar artista en Spotify
-    url_buscar = "https://spotify23.p.rapidapi.com/search/"
+    url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist={nombre.replace(' ', '%20')}&api_key={LASTFM_API_KEY}&format=json"
     
-    headers = {
-        "X-RapidAPI-Key": RAPIDAPI_KEY,
-        "X-RapidAPI-Host": "spotify23.p.rapidapi.com"
-    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send(f"> No se encontró el artista: **{nombre}**")
+                return
+            data = await resp.json()
     
-    params = {
-        "q": nombre,
-        "type": "artists",
-        "offset": "0",
-        "limit": "1"
-    }
+    if "error" in data:
+        await ctx.send(f"> No se encontró el artista: **{nombre}**")
+        return
     
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url_buscar, headers=headers, params=params) as resp:
-                if resp.status != 200:
-                    embed = discord.Embed(
-                        description=f"> Error al buscar artista. Código: {resp.status}",
-                        color=AZUL_IPOD_NUM
-                    )
-                    await ctx.send(embed=embed)
-                    return
-                
-                data = await resp.json()
-        
-        # Extraer información del artista
-        items = data.get("artists", {}).get("items", [])
-        
-        if not items:
-            embed = discord.Embed(
-                description=f"> No se encontró el artista: **{nombre}**",
-                color=AZUL_IPOD_NUM
-            )
-            await ctx.send(embed=embed)
-            return
-        
-        artista_data = items[0].get("data", {})
-        
-        # Obtener datos del artista
-        nombre_artista = artista_data.get("profile", {}).get("name", "Sin nombre")
-        
-        # Obtener oyentes mensuales (puede no estar disponible)
-        oyentes = artista_data.get("stats", {}).get("monthlyListeners", None)
-        if oyentes:
-            oyentes_texto = f"{oyentes:,}"
-        else:
-            oyentes_texto = "No disponible"
-        
-        # Popularidad (0-100)
-        popularidad = artista_data.get("stats", {}).get("popularity", "No disponible")
-        
-        # Géneros
-        generos = artista_data.get("genres", {}).get("items", [])
-        if generos:
-            generos_texto = ", ".join([g.get("name", "") for g in generos[:5]])
-        else:
-            generos_texto = "No disponible"
-        
-        # Seguidores
-        seguidores = artista_data.get("stats", {}).get("followers", 0)
-        if seguidores:
-            seguidores_texto = f"{seguidores:,}"
-        else:
-            seguidores_texto = "No disponible"
-        
-        # Imagen del artista
-        imagen = artista_data.get("visuals", {}).get("avatar", [])
-        if imagen:
-            imagen_url = imagen[0].get("url", "")
-        else:
-            imagen_url = None
-        
-        # URL del perfil en Spotify
-        perfil_url = artista_data.get("profile", {}).get("externalLinks", {}).get("items", [])
-        if perfil_url:
-            spotify_url = perfil_url[0].get("url", "")
-        else:
-            spotify_url = f"https://open.spotify.com/artist/{artista_data.get('uri', '').split(':')[-1]}"
-        
-        # Verificar si el artista está verificado
-        verificado = artista_data.get("profile", {}).get("verified", False)
-        verificado_texto = "<:check:1504584129302499399>" if verificado else "<fail:1507508490703208519>"
-        
-        # Crear embed
-        embed = discord.Embed(
-            title=f"🎤 {nombre_artista}",
-            description=f"[Ver perfil en Spotify]({spotify_url})",
-            color=AZUL_IPOD_NUM,
-            url=spotify_url
-        )
-        
-        # Agregar campos
-        embed.add_field(name="> Oyentes mensuales", value=oyentes_texto, inline=True)
-        embed.add_field(name="> Popularidad", value=f"{popularidad}/100" if popularidad != "No disponible" else popularidad, inline=True)
-        embed.add_field(name="> Seguidores", value=seguidores_texto, inline=True)
-        embed.add_field(name="> Géneros", value=generos_texto[:100], inline=False)
-        embed.add_field(name="> Verificado", value=verificado_texto, inline=True)
-        
-        # Agregar imagen si existe
-        if imagen_url:
-            embed.set_thumbnail(url=imagen_url)
-        
-        embed.set_footer(text=f"Solicitado por {ctx.author.display_name}")
-        
-        await ctx.send(embed=embed)
-        
-    except asyncio.TimeoutError:
-        embed = discord.Embed(
-            description="> Tiempo de espera agotado. Intenta de nuevo.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        
-    except Exception as e:
-        embed = discord.Embed(
-            description=f"> Error: `{str(e)[:100]}`",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
+    artista_data = data.get("artist", {})
+    
+    nombre_artista = artista_data.get("name", "Sin nombre")
+    oyentes = artista_data.get("stats", {}).get("listeners", "No disponible")
+    plays = artista_data.get("stats", {}).get("playcount", "No disponible")
+    bio = artista_data.get("bio", {}).get("summary", "Sin biografía disponible")
+    imagen = artista_data.get("image", [])
+    
+    # Obtener URL de la imagen
+    imagen_url = ""
+    for img in imagen:
+        if img.get("size") == "extralarge":
+            imagen_url = img.get("#text", "")
+            break
+    
+    if not imagen_url and imagen:
+        imagen_url = imagen[-1].get("#text", "")
+    
+    # Limpiar biografía (quitar etiquetas HTML)
+    bio = re.sub(r'<[^>]+>', '', bio)
+    if len(bio) > 400:
+        bio = bio[:400] + "..."
+    
+    embed = discord.Embed(
+        title=f"{nombre_artista}",
+        description=bio if bio else "Sin biografía disponible",
+        color=AZUL_IPOD_NUM
+    )
+    embed.add_field(name=">  Oyentes", value=f"{int(oyentes):,}" if oyentes != "No disponible" else oyentes, inline=True)
+    embed.add_field(name=">  Reproducciones", value=f"{int(plays):,}" if plays != "No disponible" else plays, inline=True)
+    
+    if imagen_url:
+        embed.set_thumbnail(url=imagen_url)
+    
+    embed.set_footer(text=f"Solicitado por {ctx.author.display_name} | Last.fm")
+    
+    await ctx.send(embed=embed)
+
+
+async def artista_wikipedia(ctx: commands.Context, nombre: str):
+    """Fallback a Wikipedia si no hay API Key"""
+    
+    url = f"https://es.wikipedia.org/api/rest_v1/page/summary/{nombre.replace(' ', '_')}"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                await ctx.send(f"> No se encontró información de: **{nombre}**")
+                return
+            data = await resp.json()
+    
+    titulo = data.get("title", nombre)
+    descripcion = data.get("extract", "Sin descripción disponible")
+    imagen = data.get("thumbnail", {}).get("source", "")
+    
+    if len(descripcion) > 500:
+        descripcion = descripcion[:500] + "..."
+    
+    embed = discord.Embed(
+        title=f"{titulo}",
+        description=descripcion,
+        color=AZUL_IPOD_NUM
+    )
+    
+    if imagen:
+        embed.set_thumbnail(url=imagen)
+    
+    embed.set_footer(text="Wikipedia | La enciclopedia libre")
+    
+    await ctx.send(embed=embed)
         
 # -------------------------
 # FLASK WEB
