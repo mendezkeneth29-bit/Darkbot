@@ -656,43 +656,6 @@ async def generar_ship(usuario1: discord.Member, usuario2: discord.Member, porce
     buf.seek(0)
     return discord.File(buf, filename="ship.png")
 
-async def generar_spotify_search(tracks: list, query: str) -> discord.File:
-    filas = min(len(tracks), 4)
-    W, H  = 680, 110 + (filas * 80)
-    img  = Image.new("RGBA", (W, H), FONDO_G)
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_OSCURO)
-    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, fill=(18, 18, 18))
-    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS_G, width=1)
-    draw.text((42, 24), "Spotify Search", font=fuente(11), fill=SUB_G)
-    query_texto = query[:55] + "..." if len(query) > 55 else query
-    draw.text((42, 42), query_texto, font=fuente(15, bold=True), fill=TEXTO_G)
-    draw.rectangle([(24, 86), (656, 87)], fill=GRIS_G)
-    for n, track in enumerate(tracks[:4]):
-        y = 96 + (n * 80)
-        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, fill=(20, 20, 20) if n % 2 == 0 else OSCU_G)
-        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, outline=GRIS_G, width=1)
-        try:
-            cover = await descargar_imagen(track["cover"])
-            cover = cover.resize((52, 52)).convert("RGBA")
-            mask  = Image.new("L", (52, 52), 0)
-            ImageDraw.Draw(mask).rounded_rectangle([(0, 0), (52, 52)], radius=6, fill=255)
-            cover_r = Image.new("RGBA", (52, 52), (0, 0, 0, 0))
-            cover_r.paste(cover, (0, 0), mask)
-            img.paste(cover_r, (36, y + 8), cover_r)
-        except:
-            draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS_G)
-        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=AZUL_OSCURO)
-        nombre  = track["nombre"][:38] + "..." if len(track["nombre"]) > 38 else track["nombre"]
-        draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO_G)
-        artista = track["artista"][:45] + "..." if len(track["artista"]) > 45 else track["artista"]
-        draw.text((118, y + 30), artista, font=fuente(12), fill=BLANCO)
-        draw.text((634, y + 28), track.get("duracion", ""), font=fuente(11), fill=SUB_G, anchor="ra")
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="spotify_search.png")
-
 async def generar_claves_list(usuario: discord.Member, claves: dict) -> discord.File:
     filas = min(len(claves), 8)
     W, H  = 680, 90 + (filas * 50)
@@ -1275,387 +1238,6 @@ async def embed_create(i: discord.Interaction, canal: discord.TextChannel = None
     if autor_nombre: embed.set_author(name=autor_nombre)
     await canal.send(embed=embed)
     await i.response.send_message("Embed enviado", ephemeral=True)
-
-# =========================================================
-# CONFIGURACIÓN
-# =========================================================
-
-# Obtén tu API Key gratis en: https://www.last.fm/api/account/create
-LASTFM_API_KEY = os.getenv("FM_API_KEY")
-
-# =========================================================
-# FUNCIÓN PARA BUSCAR EN LAST.FM
-# =========================================================
-
-async def buscar_lastfm(cancion: str) -> list:
-    """
-    Busca canciones en Last.fm usando su API oficial
-    
-    Args:
-        cancion: Nombre de la canción a buscar
-        
-    Returns:
-        Lista de diccionarios con información de las canciones
-    """
-    
-    if not LASTFM_API_KEY:
-        print("FM_API_KEY no configurada")
-        return []
-    
-    # Limpiar el nombre de la canción para la URL
-    query = urllib.parse.quote(cancion)
-    
-    # URL de la API de Last.fm para búsqueda de canciones
-    url = f"http://ws.audioscrobbler.com/2.0/?method=track.search&track={query}&api_key={LASTFM_API_KEY}&format=json&limit=4"
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status != 200:
-                    print(f"Error en Last.fm API: {resp.status}")
-                    return []
-                
-                data = await resp.json()
-        
-        tracks = []
-        
-        # Extraer los resultados
-        resultados = data.get('results', {}).get('trackmatches', {}).get('track', [])
-        
-        for track in resultados:
-            # Obtener información de la canción
-            nombre = track.get('name', 'Sin nombre')
-            artista = track.get('artist', 'Desconocido')
-            url_lastfm = track.get('url', 'https://www.last.fm')
-            
-            # Obtener imagen (la última es la más grande)
-            imagenes = track.get('image', [])
-            imagen_url = ""
-            if imagenes:
-                # Buscar imagen de tamaño "large" o "extralarge"
-                for img in imagenes:
-                    if img.get('size') in ['large', 'extralarge'] and img.get('#text'):
-                        imagen_url = img.get('#text')
-                        break
-                if not imagen_url:
-                    imagen_url = imagenes[-1].get('#text', '')
-            
-            # Obtener duración (si está disponible)
-            duracion_texto = "Desconocida"
-            # Last.fm no da duración directamente en search, se necesita otra llamada
-            # Por ahora dejamos "Desconocida", se puede mejorar después
-            
-            tracks.append({
-                "nombre": nombre,
-                "artista": artista,
-                "cover": imagen_url,
-                "duracion": duracion_texto,
-                "url": url_lastfm
-            })
-        
-        return tracks
-        
-    except asyncio.TimeoutError:
-        print("Timeout en Last.fm API")
-        return []
-    except Exception as e:
-        print(f"Error en buscar_lastfm: {e}")
-        return []
-
-
-# =========================================================
-# FUNCIÓN PARA BUSCAR DETALLES DE UNA CANCIÓN ESPECÍFICA
-# =========================================================
-
-async def get_track_info(artista: str, cancion: str) -> dict:
-    """
-    Obtiene información detallada de una canción específica
-    
-    Args:
-        artista: Nombre del artista
-        cancion: Nombre de la canción
-        
-    Returns:
-        Diccionario con información detallada
-    """
-    
-    if not LASTFM_API_KEY:
-        return {}
-    
-    query = urllib.parse.quote(f"{artista} {cancion}")
-    url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={LASTFM_API_KEY}&artist={urllib.parse.quote(artista)}&track={urllib.parse.quote(cancion)}&format=json"
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status != 200:
-                    return {}
-                data = await resp.json()
-        
-        track = data.get('track', {})
-        
-        # Extraer información detallada
-        resultado = {
-            "nombre": track.get('name', cancion),
-            "artista": track.get('artist', {}).get('name', artista),
-            "album": track.get('album', {}).get('title', 'Sin álbum'),
-            "duracion": track.get('duration', 0),
-            "oyentes": track.get('listeners', 0),
-            "reproducciones": track.get('playcount', 0),
-            "url": track.get('url', ''),
-        }
-        
-        # Obtener imagen del álbum
-        imagenes = track.get('album', {}).get('image', [])
-        if imagenes:
-            for img in imagenes:
-                if img.get('size') == 'extralarge' and img.get('#text'):
-                    resultado["imagen"] = img.get('#text')
-                    break
-            if not resultado.get("imagen"):
-                resultado["imagen"] = imagenes[-1].get('#text', '')
-        
-        # Formatear duración
-        duracion = int(resultado["duracion"]) if resultado["duracion"] else 0
-        if duracion:
-            minutos = duracion // 60
-            segundos = duracion % 60
-            resultado["duracion_texto"] = f"{minutos}:{segundos:02d}"
-        else:
-            resultado["duracion_texto"] = "Desconocida"
-        
-        # Formatear números
-        if resultado["oyentes"]:
-            oyentes = int(resultado["oyentes"])
-            if oyentes >= 1000000:
-                resultado["oyentes_texto"] = f"{oyentes / 1000000:.1f}M"
-            elif oyentes >= 1000:
-                resultado["oyentes_texto"] = f"{oyentes / 1000:.1f}K"
-            else:
-                resultado["oyentes_texto"] = str(oyentes)
-        
-        return resultado
-        
-    except Exception as e:
-        print(f"Error en get_track_info: {e}")
-        return {}
-
-
-# =========================================================
-# GENERAR TARJETA DE RESULTADOS
-# =========================================================
-
-async def generar_spotify_search(tracks: list, query: str) -> discord.File:
-    """Genera una tarjeta visual con los resultados de búsqueda"""
-    
-    filas = min(len(tracks), 4)
-    W = 680
-    H = 110 + (filas * 80)
-    
-    FONDO_G = (14, 14, 14)
-    GRIS_G = (42, 42, 42)
-    OSCU_G = (21, 21, 21)
-    TEXTO_G = (255, 255, 255)
-    SUB_G = (136, 136, 136)
-    
-    img = Image.new("RGBA", (W, H), FONDO_G)
-    draw = ImageDraw.Draw(img)
-    
-    # Barra lateral de color
-    draw.rounded_rectangle([(0, 0), (6, H)], radius=3, fill=AZUL_IPOD_NUM)
-    
-    # Header
-    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, fill=(20, 20, 20))
-    draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS_G, width=1)
-    
-    # Usar la función fuente()
-    draw.text((42, 24), "Busqueda Musical", font=fuente(11), fill=SUB_G)
-    query_texto = query[:55] + "..." if len(query) > 55 else query
-    draw.text((42, 42), query_texto, font=fuente(15, bold=True), fill=TEXTO_G)
-    
-    # Separador
-    draw.rectangle([(24, 86), (656, 87)], fill=GRIS_G)
-    
-    # Resultados
-    for n, track in enumerate(tracks[:4]):
-        y = 96 + (n * 80)
-        color_fila = (22, 22, 22) if n % 2 == 0 else OSCU_G
-        
-        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, fill=color_fila)
-        draw.rounded_rectangle([(24, y), (656, y + 68)], radius=10, outline=GRIS_G, width=1)
-        
-        # Portada
-        if track.get("cover"):
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(track["cover"]) as resp:
-                        if resp.status == 200:
-                            cover_data = await resp.read()
-                            cover = Image.open(io.BytesIO(cover_data)).convert("RGBA")
-                            cover = cover.resize((52, 52))
-                            mascara = Image.new("L", (52, 52), 0)
-                            ImageDraw.Draw(mascara).rounded_rectangle([(0, 0), (52, 52)], radius=6, fill=255)
-                            cover_r = Image.new("RGBA", (52, 52), (0, 0, 0, 0))
-                            cover_r.paste(cover, (0, 0), mascara)
-                            img.paste(cover_r, (36, y + 8), cover_r)
-            except:
-                draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS_G)
-        else:
-            draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS_G)
-        
-        # Número (usar fuente())
-        draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=AZUL_IPOD_NUM)
-        
-        # Nombre canción (usar fuente())
-        nombre = track["nombre"][:38] + "..." if len(track["nombre"]) > 38 else track["nombre"]
-        draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO_G)
-        
-        # Artista (usar fuente())
-        artista = track["artista"][:45] + "..." if len(track["artista"]) > 45 else track["artista"]
-        draw.text((118, y + 30), artista, font=fuente(12), fill=AZUL_IPOD_NUM)
-        
-        # Duración (usar fuente())
-        duracion = track.get("duracion", "")
-        draw.text((634, y + 28), duracion, font=fuente(11), fill=SUB_G, anchor="ra")
-    
-    buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="PNG")
-    buf.seek(0)
-    return discord.File(buf, filename="busqueda_musical.png")
-
-
-# =========================================================
-# VISTA CON BOTONES
-# =========================================================
-
-class SpotifySearchView(discord.ui.View):
-    def __init__(self, tracks: list):
-        super().__init__(timeout=60)
-        for n, track in enumerate(tracks[:4]):
-            nombre = track["nombre"][:40] + "..." if len(track["nombre"]) > 40 else track["nombre"]
-            self.add_item(discord.ui.Button(
-                label=f"{n+1}. {nombre}",
-                url=track["url"],
-                style=discord.ButtonStyle.link,
-                emoji="<:music:1504691247619641404>"
-            ))
-
-
-# =========================================================
-# COMANDOS SPOTIFY-SEARCH (SLASH y PREFIX)
-# =========================================================
-
-@bot.tree.command(name="spotify-search", description="Busca una cancion en Last.fm")
-async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
-    await i.response.defer()
-    
-    if not LASTFM_API_KEY:
-        embed = discord.Embed(
-            description=">  API Key de Last.fm no configurada.\n> El administrador debe agregar `LASTFM_API_KEY` en las variables de entorno.\n> 📝 Obtén tu clave gratis en: https://www.last.fm/api/account/create",
-            color=AZUL_IPOD_NUM
-        )
-        await i.followup.send(embed=embed, ephemeral=True)
-        return
-    
-    try:
-        tracks = await buscar_lastfm(cancion)
-        
-        if not tracks:
-            embed = discord.Embed(
-                description=f"> No se encontraron resultados para: **{cancion}**",
-                color=AZUL_IPOD_NUM
-            )
-            await i.followup.send(embed=embed, ephemeral=True)
-            return
-        
-        archivo = await generar_spotify_search(tracks, cancion)
-        view = SpotifySearchView(tracks)
-        await i.followup.send(file=archivo, view=view)
-        
-    except Exception as e:
-        embed = discord.Embed(
-            description=f"> Error: `{str(e)[:100]}`",
-            color=AZUL_IPOD_NUM
-        )
-        await i.followup.send(embed=embed, ephemeral=True)
-
-
-@bot.command(name="spotify-search")
-async def spotify_buscar_prefix(ctx, *, cancion: str):
-    if not LASTFM_API_KEY:
-        embed = discord.Embed(
-            description=">  API Key de Last.fm no configurada.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    async with ctx.typing():
-        try:
-            tracks = await buscar_lastfm(cancion)
-            
-            if not tracks:
-                embed = discord.Embed(
-                    description=f"> No se encontraron resultados para: **{cancion}**",
-                    color=AZUL_IPOD_NUM
-                )
-                await ctx.send(embed=embed)
-                return
-            
-            archivo = await generar_spotify_search(tracks, cancion)
-            view = SpotifySearchView(tracks)
-            await ctx.send(file=archivo, view=view)
-            
-        except Exception as e:
-            embed = discord.Embed(
-                description=f"> Error: `{str(e)[:100]}`",
-                color=AZUL_IPOD_NUM
-            )
-            await ctx.send(embed=embed)
-
-
-# =========================================================
-# COMANDO ADICIONAL: INFO DE CANCIÓN ESPECÍFICA
-# =========================================================
-
-@bot.hybrid_command(name="track-info", description="Información detallada de una canción")
-async def track_info(ctx: commands.Context, artista: str, cancion: str):
-    """Obtiene información detallada de una canción específica"""
-    
-    await ctx.defer() if ctx.interaction else None
-    
-    if not LASTFM_API_KEY:
-        embed = discord.Embed(
-            description=">  API Key de Last.fm no configurada.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    info = await get_track_info(artista, cancion)
-    
-    if not info:
-        embed = discord.Embed(
-            description=f"> No se encontró la canción: **{cancion}** de **{artista}**",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    embed = discord.Embed(
-        title=f"{info.get('nombre', cancion)}",
-        description=f"**Artista:** {info.get('artista', artista)}\n**Álbum:** {info.get('album', 'Desconocido')}",
-        color=AZUL_IPOD_NUM,
-        url=info.get('url', '')
-    )
-    embed.add_field(name=">  Duración", value=info.get('duracion_texto', 'Desconocida'), inline=True)
-    embed.add_field(name=">  Oyentes", value=info.get('oyentes_texto', 'N/A'), inline=True)
-    embed.add_field(name=">  Reproducciones", value=f"{int(info.get('reproducciones', 0)):,}" if info.get('reproducciones') else 'N/A', inline=True)
-    
-    if info.get('imagen'):
-        embed.set_thumbnail(url=info['imagen'])
-    
-    await ctx.send(embed=embed)
     
 # =========================================================
 # ROBLOX
@@ -4164,6 +3746,417 @@ async def artista(ctx: commands.Context, *, nombre: str):
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
+
+# =========================================================
+# SPOTIFY SEARCH CON JAMENDO API - Versión Embed Completa
+# =========================================================
+
+import aiohttp
+import discord
+from discord.ext import commands
+from discord import app_commands
+import urllib.parse
+import os
+import asyncio
+
+# =========================================================
+# CONFIGURACIÓN
+# =========================================================
+
+# Obtener Client ID de las variables de entorno
+JAMENDO_CLIENT_ID = os.getenv("JAMENDO_CLIENT_ID")
+
+# Colores
+AZUL_IPOD_NUM = 0x5AC8FA
+
+
+# =========================================================
+# FUNCIÓN PARA BUSCAR EN JAMENDO
+# =========================================================
+
+async def buscar_jamendo(cancion: str) -> list:
+    """
+    Busca canciones en Jamendo Music (35000 requests/mes gratis)
+    
+    Args:
+        cancion: Nombre de la canción a buscar
+        
+    Returns:
+        Lista de diccionarios con información de las canciones
+    """
+    
+    if not JAMENDO_CLIENT_ID:
+        print("JAMENDO_CLIENT_ID no configurada")
+        return []
+    
+    # Limpiar la búsqueda para la URL
+    query = urllib.parse.quote(cancion)
+    
+    # URL de búsqueda de tracks en Jamendo
+    url = f"https://api.jamendo.com/v3.0/tracks/?client_id={JAMENDO_CLIENT_ID}&format=json&limit=5&search={query}&include=musicinfo"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    print(f"Error en Jamendo API: {resp.status}")
+                    return []
+                data = await resp.json()
+        
+        tracks = []
+        
+        # Verificar si la respuesta es exitosa
+        if data.get("headers", {}).get("status") != "success":
+            print(f"Error en respuesta de Jamendo: {data.get('headers', {})}")
+            return []
+        
+        # Procesar resultados
+        for track in data.get("results", []):
+            nombre = track.get("name", "Sin nombre")
+            artista = track.get("artist_name", "Desconocido")
+            album = track.get("album_name", "Sin álbum")
+            duracion_seg = track.get("duration", 0)
+            id_track = track.get("id", "")
+            
+            # Formatear duración (segundos a mm:ss)
+            if duracion_seg:
+                minutos = int(duracion_seg) // 60
+                segundos = int(duracion_seg) % 60
+                duracion_texto = f"{minutos}:{segundos:02d}"
+            else:
+                duracion_texto = "Desconocida"
+            
+            # Obtener imagen de portada del álbum
+            imagen_url = track.get("album_image", "") or track.get("image", "")
+            
+            # Enlace a la página de Jamendo
+            share_url = track.get("shareurl", "")
+            
+            tracks.append({
+                "nombre": nombre,
+                "artista": artista,
+                "album": album,
+                "duracion": duracion_texto,
+                "cover": imagen_url,
+                "url": share_url or f"https://www.jamendo.com/track/{id_track}",
+                "id": id_track
+            })
+        
+        return tracks
+        
+    except asyncio.TimeoutError:
+        print("Timeout en Jamendo API")
+        return []
+    except Exception as e:
+        print(f"Error en buscar_jamendo: {e}")
+        return []
+
+
+# =========================================================
+# VISTA CON BOTONES (Lista de enlaces)
+# =========================================================
+
+class ResultadosMusicaView(discord.ui.View):
+    def __init__(self, tracks: list):
+        super().__init__(timeout=60)
+        
+        # Crear un botón por cada canción (máximo 5)
+        for i, track in enumerate(tracks[:5]):
+            # Limitar el nombre del botón a 50 caracteres
+            nombre_boton = track['nombre'][:45] + "..." if len(track['nombre']) > 45 else track['nombre']
+            
+            self.add_item(discord.ui.Button(
+                label=f"{i+1}. {nombre_boton}",
+                url=track['url'],
+                style=discord.ButtonStyle.link,
+                emoji="<:music:1504691247619641404>"
+            ))
+    
+    @discord.ui.button(label="Cerrar", style=discord.ButtonStyle.danger)
+    async def cerrar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Botón para eliminar el mensaje"""
+        await interaction.message.delete()
+        self.stop()
+
+
+# =========================================================
+# FUNCIÓN PARA GENERAR EMBED CON RESULTADOS
+# =========================================================
+
+async def generar_embed_resultados(tracks: list, query: str) -> discord.Embed:
+    """
+    Genera un embed con todos los resultados de búsqueda
+    
+    Args:
+        tracks: Lista de canciones encontradas
+        query: Término de búsqueda original
+        
+    Returns:
+        Discord Embed con los resultados formateados
+    """
+    
+    embed = discord.Embed(
+        title=f"Resultados para: {query[:50]}",
+        description=f"Se encontraron **{len(tracks)}** canciones en Jamendo Music",
+        color=AZUL_IPOD_NUM
+    )
+    
+    # Agregar cada canción como un campo en el embed
+    for i, track in enumerate(tracks[:5]):
+        # Construir el texto de la canción
+        texto_cancion = (
+            f"> **Artista:** {track['artista']}\n"
+            f"> **Álbum:** {track['album'][:50]}\n"
+            f"> **Duración:** {track['duracion']}\n"
+            f"> **[Escuchar en Jamendo]({track['url']})**"
+        )
+        
+        # Agregar portada si existe (como thumbnail en el campo)
+        if track['cover']:
+            # No podemos poner imágenes en campos, así que solo mostramos el nombre
+            pass
+        
+        embed.add_field(
+            name=f"**{i+1}. {track['nombre'][:60]}**",
+            value=texto_cancion,
+            inline=False
+        )
+    
+    # Agregar imagen de portada de la primera canción si existe
+    if tracks and tracks[0].get('cover'):
+        embed.set_thumbnail(url=tracks[0]['cover'])
+    
+    embed.set_footer(text="Música con licencias Creative Commons | Jamendo API")
+    embed.set_author(name="Misti Music", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+    
+    return embed
+
+
+# =========================================================
+# COMANDOS PRINCIPALES (SLASH y PREFIX)
+# =========================================================
+
+@bot.tree.command(name="spotify-search", description="Busca canciones en Jamendo Music")
+async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
+    """
+    Busca canciones en la base de datos de Jamendo Music
+    
+    Ejemplos:
+    /spotify-search play date
+    /spotify-search despacito
+    """
+    
+    await i.response.defer()
+    
+    # Verificar que la API Key esté configurada
+    if not JAMENDO_CLIENT_ID:
+        embed = discord.Embed(
+            title="Error de configuración",
+            description="> **API Key de Jamendo no configurada**\n\n"
+                       "El administrador debe agregar `JAMENDO_CLIENT_ID` en las variables de entorno de Render.\n\n"
+                       "**Cómo obtener una clave gratis:**\n"
+                       "1. Ve [aqui](https://devportal.jamendo.com)\n"
+                       "2. Regístrate y crea una aplicación\n"
+                       "3. Copia tu Client ID\n"
+                       "4. Agrégalo como `JAMENDO_CLIENT_ID` en Render",
+            color=AZUL_IPOD_NUM
+        )
+        await i.followup.send(embed=embed, ephemeral=True)
+        return
+    
+    # Verificar que se ingresó una búsqueda
+    if not cancion or len(cancion.strip()) < 2:
+        embed = discord.Embed(
+            description=">  Por favor, ingresa un nombre de canción válido (mínimo 2 caracteres)",
+            color=AZUL_IPOD_NUM
+        )
+        await i.followup.send(embed=embed, ephemeral=True)
+        return
+    
+    try:
+        # Buscar canciones
+        tracks = await buscar_jamendo(cancion)
+        
+        # Verificar si hay resultados
+        if not tracks:
+            embed = discord.Embed(
+                title="Sin resultados",
+                description=f"> No se encontraron canciones para: **{cancion}**\n\n"
+                           f"**Sugerencias:**\n"
+                           f"• Verifica la ortografía\n"
+                           f"• Intenta con el nombre del artista\n"
+                           f"• Usa términos más generales",
+                color=AZUL_IPOD_NUM
+            )
+            await i.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        # Generar embed con resultados
+        embed_resultados = await generar_embed_resultados(tracks, cancion)
+        
+        # Crear vista con botones de enlace
+        view = ResultadosMusicaView(tracks)
+        
+        # Enviar resultado
+        await i.followup.send(embed=embed_resultados, view=view)
+        
+    except asyncio.TimeoutError:
+        embed = discord.Embed(
+            description=">  **Tiempo de espera agotado**\nLa búsqueda tardó demasiado. Intenta de nuevo.",
+            color=AZUL_IPOD_NUM
+        )
+        await i.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        embed = discord.Embed(
+            title=" Error inesperado",
+            description=f"> ```{str(e)[:200]}```\n\nSi el problema persiste, contacta al administrador.",
+            color=AZUL_IPOD_NUM
+        )
+        await i.followup.send(embed=embed, ephemeral=True)
+
+
+@bot.command(name="spotify-search")
+async def spotify_buscar_prefix(ctx, *, cancion: str):
+    """
+    Busca canciones en Jamendo Music (comando con prefijo)
+    
+    Ejemplos:
+    >mt spotify-search play date
+    >mt spotify-search despacito
+    """
+    
+    # Verificar API Key
+    if not JAMENDO_CLIENT_ID:
+        embed = discord.Embed(
+            description=">  API Key de Jamendo no configurada.\nEl administrador debe agregar `JAMENDO_CLIENT_ID` en Render.",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    # Verificar búsqueda válida
+    if not cancion or len(cancion.strip()) < 2:
+        embed = discord.Embed(
+            description=">  Por favor, ingresa un nombre de canción válido (mínimo 2 caracteres)",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    async with ctx.typing():
+        try:
+            # Buscar canciones
+            tracks = await buscar_jamendo(cancion)
+            
+            # Verificar resultados
+            if not tracks:
+                embed = discord.Embed(
+                    description=f">  No se encontraron canciones para: **{cancion}**",
+                    color=AZUL_IPOD_NUM
+                )
+                await ctx.send(embed=embed)
+                return
+            
+            # Generar embed y vista
+            embed_resultados = await generar_embed_resultados(tracks, cancion)
+            view = ResultadosMusicaView(tracks)
+            
+            await ctx.send(embed=embed_resultados, view=view)
+            
+        except Exception as e:
+            await ctx.send(f"Error: ```{e}```")
+
+
+# =========================================================
+# COMANDO ADICIONAL: INFO DE CANCIÓN ESPECÍFICA
+# =========================================================
+
+@bot.hybrid_command(name="track-info", description="Información detallada de una canción")
+async def track_info(ctx: commands.Context, artista: str, cancion: str):
+    """
+    Obtiene información detallada de una canción específica por artista y título
+    
+    Ejemplos:
+    >mt track-info Melanie Martinez Play Date
+    /track-info artista:Melanie Martinez cancion:Play Date
+    """
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    if not JAMENDO_CLIENT_ID:
+        embed = discord.Embed(
+            description=">  API Key de Jamendo no configurada.",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    query = urllib.parse.quote(f"{artista} {cancion}")
+    url = f"https://api.jamendo.com/v3.0/tracks/?client_id={JAMENDO_CLIENT_ID}&format=json&limit=1&search={query}"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    await ctx.send(f">  Error al buscar la canción")
+                    return
+                data = await resp.json()
+        
+        if data.get("headers", {}).get("status") != "success":
+            await ctx.send(f">  No se encontró la canción: **{cancion}** de **{artista}**")
+            return
+        
+        tracks = data.get("results", [])
+        if not tracks:
+            await ctx.send(f">  No se encontró la canción: **{cancion}** de **{artista}**")
+            return
+        
+        track = tracks[0]
+        
+        nombre = track.get("name", cancion)
+        artista_nombre = track.get("artist_name", artista)
+        album = track.get("album_name", "Sin álbum")
+        duracion_seg = track.get("duration", 0)
+        id_track = track.get("id", "")
+        imagen_url = track.get("album_image", "") or track.get("image", "")
+        share_url = track.get("shareurl", "")
+        
+        # Formatear duración
+        if duracion_seg:
+            minutos = int(duracion_seg) // 60
+            segundos = int(duracion_seg) % 60
+            duracion_texto = f"{minutos}:{segundos:02d}"
+        else:
+            duracion_texto = "Desconocida"
+        
+        # Crear embed
+        embed = discord.Embed(
+            title=f"{nombre}",
+            description=f"**Artista:** {artista_nombre}\n**Álbum:** {album}",
+            color=AZUL_IPOD_NUM,
+            url=share_url or f"https://www.jamendo.com/track/{id_track}"
+        )
+        embed.add_field(name=">  Duración", value=duracion_texto, inline=True)
+        
+        if imagen_url:
+            embed.set_thumbnail(url=imagen_url)
+        
+        embed.set_footer(text="Jamendo Music | Creative Commons")
+        
+        # Agregar botón de escuchar
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(
+            label="Escuchar",
+            url=share_url or f"https://www.jamendo.com/track/{id_track}",
+            style=discord.ButtonStyle.link,
+            emoji="<:headphones:1509700089948405840>"
+        ))
+        
+        await ctx.send(embed=embed, view=view)
+        
+    except Exception as e:
+        await ctx.send(f"> Error: `{str(e)[:100]}`")
         
 # -------------------------
 # FLASK WEB
