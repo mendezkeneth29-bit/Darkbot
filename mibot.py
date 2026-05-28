@@ -19,6 +19,41 @@ from flask import Flask
 import threading
 
 # =========================================================
+# FUNCIÓN DE FUENTES
+# =========================================================
+
+def fuente(size: int, bold: bool = False):
+    """Carga fuentes para Pillow con fallbacks"""
+    opciones = [
+        # Fuentes comunes en Linux (Render)
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        # Fallback a fuentes básicas
+        "/System/Library/Fonts/Helvetica.ttc",  # macOS
+        "C:\\Windows\\Fonts\\Arial.ttf",  # Windows
+    ]
+    
+    if bold:
+        opciones_bold = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+            "/System/Library/Fonts/Helvetica-Bold.ttc",
+            "C:\\Windows\\Fonts\\Arialbd.ttf",
+        ]
+        opciones = opciones_bold + opciones
+    
+    for path in opciones:
+        try:
+            return ImageFont.truetype(path, size)
+        except:
+            continue
+    
+    # Si nada funciona, usar fuente por defecto
+    return ImageFont.load_default()
+
+# =========================================================
 # SISTEMA DE PERSISTENCIA — Agrega esto a tu bot.py
 # =========================================================
 # Reemplaza las variables globales de datos y agrega las
@@ -1242,10 +1277,6 @@ async def embed_create(i: discord.Interaction, canal: discord.TextChannel = None
     await i.response.send_message("Embed enviado", ephemeral=True)
 
 # =========================================================
-# SPOTIFY SEARCH
-# =========================================================
-
-# =========================================================
 # CONFIGURACIÓN
 # =========================================================
 
@@ -1436,6 +1467,8 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
     # Header
     draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, fill=(20, 20, 20))
     draw.rounded_rectangle([(24, 16), (656, 72)], radius=12, outline=GRIS_G, width=1)
+    
+    # Usar la función fuente()
     draw.text((42, 24), "Busqueda Musical", font=fuente(11), fill=SUB_G)
     query_texto = query[:55] + "..." if len(query) > 55 else query
     draw.text((42, 42), query_texto, font=fuente(15, bold=True), fill=TEXTO_G)
@@ -1470,18 +1503,18 @@ async def generar_spotify_search(tracks: list, query: str) -> discord.File:
         else:
             draw.rounded_rectangle([(36, y + 8), (88, y + 60)], radius=6, fill=GRIS_G)
         
-        # Número
+        # Número (usar fuente())
         draw.text((100, y + 8), f"{n+1}.", font=fuente(12, bold=True), fill=AZUL_IPOD_NUM)
         
-        # Nombre canción
+        # Nombre canción (usar fuente())
         nombre = track["nombre"][:38] + "..." if len(track["nombre"]) > 38 else track["nombre"]
         draw.text((118, y + 8), nombre, font=fuente(14, bold=True), fill=TEXTO_G)
         
-        # Artista
+        # Artista (usar fuente())
         artista = track["artista"][:45] + "..." if len(track["artista"]) > 45 else track["artista"]
         draw.text((118, y + 30), artista, font=fuente(12), fill=AZUL_IPOD_NUM)
         
-        # Duración
+        # Duración (usar fuente())
         duracion = track.get("duracion", "")
         draw.text((634, y + 28), duracion, font=fuente(11), fill=SUB_G, anchor="ra")
     
