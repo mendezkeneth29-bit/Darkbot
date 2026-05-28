@@ -3035,10 +3035,8 @@ async def lugares_search(ctx: commands.Context, *, lugar: str):
         
 # -----------------------SECCION "2"----------------------------
 
-# Variable global para guardar el pensamiento activo
-pensamiento_actual = {"texto": None, "expira": None}
+# --- CLASES PARA EL SELECTOR ---
 
-# 1. Definir el menú de selección de tiempo
 class DuracionSelect(discord.ui.Select):
     def __init__(self):
         options = [
@@ -3052,55 +3050,29 @@ class DuracionSelect(discord.ui.Select):
         super().__init__(placeholder="Elige cuánto durará el pensamiento...", options=options)
 
     async def callback(self, interaction: discord.Interaction):
+        # Lógica cuando el usuario selecciona una opción
         seleccion = self.values[0]
-        ahora = datetime.utcnow()
-        
-        # Calcular duración
-        duraciones = {
-            "1_h": timedelta(hours=1),
-            "5_h": timedelta(hours=5),
-            "1_d": timedelta(days=1),
-            "1_w": timedelta(weeks=1),
-            "1_m": timedelta(days=30),
-            "forever": None
-        }
-
-        delta = duraciones[seleccion]
-        expira = ahora + delta if delta else None
-        
-        # Guardar en la variable global (esto persiste mientras el bot esté prendido)
-        pensamiento_actual["expira"] = expira
-        
-        await interaction.response.send_message(
-            f"> Pensamiento guardado: *{pensamiento_actual['texto']}*\n"
-            f"> Expira: {'Nunca' if expira is None else expira.strftime('%d/%m %H:%M')} UTC",
-            ephemeral=True
-        )
+        # Aquí puedes guardar en tu base de datos o variable global
+        await interaction.response.send_message(f"> Pensamiento activo por: {seleccion}", ephemeral=True)
 
 class PensamientoView(discord.ui.View):
-    def __init__(self, texto):
-        super().__init__()
+    def __init__(self):
+        super().__init__(timeout=None) # Timeout None para que no expire
         self.add_item(DuracionSelect())
 
-# 2. El comando híbrido
+# --- COMANDO HÍBRIDO ---
+
 @bot.hybrid_command(name="pensamiento", description="Establece un pensamiento para el bot")
 async def set_pensamiento(ctx: commands.Context, *, texto: str):
-    # Guardamos el texto temporalmente
+    # Si es slash command, requerimos defer para evitar el error de "interacción fallida"
+    if ctx.interaction:
+        await ctx.defer()
+    
+    # Aquí guardarías el texto en tu base de datos o variable global
     pensamiento_actual["texto"] = texto
     
-    view = PensamientoView(texto)
-    await ctx.send(f"Has escrito: *{texto}*\nAhora elige la duración:", view=view)
-
-# 3. (Opcional) Un comando para mostrarlo
-@bot.hybrid_command(name="ver_pensamiento", description="Ver el pensamiento activo")
-async def ver_pensamiento(ctx: commands.Context):
-    p = pensamiento_actual["texto"]
-    expira = pensamiento_actual["expira"]
-    
-    if not p or (expira and datetime.utcnow() > expira):
-        await ctx.send("No hay pensamientos activos en este momento.")
-    else:
-        await ctx.send(f"> **Pensamiento del bot:**\n> {p}")
+    # Enviamos la vista con el selector
+    await ctx.send(f"Has escrito: *{texto}*\nAhora elige la duración:", view=PensamientoView())
         
 # -------------------------
 # FLASK WEB
