@@ -1553,6 +1553,7 @@ async def cmd_roblox(ctx: commands.Context, *, usuario: str):
     if ctx.interaction: await ctx.defer()
     try:
         async with aiohttp.ClientSession() as session:
+            # 1. Obtener ID del usuario
             data_user = {"usernames": [usuario], "excludeBannedUsers": False}
             async with session.post("https://users.roblox.com/v1/usernames/users", json=data_user) as resp:
                 if resp.status != 200:
@@ -1560,29 +1561,51 @@ async def cmd_roblox(ctx: commands.Context, *, usuario: str):
                 res_user = await resp.json()
                 if not res_user["data"]:
                     await ctx.send(f"> El usuario **{usuario}** no existe"); return
+                
                 user_info    = res_user["data"][0]
                 user_id      = user_info["id"]
                 roblox_user  = user_info["name"]
                 display_name = user_info["displayName"]
+
+            # 2. Detalles de cuenta
             async with session.get(f"https://users.roblox.com/v1/users/{user_id}") as resp:
                 res_details   = await resp.json()
                 fecha_iso     = res_details["created"].split("T")[0]
                 cuenta_creada = datetime.strptime(fecha_iso, "%Y-%m-%d").strftime("%d/%m/%Y")
+
+            # 3. Cantidad de amigos
             async with session.get(f"https://friends.roblox.com/v1/users/{user_id}/friends/count") as resp:
                 cantidad_amigos = (await resp.json()).get("count", 0)
+
+            # 4. ESTADO DE PRESENCIA (NUEVO)
+            estado_texto = "Desconocido"
+            async with session.post("https://presence.roblox.com/v1/presence/users", json={"userIds": [user_id]}) as resp:
+                presence_data = await resp.json()
+                presence = presence_data["userPresences"][0]
+                status_type = presence["userPresenceType"]
+                
+                if status_type == 0: estado_texto = "Desconectado"
+                elif status_type == 1: estado_texto = "En línea"
+                elif status_type == 2: estado_texto = f"Jugando: {presence.get('lastLocation', 'Desconocido')}"
+
+            # 5. Avatar
             avatar_url = "https://images.rbxcdn.com/default_avatar.png"
             async with session.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as resp:
                 if resp.status == 200:
                     res_thumb = await resp.json()
                     if res_thumb["data"]: avatar_url = res_thumb["data"][0]["imageUrl"]
+
+        # Crear Embed
         embed = discord.Embed(color=AZUL_IPOD_NUM, title="Perfil de Roblox")
         embed.add_field(name="Usuario",       value=roblox_user,     inline=True)
         embed.add_field(name="ID",            value=user_id,         inline=True)
         embed.add_field(name="Apodo",         value=display_name,    inline=False)
+        embed.add_field(name="Estado",        value=estado_texto,    inline=True)
         embed.add_field(name="Cuenta Creada", value=cuenta_creada,   inline=True)
         embed.add_field(name="Amigos",        value=cantidad_amigos, inline=True)
         embed.add_field(name="Perfil",        value=f"[ver](https://www.roblox.com/users/{user_id}/profile)", inline=False)
         embed.set_thumbnail(url=avatar_url)
+        
         await ctx.send(embed=embed)
     except Exception as e:
         await ctx.send(f"> Error: {str(e)[:100]}")
