@@ -4069,7 +4069,7 @@ async def buscar_artista(ctx: commands.Context, *, artista: str):
             icon_url=ctx.author.display_avatar.url
         )
         embed.set_author(
-            name="Misti Music")
+            name="Misti Music"
         )
 
         # ── Botón ───────────────────────────────────────────
