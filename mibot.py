@@ -3563,7 +3563,99 @@ async def giveaway(ctx: commands.Context):
         await ctx.send(modal)
 
 # =========================================================
-# COMANDOS SPOTIFY-SEARCH (SLASH y PREFIX) - Una canción
+# LAST.FM — CONFIGURACION
+# =========================================================
+
+LASTFM_API_KEY = os.getenv("LASTFM_API_KEY")
+
+# =========================================================
+# FUNCIÓN PARA BUSCAR CANCIÓN EXACTA
+# =========================================================
+
+async def buscar_cancion_exacta(artista: str, cancion: str) -> dict:
+    if not LASTFM_API_KEY:
+        return None
+
+    url = (
+        f"http://ws.audioscrobbler.com/2.0/"
+        f"?method=track.getInfo"
+        f"&api_key={LASTFM_API_KEY}"
+        f"&artist={urllib.parse.quote(artista.strip())}"
+        f"&track={urllib.parse.quote(cancion.strip())}"
+        f"&format=json"
+    )
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+
+        if "error" in data:
+            return None
+
+        track = data.get("track")
+        if not track:
+            return None
+
+        nombre         = track.get("name", cancion)
+        artista_nombre = track.get("artist", {}).get("name", artista)
+        album          = track.get("album", {}).get("title", "Sin álbum")
+
+        # Duración
+        duracion_seg = int(track.get("duration") or 0)
+        if duracion_seg:
+            duracion_texto = f"{duracion_seg // 60}:{duracion_seg % 60:02d}"
+        else:
+            duracion_texto = "Desconocida"
+
+        # Portada
+        imagenes  = track.get("album", {}).get("image", [])
+        cover_url = ""
+        for img in reversed(imagenes):
+            if img.get("#text"):
+                cover_url = img["#text"]
+                break
+
+        # Oyentes
+        try:
+            oyentes_num  = int(track.get("listeners", 0))
+            if oyentes_num >= 1_000_000:
+                oyentes_texto = f"{oyentes_num / 1_000_000:.1f}M"
+            elif oyentes_num >= 1_000:
+                oyentes_texto = f"{oyentes_num / 1_000:.1f}K"
+            else:
+                oyentes_texto = str(oyentes_num)
+        except (ValueError, TypeError):
+            oyentes_texto = "N/A"
+
+        # Año del álbum
+        año = ""
+        fecha_raw = track.get("album", {}).get("date", {})
+        if isinstance(fecha_raw, dict):
+            fecha_texto = fecha_raw.get("#text", "")
+            if fecha_texto and len(fecha_texto) >= 4:
+                año = fecha_texto[:4]
+
+        return {
+            "nombre":   nombre,
+            "artista":  artista_nombre,
+            "album":    album,
+            "duracion": duracion_texto,
+            "cover":    cover_url,
+            "url":      track.get("url", ""),
+            "año":      año,
+            "oyentes":  oyentes_texto,
+        }
+
+    except Exception as e:
+        print(f"Error en buscar_cancion_exacta: {e}")
+        return None
+
+
+# =========================================================
+# COMANDOS SPOTIFY-SEARCH (SLASH y PREFIX)
 # =========================================================
 
 @bot.tree.command(name="spotify-search", description="Busca una canción exacta en Last.fm")
@@ -3573,287 +3665,158 @@ async def giveaway(ctx: commands.Context):
 )
 async def spotify_buscar_slash(i: discord.Interaction, artista: str, cancion: str):
     await i.response.defer()
-    
+
     if not LASTFM_API_KEY:
         embed = discord.Embed(
-            description="> API Key de Last.fm no configurada.\n> El administrador debe agregar `LASTFM_API_KEY` en las variables de entorno.\n> Obtén tu clave gratis en: https://www.last.fm/api/account/create",
+            description=(
+                "> API Key de Last.fm no configurada.\n"
+                "> El administrador debe agregar `LASTFM_API_KEY` en las variables de entorno.\n"
+                "> Obtén tu clave gratis en: https://www.last.fm/api/account/create"
+            ),
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
         return
-    
-    if not artista or len(artista.strip()) < 2:
-        embed = discord.Embed(
-            description="> Ingresa un nombre de artista válido (mínimo 2 caracteres)",
-            color=AZUL_IPOD_NUM
-        )
-        await i.followup.send(embed=embed, ephemeral=True)
+
+    if len(artista.strip()) < 2:
+        await i.followup.send(embed=discord.Embed(description="> Artista demasiado corto (mínimo 2 caracteres)", color=AZUL_IPOD_NUM), ephemeral=True)
         return
-    
-    if not cancion or len(cancion.strip()) < 2:
-        embed = discord.Embed(
-            description="> Ingresa un nombre de canción válido (mínimo 2 caracteres)",
-            color=AZUL_IPOD_NUM
-        )
-        await i.followup.send(embed=embed, ephemeral=True)
+
+    if len(cancion.strip()) < 2:
+        await i.followup.send(embed=discord.Embed(description="> Canción demasiado corta (mínimo 2 caracteres)", color=AZUL_IPOD_NUM), ephemeral=True)
         return
-    
+
     try:
-        # Buscar la canción exacta por artista y título
         track = await buscar_cancion_exacta(artista, cancion)
-        
+
         if not track:
-            embed = discord.Embed(
-                description=f"> No se encontró la canción: **{cancion}** de **{artista}**",
-                color=AZUL_IPOD_NUM
+            await i.followup.send(
+                embed=discord.Embed(description=f"> No se encontró **{cancion}** de **{artista}**", color=AZUL_IPOD_NUM),
+                ephemeral=True
             )
-            await i.followup.send(embed=embed, ephemeral=True)
             return
-        
-        # Crear embed con la información de la canción
+
         embed = discord.Embed(
-            title=f"{track['nombre']}",
+            title=track["nombre"],
             description=f"**{track['artista']}**",
             color=AZUL_IPOD_NUM,
-            url=track['url']
+            url=track["url"] or None
         )
-        
-        embed.add_field(name="Álbum", value=track['album'], inline=True)
-        embed.add_field(name="⏱️ Duración", value=track['duracion'], inline=True)
-        
-        if track.get('año'):
-            embed.add_field(name="Año", value=track['año'], inline=True)
-        
-        if track.get('oyentes'):
-            embed.add_field(name="Oyentes", value=track['oyentes'], inline=True)
-        
-        if track.get('cover'):
-            embed.set_image(url=track['cover'])
-            embed.set_thumbnail(url=track['cover'])
-        
+        embed.add_field(name="> Álbum",    value=track["album"],    inline=True)
+        embed.add_field(name="> Duración", value=track["duracion"], inline=True)
+        if track["año"]:
+            embed.add_field(name="> Año",     value=track["año"],     inline=True)
+        if track["oyentes"] != "N/A":
+            embed.add_field(name="> Oyentes", value=track["oyentes"], inline=True)
+        if track["cover"]:
+            embed.set_image(url=track["cover"])
+            embed.set_thumbnail(url=track["cover"])
         embed.set_footer(text=f"Last.fm | {artista} - {cancion}")
-        embed.set_author(name="Misti Music", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
-        
-        # Vista con botón para escuchar
+        embed.set_author(name="Misti Music",
+                         icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+
         view = discord.ui.View()
-        view.add_item(discord.ui.Button(
-            label="Escuchar en Last.fm",
-            url=track['url'],
-            style=discord.ButtonStyle.link
-        ))
-        
+        if track["url"]:
+            view.add_item(discord.ui.Button(label="Escuchar en Last.fm", url=track["url"],
+                                            style=discord.ButtonStyle.link))
+
         await i.followup.send(embed=embed, view=view)
-        
+
     except Exception as e:
-        embed = discord.Embed(
-            description=f"> Error: `{str(e)[:100]}`",
-            color=AZUL_IPOD_NUM
+        await i.followup.send(
+            embed=discord.Embed(description=f"> Error: `{str(e)[:100]}`", color=AZUL_IPOD_NUM),
+            ephemeral=True
         )
-        await i.followup.send(embed=embed, ephemeral=True)
 
 
 @bot.command(name="spotify-search")
-async def spotify_buscar_prefix(ctx, artista: str = None, *, cancion: str = None):
+async def spotify_buscar_prefix(ctx, *, texto: str = None):
     """
-    Busca una canción exacta en Last.fm
-    
-    Ejemplos:
-    >mt spotify-search Melanie Martinez Play Date
-    >mt spotify-search "Melanie Martinez" "Play Date"
+    Busca una canción exacta en Last.fm.
+    Uso:
+      >mt spotify-search Melanie Martinez - Play Date
+      >mt spotify-search Melanie Martinez Play Date
     """
-    
-    # Verificar que se proporcionaron ambos argumentos
-    if artista is None or cancion is None:
-        # Intentar separar automáticamente
-        if artista and cancion is None:
-            # El usuario puso todo en un solo argumento
-            texto = artista
-            if " - " in texto:
-                partes = texto.split(" - ", 1)
-                artista = partes[0].strip()
-                cancion = partes[1].strip()
-            elif " por " in texto:
-                partes = texto.split(" por ", 1)
-                cancion = partes[0].strip()
-                artista = partes[1].strip()
-            else:
-                embed = discord.Embed(
-                    description="> Uso: `>mt spotify-search [artista] [canción]`\n> Ejemplo: `>mt spotify-search Melanie Martinez Play Date`\n> También puedes usar: `>mt spotify-search Play Date - Melanie Martinez`",
-                    color=AZUL_IPOD_NUM
-                )
-                await ctx.send(embed=embed)
-                return
-    
+    if not texto:
+        embed = discord.Embed(
+            description=(
+                "> **Uso:** `>mt spotify-search [artista] - [canción]`\n"
+                "> **Ejemplo:** `>mt spotify-search Melanie Martinez - Play Date`"
+            ),
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+
+    # Intentar separar por " - "
+    if " - " in texto:
+        partes  = texto.split(" - ", 1)
+        artista = partes[0].strip()
+        cancion = partes[1].strip()
+    else:
+        # Sin separador: primer palabra = artista es poco fiable,
+        # pedimos al usuario que use el formato correcto
+        embed = discord.Embed(
+            description=(
+                "> Usa el formato: `>mt spotify-search [artista] - [canción]`\n"
+                "> **Ejemplo:** `>mt spotify-search Melanie Martinez - Play Date`"
+            ),
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+
     if not LASTFM_API_KEY:
-        embed = discord.Embed(
-            description="> API Key de Last.fm no configurada.",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
+        await ctx.send(embed=discord.Embed(description="> API Key de Last.fm no configurada.", color=AZUL_IPOD_NUM))
         return
-    
-    if not artista or len(artista.strip()) < 2:
-        embed = discord.Embed(
-            description="> Ingresa un nombre de artista válido (mínimo 2 caracteres)",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
+
+    if len(artista) < 2:
+        await ctx.send(embed=discord.Embed(description="> Artista demasiado corto.", color=AZUL_IPOD_NUM))
         return
-    
-    if not cancion or len(cancion.strip()) < 2:
-        embed = discord.Embed(
-            description="> Ingresa un nombre de canción válido (mínimo 2 caracteres)",
-            color=AZUL_IPOD_NUM
-        )
-        await ctx.send(embed=embed)
+
+    if len(cancion) < 2:
+        await ctx.send(embed=discord.Embed(description="> Nombre de canción demasiado corto.", color=AZUL_IPOD_NUM))
         return
-    
+
     async with ctx.typing():
         try:
-            # Buscar la canción exacta
             track = await buscar_cancion_exacta(artista, cancion)
-            
+
             if not track:
-                embed = discord.Embed(
-                    description=f"> No se encontró la canción: **{cancion}** de **{artista}**",
+                await ctx.send(embed=discord.Embed(
+                    description=f"> No se encontró **{cancion}** de **{artista}**",
                     color=AZUL_IPOD_NUM
-                )
-                await ctx.send(embed=embed)
+                ))
                 return
-            
-            # Crear embed
+
             embed = discord.Embed(
-                title=f"{track['nombre']}",
+                title=track["nombre"],
                 description=f"**{track['artista']}**",
                 color=AZUL_IPOD_NUM,
-                url=track['url']
+                url=track["url"] or None
             )
-            
-            embed.add_field(name="> Álbum", value=track['album'], inline=True)
-            embed.add_field(name="> Duración", value=track['duracion'], inline=True)
-            
-            if track.get('año'):
-                embed.add_field(name="> Año", value=track['año'], inline=True)
-            
-            if track.get('oyentes'):
-                embed.add_field(name="> Oyentes", value=track['oyentes'], inline=True)
-            
-            if track.get('cover'):
-                embed.set_image(url=track['cover'])
-                embed.set_thumbnail(url=track['cover'])
-            
+            embed.add_field(name="> Álbum",    value=track["album"],    inline=True)
+            embed.add_field(name="> Duración", value=track["duracion"], inline=True)
+            if track["año"]:
+                embed.add_field(name="> Año",     value=track["año"],     inline=True)
+            if track["oyentes"] != "N/A":
+                embed.add_field(name="> Oyentes", value=track["oyentes"], inline=True)
+            if track["cover"]:
+                embed.set_image(url=track["cover"])
+                embed.set_thumbnail(url=track["cover"])
             embed.set_footer(text=f"Last.fm | {artista} - {cancion}")
-            embed.set_author(name="Misti Music", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
-            
+            embed.set_author(name="Misti Music",
+                             icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+
             view = discord.ui.View()
-            view.add_item(discord.ui.Button(
-                label="Escuchar en Last.fm",
-                url=track['url'],
-                style=discord.ButtonStyle.link
-            ))
-            
+            if track["url"]:
+                view.add_item(discord.ui.Button(label="Escuchar en Last.fm", url=track["url"],
+                                                style=discord.ButtonStyle.link))
+
             await ctx.send(embed=embed, view=view)
-            
+
         except Exception as e:
-            await ctx.send(f"Error: ```{e}```")
-
-
-# =========================================================
-# FUNCIÓN PARA BUSCAR CANCIÓN EXACTA
-# =========================================================
-
-async def buscar_cancion_exacta(artista: str, cancion: str) -> dict:
-    """
-    Busca una canción exacta por artista y título en Last.fm
-    
-    Args:
-        artista: Nombre del artista
-        cancion: Nombre de la canción
-    
-    Returns:
-        Diccionario con la información de la canción
-    """
-    
-    if not LASTFM_API_KEY:
-        return None
-    
-    # URL de la API de Last.fm para obtener información de una canción específica
-    url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={LASTFM_API_KEY}&artist={urllib.parse.quote(artista)}&track={urllib.parse.quote(cancion)}&format=json"
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=10) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-        
-        # Verificar si hay error
-        if "error" in data:
-            return None
-        
-        track = data.get("track", {})
-        
-        if not track:
-            return None
-        
-        # Extraer información
-        nombre = track.get("name", cancion)
-        artista_nombre = track.get("artist", {}).get("name", artista)
-        album = track.get("album", {}).get("title", "Sin álbum")
-        
-        # Duración
-        duracion_seg = track.get("duration", 0)
-        if duracion_seg:
-            minutos = int(duracion_seg) // 60
-            segundos = int(duracion_seg) % 60
-            duracion_texto = f"{minutos}:{segundos:02d}"
-        else:
-            duracion_texto = "Desconocida"
-        
-        # Portada del álbum
-        imagenes = track.get("album", {}).get("image", [])
-        imagen_url = ""
-        for img in imagenes:
-            if img.get("size") == "extralarge" and img.get("#text"):
-                imagen_url = img.get("#text")
-                break
-        if not imagen_url and imagenes:
-            imagen_url = imagenes[-1].get("#text", "")
-        
-        # Oyentes
-        oyentes = track.get("listeners", "N/A")
-        if oyentes != "N/A":
-            oyentes_num = int(oyentes)
-            if oyentes_num >= 1000000:
-                oyentes_texto = f"{oyentes_num / 1000000:.1f}M"
-            elif oyentes_num >= 1000:
-                oyentes_texto = f"{oyentes_num / 1000:.1f}K"
-            else:
-                oyentes_texto = str(oyentes_num)
-        else:
-            oyentes_texto = "N/A"
-        
-        # Fecha de lanzamiento (del álbum)
-        año = ""
-        if track.get("album", {}).get("date", {}).get("#text"):
-            fecha_texto = track.get("album", {}).get("date", {}).get("#text", "")
-            if fecha_texto and len(fecha_texto) >= 4:
-                año = fecha_texto[:4]
-        
-        return {
-            "nombre": nombre,
-            "artista": artista_nombre,
-            "album": album,
-            "duracion": duracion_texto,
-            "cover": imagen_url,
-            "url": track.get("url", ""),
-            "año": año,
-            "oyentes": oyentes_texto
-        }
-        
-    except Exception as e:
-        print(f"Error en buscar_cancion_exacta: {e}")
-        return None
+            await ctx.send(f"> Error: ```{str(e)[:100]}```")
         
 # -------------------------
 # FLASK WEB
