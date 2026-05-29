@@ -1578,11 +1578,19 @@ async def cmd_roblox(ctx: commands.Context, *, usuario: str):
                 cantidad_amigos = (await resp.json()).get("count", 0)
 
             # 4. ESTADO DE PRESENCIA (NUEVO)
-            estado_texto = "Desconocido"
+           # 4. ESTADO DE PRESENCIA (MEJORADO)
+            estado_texto = "Desconectado"
             async with session.post("https://presence.roblox.com/v1/presence/users", json={"userIds": [user_id]}) as resp:
                 presence_data = await resp.json()
                 presence = presence_data["userPresences"][0]
                 status_type = presence["userPresenceType"]
+                
+                if status_type == 1: 
+                    estado_texto = "En línea"
+                elif status_type == 2:
+                    # lastLocation suele devolver el nombre del juego
+                    lugar = presence.get('lastLocation')
+                    estado_texto = f"Jugando: {lugar}" if lugar else "Jugando un juego"
                 
                 if status_type == 0: estado_texto = "Desconectado"
                 elif status_type == 1: estado_texto = "En línea"
