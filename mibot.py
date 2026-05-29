@@ -2639,48 +2639,43 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
+# ----------- Seccion 2 ------------------
+
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix=">mt ", intents=intents)
 
-# Diccionario para estado del autosay
+# Diccionario para el estado del autosay
 autosay_users = {}
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync() # Sincroniza los comandos de barra
-    print(f"Bot conectado como {bot.user}")
+    await bot.tree.sync() # Sincroniza los comandos híbridos
+    print(f"Bot listo como {bot.user}")
 
-# --- COMANDO SAY (HÍBRIDO) ---
-@bot.command(name="say")
-async def say_prefix(ctx, *, mensaje: str):
+# --- COMANDO SAY HÍBRIDO ---
+@bot.hybrid_command(name="say", description="El bot repite lo que digas")
+async def say(ctx, *, mensaje: str):
     await ctx.send(mensaje)
-    await ctx.message.delete()
+    # En comandos híbridos, ctx.message puede ser None si se usa como slash, 
+    # por eso verificamos antes de borrar
+    if ctx.message:
+        await ctx.message.delete()
 
-@bot.tree.command(name="say", description="El bot repite lo que digas")
-async def say_slash(interaction: discord.Interaction, mensaje: str):
-    await interaction.response.send_message(mensaje)
-
-# --- COMANDO AUTOSAY (HÍBRIDO) ---
-@bot.command(name="autosay")
-async def autosay_prefix(ctx):
+# --- COMANDO AUTOSAY HÍBRIDO ---
+@bot.hybrid_command(name="autosay", description="Activa/desactiva el modo espejo")
+async def autosay(ctx):
     user_id = ctx.author.id
-    autosay_users[user_id] = not autosay_users.get(user_id, False)
-    await ctx.send(f"Auto-say: {'Activado' if autosay_users[user_id] else 'Desactivado'}")
+    status = not autosay_users.get(user_id, False)
+    autosay_users[user_id] = status
+    await ctx.send(f"Auto-say: {'Activado' if status else 'Desactivado'}")
 
-@bot.tree.command(name="autosay", description="Activa/desactiva el modo espejo")
-async def autosay_slash(interaction: discord.Interaction):
-    user_id = interaction.user.id
-    autosay_users[user_id] = not autosay_users.get(user_id, False)
-    await interaction.response.send_message(f"Auto-say: {'Activado' if autosay_users[user_id] else 'Desactivado'}")
-
-# --- LÓGICA DE EVENTO ---
+# --- LÓGICA DE EVENTO PARA EL ESPEJO ---
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Desactivar con clave
+    # Comando de desactivación manual
     if message.content == ">mt sayoff":
         autosay_users[message.author.id] = False
         await message.channel.send("Auto-say desactivado.")
