@@ -3563,328 +3563,146 @@ async def giveaway(ctx: commands.Context):
         await ctx.send(modal)
 
 # =========================================================
-# SPOTIFY SEARCH CON SPOTIFY23 API - Versión Simplificada
+# COMANDOS SPOTIFY-SEARCH (SLASH y PREFIX) - Una canción
 # =========================================================
 
-import aiohttp
-import discord
-from discord.ext import commands
-from discord import app_commands
-import urllib.parse
-import os
-import asyncio
-
-# =========================================================
-# CONFIGURACIÓN
-# =========================================================
-
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
-
-# =========================================================
-# FUNCIÓN PARA BUSCAR EN SPOTIFY23
-# =========================================================
-
-async def buscar_spotify(cancion: str, artista: str = None) -> dict:
-    """
-    Busca una canción en Spotify usando la API de Spotify23
-    
-    Args:
-        cancion: Nombre de la canción
-        artista: Nombre del artista (opcional, para mejorar la búsqueda)
-    
-    Returns:
-        Diccionario con la información de la primera canción encontrada
-    """
-    
-    if not RAPIDAPI_KEY:
-        print("RAPIDAPI_KEY no configurada")
-        return None
-    
-    # Construir la consulta de búsqueda
-    if artista:
-        query = f"{artista} {cancion}"
-    else:
-        query = cancion
-    
-    url = "https://spotify23.p.rapidapi.com/search/"
-    headers = {
-        "X-RapidAPI-Key": RAPIDAPI_KEY,
-        "X-RapidAPI-Host": "spotify23.p.rapidapi.com"
-    }
-    params = {
-        "q": query,
-        "type": "tracks",
-        "offset": "0",
-        "limit": "1"
-    }
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params, timeout=10) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-        
-        items = data.get("tracks", {}).get("items", [])
-        
-        if not items:
-            return None
-        
-        track_data = items[0].get("data", {})
-        
-        # Extraer información
-        nombre = track_data.get("name", "Sin nombre")
-        
-        # Artistas
-        artistas = track_data.get("artists", {}).get("items", [])
-        artista_nombre = ", ".join([a.get("profile", {}).get("name", "") for a in artistas])
-        
-        # Álbum
-        album_data = track_data.get("albumOfTrack", {})
-        album_nombre = album_data.get("name", "Sin álbum")
-        
-        # Duración
-        duracion_ms = track_data.get("duration", {}).get("totalMilliseconds", 0)
-        if duracion_ms:
-            segundos = duracion_ms // 1000
-            minutos = segundos // 60
-            segs = segundos % 60
-            duracion_texto = f"{minutos}:{segs:02d}"
-        else:
-            duracion_texto = "Desconocida"
-        
-        # Portada del álbum
-        cover_art = album_data.get("coverArt", {}).get("sources", [])
-        imagen_url = cover_art[-1].get("url", "") if cover_art else ""
-        
-        # URL de Spotify
-        track_uri = track_data.get("uri", "")
-        track_id = track_uri.split(":")[-1] if track_uri else ""
-        spotify_url = f"https://open.spotify.com/track/{track_id}" if track_id else ""
-        
-        # Fecha de lanzamiento
-        año = ""
-        if album_data.get("releases", {}).get("items"):
-            año = album_data.get("releases", {}).get("items", [])[0].get("date", {}).get("year", "")
-        
-        # Popularidad
-        popularidad = track_data.get("stats", {}).get("popularity", "N/A")
-        
-        # Número de pista en el álbum
-        track_number = track_data.get("trackNumber", "N/A")
-        
-        # URL del artista
-        artista_id = ""
-        if artistas:
-            artista_uri = artistas[0].get("uri", "")
-            artista_id = artista_uri.split(":")[-1] if artista_uri else ""
-        artista_url = f"https://open.spotify.com/artist/{artista_id}" if artista_id else ""
-        
-        # URL del álbum
-        album_id = ""
-        album_uri = album_data.get("uri", "")
-        album_id = album_uri.split(":")[-1] if album_uri else ""
-        album_url = f"https://open.spotify.com/album/{album_id}" if album_id else ""
-        
-        return {
-            "nombre": nombre,
-            "artista": artista_nombre,
-            "artista_url": artista_url,
-            "album": album_nombre,
-            "album_url": album_url,
-            "duracion": duracion_texto,
-            "cover": imagen_url,
-            "url": spotify_url,
-            "id": track_id,
-            "año": año,
-            "popularidad": popularidad,
-            "track_number": track_number
-        }
-        
-    except Exception as e:
-        print(f"Error en buscar_spotify: {e}")
-        return None
-
-
-# =========================================================
-# VISTA CON BOTONES
-# =========================================================
-
-class CancionView(discord.ui.View):
-    def __init__(self, track: dict):
-        super().__init__(timeout=60)
-        
-        # Botón para abrir en Spotify
-        if track.get('url'):
-            self.add_item(discord.ui.Button(
-                label="Escuchar en Spotify",
-                url=track['url'],
-                style=discord.ButtonStyle.link,
-                emoji="<:music1504691247619641404:>"
-            ))
-        
-        # Botón para ver artista
-        if track.get('artista_url'):
-            self.add_item(discord.ui.Button(
-                label="Ver artista",
-                url=track['artista_url'],
-                style=discord.ButtonStyle.link,
-                emoji="<:Mic:1509713561033642197>"
-            ))
-        
-        # Botón para ver álbum
-        if track.get('album_url'):
-            self.add_item(discord.ui.Button(
-                label="Ver álbum",
-                url=track['album_url'],
-                style=discord.ButtonStyle.link,
-                emoji=""
-            ))
-    
-    @discord.ui.button(label="Cerrar", style=discord.ButtonStyle.danger)
-    async def cerrar(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.message.delete()
-        self.stop()
-
-
-# =========================================================
-# FUNCIÓN PARA GENERAR EMBED
-# =========================================================
-
-def generar_embed_cancion(track: dict, busqueda: str) -> discord.Embed:
-    """Genera un embed con la información de la canción"""
-    
-    embed = discord.Embed(
-        title=f"{track['nombre']}",
-        description=f"**{track['artista']}**",
-        color=AZUL_IPOD_NUM,
-        url=track['url']
-    )
-    
-    # Información de la canción
-    embed.add_field(name=">  Álbum", value=track['album'], inline=True)
-    embed.add_field(name=">  Duración", value=track['duracion'], inline=True)
-    
-    if track.get('año'):
-        embed.add_field(name=">  Año", value=track['año'], inline=True)
-    
-    if track.get('track_number') and track['track_number'] != "N/A":
-        embed.add_field(name=">  Pista", value=track['track_number'], inline=True)
-    
-    if track.get('popularidad') and track['popularidad'] != "N/A":
-        embed.add_field(name=">  Popularidad", value=f"{track['popularidad']}/100", inline=True)
-    
-    # Portada del álbum
-    if track.get('cover'):
-        embed.set_image(url=track['cover'])
-        embed.set_thumbnail(url=track['cover'])
-    
-    embed.set_footer(text=f"Spotify | Resultado para: {busqueda[:50]}")
-    embed.set_author(name="Misti Music", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
-    
-    return embed
-
-
-# =========================================================
-# COMANDO PRINCIPAL (SLASH)
-# =========================================================
-
-@bot.tree.command(name="spotify-search", description="Busca una canción en Spotify")
+@bot.tree.command(name="spotify-search", description="Busca una canción exacta en Last.fm")
 @app_commands.describe(
-    cancion="Nombre de la canción",
-    artista="Nombre del artista (opcional, mejora la búsqueda)"
+    artista="Nombre del artista",
+    cancion="Nombre de la canción"
 )
-async def spotify_buscar_slash(i: discord.Interaction, cancion: str, artista: str = None):
-    """
-    Busca una canción en Spotify - Muestra un embed con toda la información
-    
-    Ejemplos:
-    /spotify-search cancion:Play Date
-    /spotify-search cancion:Play Date artista:Melanie Martinez
-    /spotify-search cancion:Blinding Lights artista:The Weeknd
-    """
-    
+async def spotify_buscar_slash(i: discord.Interaction, artista: str, cancion: str):
     await i.response.defer()
     
-    # Verificar API Key
-    if not RAPIDAPI_KEY:
+    if not LASTFM_API_KEY:
         embed = discord.Embed(
-            title="Error de configuración",
-            description="> API Key de RapidAPI no configurada.\n\n"
-                       "El administrador debe agregar `RAPIDAPI_KEY` en Render.\n"
-                       "Obtén tu clave gratis en: https://rapidapi.com/raygun.ravi/api/spotify23",
+            description="> API Key de Last.fm no configurada.\n> El administrador debe agregar `LASTFM_API_KEY` en las variables de entorno.\n> Obtén tu clave gratis en: https://www.last.fm/api/account/create",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
         return
     
-    # Verificar búsqueda
+    if not artista or len(artista.strip()) < 2:
+        embed = discord.Embed(
+            description="> Ingresa un nombre de artista válido (mínimo 2 caracteres)",
+            color=AZUL_IPOD_NUM
+        )
+        await i.followup.send(embed=embed, ephemeral=True)
+        return
+    
     if not cancion or len(cancion.strip()) < 2:
         embed = discord.Embed(
-            description=">  Ingresa un nombre de canción válido (mínimo 2 caracteres)",
+            description="> Ingresa un nombre de canción válido (mínimo 2 caracteres)",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
         return
     
     try:
-        # Mostrar mensaje de búsqueda
-        busqueda_texto = f"{artista} {cancion}" if artista else cancion
-        
-        # Buscar canción
-        track = await buscar_spotify(cancion, artista)
+        # Buscar la canción exacta por artista y título
+        track = await buscar_cancion_exacta(artista, cancion)
         
         if not track:
             embed = discord.Embed(
-                title="Sin resultados",
-                description=f"> No se encontró la canción para: **{cancion}**" + (f" de **{artista}**" if artista else ""),
+                description=f"> No se encontró la canción: **{cancion}** de **{artista}**",
                 color=AZUL_IPOD_NUM
             )
             await i.followup.send(embed=embed, ephemeral=True)
             return
         
-        # Crear embed y vista
-        embed = generar_embed_cancion(track, busqueda_texto)
-        view = CancionView(track)
+        # Crear embed con la información de la canción
+        embed = discord.Embed(
+            title=f"{track['nombre']}",
+            description=f"**{track['artista']}**",
+            color=AZUL_IPOD_NUM,
+            url=track['url']
+        )
+        
+        embed.add_field(name="Álbum", value=track['album'], inline=True)
+        embed.add_field(name="⏱️ Duración", value=track['duracion'], inline=True)
+        
+        if track.get('año'):
+            embed.add_field(name="Año", value=track['año'], inline=True)
+        
+        if track.get('oyentes'):
+            embed.add_field(name="Oyentes", value=track['oyentes'], inline=True)
+        
+        if track.get('cover'):
+            embed.set_image(url=track['cover'])
+            embed.set_thumbnail(url=track['cover'])
+        
+        embed.set_footer(text=f"Last.fm | {artista} - {cancion}")
+        embed.set_author(name="Misti Music", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+        
+        # Vista con botón para escuchar
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(
+            label="Escuchar en Last.fm",
+            url=track['url'],
+            style=discord.ButtonStyle.link
+        ))
         
         await i.followup.send(embed=embed, view=view)
         
     except Exception as e:
         embed = discord.Embed(
-            description=f">  Error: `{str(e)[:100]}`",
+            description=f"> Error: `{str(e)[:100]}`",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
 
 
-# =========================================================
-# COMANDO PREFIX
-# =========================================================
-
 @bot.command(name="spotify-search")
-async def spotify_buscar_prefix(ctx, *, busqueda: str):
+async def spotify_buscar_prefix(ctx, artista: str = None, *, cancion: str = None):
     """
-    Busca una canción en Spotify (comando con prefijo)
+    Busca una canción exacta en Last.fm
     
-    Formatos:
-    >mt spotify-search Play Date
-    >mt spotify-search Play Date - Melanie Martinez
-    >mt spotify-search Melanie Martinez - Play Date
+    Ejemplos:
+    >mt spotify-search Melanie Martinez Play Date
+    >mt spotify-search "Melanie Martinez" "Play Date"
     """
     
-    # Verificar API Key
-    if not RAPIDAPI_KEY:
+    # Verificar que se proporcionaron ambos argumentos
+    if artista is None or cancion is None:
+        # Intentar separar automáticamente
+        if artista and cancion is None:
+            # El usuario puso todo en un solo argumento
+            texto = artista
+            if " - " in texto:
+                partes = texto.split(" - ", 1)
+                artista = partes[0].strip()
+                cancion = partes[1].strip()
+            elif " por " in texto:
+                partes = texto.split(" por ", 1)
+                cancion = partes[0].strip()
+                artista = partes[1].strip()
+            else:
+                embed = discord.Embed(
+                    description="> Uso: `>mt spotify-search [artista] [canción]`\n> Ejemplo: `>mt spotify-search Melanie Martinez Play Date`\n> También puedes usar: `>mt spotify-search Play Date - Melanie Martinez`",
+                    color=AZUL_IPOD_NUM
+                )
+                await ctx.send(embed=embed)
+                return
+    
+    if not LASTFM_API_KEY:
         embed = discord.Embed(
-            description=">  API Key de RapidAPI no configurada.",
+            description="> API Key de Last.fm no configurada.",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
     
-    # Verificar búsqueda
-    if not busqueda or len(busqueda.strip()) < 2:
+    if not artista or len(artista.strip()) < 2:
         embed = discord.Embed(
-            description=">  Ingresa un nombre de canción válido",
+            description="> Ingresa un nombre de artista válido (mínimo 2 caracteres)",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    if not cancion or len(cancion.strip()) < 2:
+        embed = discord.Embed(
+            description="> Ingresa un nombre de canción válido (mínimo 2 caracteres)",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
@@ -3892,33 +3710,150 @@ async def spotify_buscar_prefix(ctx, *, busqueda: str):
     
     async with ctx.typing():
         try:
-            # Separar artista y canción si viene con guión
-            if " - " in busqueda:
-                partes = busqueda.split(" - ", 1)
-                artista = partes[0].strip()
-                cancion = partes[1].strip()
-            else:
-                artista = None
-                cancion = busqueda
-            
-            # Mostrar mensaje de búsqueda
-            busqueda_texto = f"{artista} {cancion}" if artista else cancion
-            
-            # Buscar canción
-            track = await buscar_spotify(cancion, artista)
+            # Buscar la canción exacta
+            track = await buscar_cancion_exacta(artista, cancion)
             
             if not track:
-                await ctx.send(f">  No se encontró la canción para: **{busqueda}**")
+                embed = discord.Embed(
+                    description=f"> No se encontró la canción: **{cancion}** de **{artista}**",
+                    color=AZUL_IPOD_NUM
+                )
+                await ctx.send(embed=embed)
                 return
             
-            # Crear embed y vista
-            embed = generar_embed_cancion(track, busqueda_texto)
-            view = CancionView(track)
+            # Crear embed
+            embed = discord.Embed(
+                title=f"{track['nombre']}",
+                description=f"**{track['artista']}**",
+                color=AZUL_IPOD_NUM,
+                url=track['url']
+            )
+            
+            embed.add_field(name="> Álbum", value=track['album'], inline=True)
+            embed.add_field(name="> Duración", value=track['duracion'], inline=True)
+            
+            if track.get('año'):
+                embed.add_field(name="> Año", value=track['año'], inline=True)
+            
+            if track.get('oyentes'):
+                embed.add_field(name="> Oyentes", value=track['oyentes'], inline=True)
+            
+            if track.get('cover'):
+                embed.set_image(url=track['cover'])
+                embed.set_thumbnail(url=track['cover'])
+            
+            embed.set_footer(text=f"Last.fm | {artista} - {cancion}")
+            embed.set_author(name="Misti Music", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+            
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(
+                label="Escuchar en Last.fm",
+                url=track['url'],
+                style=discord.ButtonStyle.link
+            ))
             
             await ctx.send(embed=embed, view=view)
             
         except Exception as e:
             await ctx.send(f"Error: ```{e}```")
+
+
+# =========================================================
+# FUNCIÓN PARA BUSCAR CANCIÓN EXACTA
+# =========================================================
+
+async def buscar_cancion_exacta(artista: str, cancion: str) -> dict:
+    """
+    Busca una canción exacta por artista y título en Last.fm
+    
+    Args:
+        artista: Nombre del artista
+        cancion: Nombre de la canción
+    
+    Returns:
+        Diccionario con la información de la canción
+    """
+    
+    if not LASTFM_API_KEY:
+        return None
+    
+    # URL de la API de Last.fm para obtener información de una canción específica
+    url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={LASTFM_API_KEY}&artist={urllib.parse.quote(artista)}&track={urllib.parse.quote(cancion)}&format=json"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=10) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+        
+        # Verificar si hay error
+        if "error" in data:
+            return None
+        
+        track = data.get("track", {})
+        
+        if not track:
+            return None
+        
+        # Extraer información
+        nombre = track.get("name", cancion)
+        artista_nombre = track.get("artist", {}).get("name", artista)
+        album = track.get("album", {}).get("title", "Sin álbum")
+        
+        # Duración
+        duracion_seg = track.get("duration", 0)
+        if duracion_seg:
+            minutos = int(duracion_seg) // 60
+            segundos = int(duracion_seg) % 60
+            duracion_texto = f"{minutos}:{segundos:02d}"
+        else:
+            duracion_texto = "Desconocida"
+        
+        # Portada del álbum
+        imagenes = track.get("album", {}).get("image", [])
+        imagen_url = ""
+        for img in imagenes:
+            if img.get("size") == "extralarge" and img.get("#text"):
+                imagen_url = img.get("#text")
+                break
+        if not imagen_url and imagenes:
+            imagen_url = imagenes[-1].get("#text", "")
+        
+        # Oyentes
+        oyentes = track.get("listeners", "N/A")
+        if oyentes != "N/A":
+            oyentes_num = int(oyentes)
+            if oyentes_num >= 1000000:
+                oyentes_texto = f"{oyentes_num / 1000000:.1f}M"
+            elif oyentes_num >= 1000:
+                oyentes_texto = f"{oyentes_num / 1000:.1f}K"
+            else:
+                oyentes_texto = str(oyentes_num)
+        else:
+            oyentes_texto = "N/A"
+        
+        # Fecha de lanzamiento (del álbum)
+        año = ""
+        if track.get("album", {}).get("date", {}).get("#text"):
+            fecha_texto = track.get("album", {}).get("date", {}).get("#text", "")
+            if fecha_texto and len(fecha_texto) >= 4:
+                año = fecha_texto[:4]
+        
+        return {
+            "nombre": nombre,
+            "artista": artista_nombre,
+            "album": album,
+            "duracion": duracion_texto,
+            "cover": imagen_url,
+            "url": track.get("url", ""),
+            "año": año,
+            "oyentes": oyentes_texto
+        }
+        
+    except Exception as e:
+        print(f"Error en buscar_cancion_exacta: {e}")
+        return None
         
 # -------------------------
 # FLASK WEB
