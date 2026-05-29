@@ -3741,7 +3741,7 @@ class CancionView(discord.ui.View):
                 emoji=""
             ))
     
-    @discord.ui.button(label="Cerrar", style=discord.ButtonStyle.danger, emoji="❌")
+    @discord.ui.button(label="Cerrar", style=discord.ButtonStyle.danger)
     async def cerrar(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.delete()
         self.stop()
