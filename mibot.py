@@ -3749,7 +3749,7 @@ class PaginaSpotifyView(discord.ui.View):
         else:
             await interaction.response.send_message("> 📌 Ya estás en la última página.", ephemeral=True)
     
-    @discord.ui.button(label="🔗 Spotify", style=discord.ButtonStyle.link, url="")
+  @discord.ui.button(label="Spotify", style=discord.ButtonStyle.link, url="", emoji="🔗")
     async def link_spotify(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Botón de enlace a Spotify (se actualiza dinámicamente)"""
         pass
