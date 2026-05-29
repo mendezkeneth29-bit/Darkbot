@@ -3709,11 +3709,9 @@ async def spotify_buscar_slash(i: discord.Interaction, artista: str, cancion: st
         if track["oyentes"] != "N/A":
             embed.add_field(name="> Oyentes", value=track["oyentes"], inline=True)
         if track["cover"]:
-            embed.set_image(url=track["cover"])
             embed.set_thumbnail(url=track["cover"])
         embed.set_footer(text=f"Last.fm | {artista} - {cancion}")
-        embed.set_author(name="Misti Music",
-                         icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+        embed.set_author(name="Misti Music",)
 
         view = discord.ui.View()
         if track["url"]:
@@ -3817,6 +3815,170 @@ async def spotify_buscar_prefix(ctx, *, texto: str = None):
 
         except Exception as e:
             await ctx.send(f"> Error: ```{str(e)[:100]}```")
+
+# =========================================================
+# BUSCAR ARTISTA — Last.fm
+# =========================================================
+
+@bot.hybrid_command(name="buscar-artista", description="Busca información de un artista en Last.fm")
+@app_commands.describe(artista="Nombre del artista a buscar")
+async def buscar_artista(ctx: commands.Context, *, artista: str):
+    if ctx.interaction:
+        await ctx.defer()
+
+    if not LASTFM_API_KEY:
+        embed = discord.Embed(
+            description=(
+                "> API Key de Last.fm no configurada.\n"
+                "> Agrega `LASTFM_API_KEY` en tus variables de entorno.\n"
+                "> Obtén tu clave gratis en: https://www.last.fm/api/account/create"
+            ),
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+
+    if len(artista.strip()) < 2:
+        await ctx.send(embed=discord.Embed(
+            description="> El nombre del artista debe tener al menos 2 caracteres.",
+            color=AZUL_IPOD_NUM
+        ))
+        return
+
+    try:
+        # ── Petición a Last.fm ──────────────────────────────
+        url = (
+            "http://ws.audioscrobbler.com/2.0/"
+            f"?method=artist.getInfo"
+            f"&api_key={LASTFM_API_KEY}"
+            f"&artist={urllib.parse.quote(artista.strip())}"
+            f"&format=json"
+        )
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    await ctx.send(embed=discord.Embed(
+                        description=f"> Error al conectar con Last.fm (`{resp.status}`)",
+                        color=AZUL_IPOD_NUM
+                    ))
+                    return
+                data = await resp.json()
+
+        # ── Verificar errores de la API ─────────────────────
+        if "error" in data:
+            await ctx.send(embed=discord.Embed(
+                description=f"> Artista **{artista}** no encontrado en Last.fm.",
+                color=AZUL_IPOD_NUM
+            ))
+            return
+
+        info = data.get("artist")
+        if not info:
+            await ctx.send(embed=discord.Embed(
+                description="> No se pudo obtener información del artista.",
+                color=AZUL_IPOD_NUM
+            ))
+            return
+
+        # ── Extraer datos ───────────────────────────────────
+        nombre     = info.get("name", artista)
+        url_lastfm = info.get("url", "")
+
+        # Estadísticas
+        stats      = info.get("stats", {})
+        try:
+            oyentes_num = int(stats.get("listeners", 0))
+            oyentes     = f"{oyentes_num:,}".replace(",", ".")
+        except (ValueError, TypeError):
+            oyentes = "N/A"
+
+        try:
+            reproducciones_num = int(stats.get("playcount", 0))
+            reproducciones     = f"{reproducciones_num:,}".replace(",", ".")
+        except (ValueError, TypeError):
+            reproducciones = "N/A"
+
+        # Biografía
+        bio_raw = info.get("bio", {}).get("summary", "Sin biografía disponible.")
+        # Limpiar el enlace de Last.fm que viene al final
+        bio     = re.sub(r'<a href="[^"]*">[^<]*</a>', '', bio_raw).strip()
+        bio     = re.sub(r'<[^>]+>', '', bio).strip()  # quitar cualquier otro HTML
+        if len(bio) > 500:
+            bio = bio[:500] + "..."
+        if not bio:
+            bio = "Sin biografía disponible."
+
+        # Tags / géneros
+        tags_raw  = info.get("tags", {}).get("tag", [])
+        if isinstance(tags_raw, dict):   # a veces viene como dict si solo hay uno
+            tags_raw = [tags_raw]
+        generos   = ", ".join([t.get("name", "") for t in tags_raw[:5]]) or "Sin géneros"
+
+        # Artistas similares
+        similares_raw = info.get("similar", {}).get("artist", [])
+        if isinstance(similares_raw, dict):
+            similares_raw = [similares_raw]
+        similares = ", ".join([a.get("name", "") for a in similares_raw[:4]]) or "N/A"
+
+        # Imagen del artista (thumbnail)
+        imagenes  = info.get("image", [])
+        imagen_url = ""
+        for img in reversed(imagenes):
+            texto = img.get("#text", "")
+            if texto and "2a96cbd8b46e442fc41c2b86b821562f" not in texto:
+                # Last.fm a veces devuelve un placeholder con ese hash, lo ignoramos
+                imagen_url = texto
+                break
+
+        # ── Construir embed ─────────────────────────────────
+        embed = discord.Embed(
+            title=nombre,
+            description=bio,
+            color=AZUL_IPOD_NUM,
+            url=url_lastfm or None
+        )
+
+        embed.add_field(name="> Oyentes mensuales", value=oyentes,        inline=True)
+        embed.add_field(name="> Reproducciones",    value=reproducciones, inline=True)
+        embed.add_field(name="> Géneros",           value=generos,        inline=False)
+
+        if similares != "N/A":
+            embed.add_field(name="> Artistas similares", value=similares, inline=False)
+
+        if imagen_url:
+            embed.set_thumbnail(url=imagen_url)
+
+        embed.set_footer(
+            text=f"Last.fm | Solicitado por {ctx.author.display_name}",
+            icon_url=ctx.author.display_avatar.url
+        )
+        embed.set_author(
+            name="Misti Music",
+            icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
+        )
+
+        # ── Vista con botón ─────────────────────────────────
+        view = discord.ui.View()
+        if url_lastfm:
+            view.add_item(discord.ui.Button(
+                label="Ver en Last.fm",
+                url=url_lastfm,
+                style=discord.ButtonStyle.link
+            ))
+
+        await ctx.send(embed=embed, view=view)
+
+    except asyncio.TimeoutError:
+        await ctx.send(embed=discord.Embed(
+            description="> Tiempo de espera agotado. Intenta de nuevo.",
+            color=AZUL_IPOD_NUM
+        ))
+    except Exception as e:
+        await ctx.send(embed=discord.Embed(
+            description=f"> Error inesperado: `{str(e)[:100]}`",
+            color=AZUL_IPOD_NUM
+        ))
         
 # -------------------------
 # FLASK WEB
