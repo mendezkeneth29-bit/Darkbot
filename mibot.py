@@ -3590,7 +3590,7 @@ async def buscar_spotify(cancion: str) -> list:
     """
     
     if not RAPIDAPI_KEY:
-        print("RAPIDAPI_KEY no configurada")
+        print("⚠️ RAPIDAPI_KEY no configurada")
         return []
     
     url = "https://spotify23.p.rapidapi.com/search/"
@@ -3683,19 +3683,19 @@ class PaginaSpotifyView(discord.ui.View):
         
         # Crear embed
         embed = discord.Embed(
-            title=f"{track['nombre']}",
+            title=f"🎵 {track['nombre']}",
             description=f"**Resultado {self.pagina + 1} de {self.total_paginas}**",
             color=AZUL_IPOD_NUM,
             url=track['url']
         )
         
         # Información de la canción
-        embed.add_field(name=">  Artista", value=track['artista'], inline=False)
-        embed.add_field(name=">  Álbum", value=track['album'][:50], inline=False)
-        embed.add_field(name=">  Duración", value=track['duracion'], inline=True)
+        embed.add_field(name="> 🎤 Artista", value=track['artista'], inline=False)
+        embed.add_field(name="> 💿 Álbum", value=track['album'][:50], inline=False)
+        embed.add_field(name="> ⏱️ Duración", value=track['duracion'], inline=True)
         
         if track.get('año'):
-            embed.add_field(name=">  Año", value=track['año'], inline=True)
+            embed.add_field(name="> 📅 Año", value=track['año'], inline=True)
         
         # Imagen del álbum (más grande en la imagen principal)
         if track.get('cover'):
@@ -3703,58 +3703,58 @@ class PaginaSpotifyView(discord.ui.View):
             embed.set_thumbnail(url=track['cover'])
         
         embed.set_footer(text=f"Spotify | Página {self.pagina + 1}/{self.total_paginas}")
-        embed.set_author(name=f"Resultados para: {self.query[:40]}", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+        embed.set_author(name=f"🔍 Resultados para: {self.query[:40]}", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
         
         return embed
     
-    @discord.ui.button(label="Primera", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="⏮️", style=discord.ButtonStyle.primary, emoji="⏮️")
     async def primera_pagina(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ir a la primera página"""
         if self.pagina != 0:
             self.pagina = 0
             await interaction.response.edit_message(embed=self.get_embed(), view=self)
         else:
-            await interaction.response.send_message(">  Ya estás en la primera página.", ephemeral=True)
+            await interaction.response.send_message("> 📌 Ya estás en la primera página.", ephemeral=True)
     
-    @discord.ui.button(label="{emoji}", style=discord.ButtonStyle.primary, emoji="<:iz:1509707796105662536>")
+    @discord.ui.button(label="◀️", style=discord.ButtonStyle.primary, emoji="◀️")
     async def pagina_anterior(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ir a la página anterior"""
         if self.pagina > 0:
             self.pagina -= 1
             await interaction.response.edit_message(embed=self.get_embed(), view=self)
         else:
-            await interaction.response.send_message(">  Ya estás en la primera página.", ephemeral=True)
+            await interaction.response.send_message("> 📌 Ya estás en la primera página.", ephemeral=True)
     
-    @discord.ui.button(label="Pags", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="🔢", style=discord.ButtonStyle.secondary, emoji="📄")
     async def ir_pagina(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ir a una página específica"""
         modal = PaginaModal(self, interaction.user.id)
         await interaction.response.send_modal(modal)
     
-    @discord.ui.button(label="{emoji}", style=discord.ButtonStyle.primary, emoji="<:de:1509707911138381984>")
+    @discord.ui.button(label="▶️", style=discord.ButtonStyle.primary, emoji="▶️")
     async def pagina_siguiente(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ir a la página siguiente"""
         if self.pagina < self.total_paginas - 1:
             self.pagina += 1
             await interaction.response.edit_message(embed=self.get_embed(), view=self)
         else:
-            await interaction.response.send_message(">  Ya estás en la última página.", ephemeral=True)
+            await interaction.response.send_message("> 📌 Ya estás en la última página.", ephemeral=True)
     
-    @discord.ui.button(label="Ultima", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="⏭️", style=discord.ButtonStyle.primary, emoji="⏭️")
     async def ultima_pagina(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ir a la última página"""
         if self.pagina != self.total_paginas - 1:
             self.pagina = self.total_paginas - 1
             await interaction.response.edit_message(embed=self.get_embed(), view=self)
         else:
-            await interaction.response.send_message(">  Ya estás en la última página.", ephemeral=True)
+            await interaction.response.send_message("> 📌 Ya estás en la última página.", ephemeral=True)
     
-    @discord.ui.button(label="Spotify", style=discord.ButtonStyle.link, url="")
+    @discord.ui.button(label="🔗 Spotify", style=discord.ButtonStyle.link, url="")
     async def link_spotify(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Botón de enlace a Spotify (se actualiza dinámicamente)"""
         pass
     
-    @discord.ui.button(label="Cerrar", color=AZUL_IPOD_NUM)
+    @discord.ui.button(label="❌ Cerrar", style=discord.ButtonStyle.danger, emoji="🗑️")
     async def cerrar(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Cerrar el mensaje"""
         await interaction.message.delete()
@@ -3763,7 +3763,7 @@ class PaginaSpotifyView(discord.ui.View):
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Actualizar la URL del botón de Spotify antes de cada interacción"""
         for child in self.children:
-            if child.label == "Spotify":
+            if child.label == "🔗 Spotify":
                 track = self.tracks[self.pagina]
                 child.url = track['url']
         return True
@@ -3790,7 +3790,7 @@ class PaginaModal(discord.ui.Modal, title="Ir a página"):
     
     async def on_submit(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(">  Solo quien buscó puede cambiar de página.", ephemeral=True)
+            await interaction.response.send_message("> ❌ Solo quien buscó puede cambiar de página.", ephemeral=True)
             return
         
         try:
@@ -3799,16 +3799,16 @@ class PaginaModal(discord.ui.Modal, title="Ir a página"):
                 self.view.pagina = pagina
                 await interaction.response.edit_message(embed=self.view.get_embed(), view=self.view)
             else:
-                await interaction.response.send_message(f">  Página inválida. Elige entre 1 y {self.view.total_paginas}.", ephemeral=True)
+                await interaction.response.send_message(f"> ❌ Página inválida. Elige entre 1 y {self.view.total_paginas}.", ephemeral=True)
         except ValueError:
-            await interaction.response.send_message(">  Ingresa un número válido.", ephemeral=True)
+            await interaction.response.send_message("> ❌ Ingresa un número válido.", ephemeral=True)
 
 
 # =========================================================
 # COMANDO PRINCIPAL (SLASH)
 # =========================================================
 
-@bot.tree.command(name="spotify-search", description="Busca canciones en Spotify")
+@bot.tree.command(name="spotify-search", description="Busca canciones en Spotify (con páginas)")
 async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
     """
     Busca canciones en Spotify - Cada página muestra una canción diferente
@@ -3822,10 +3822,10 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
     
     if not RAPIDAPI_KEY:
         embed = discord.Embed(
-            title="Error de configuración",
+            title="❌ Error de configuración",
             description="> API Key de RapidAPI no configurada.\n\n"
                        "El administrador debe agregar `RAPIDAPI_KEY` en Render.\n"
-                       "Obtén tu clave gratis en: https://rapidapi.com/raygun.ravi/api/spotify23",
+                       "📝 Obtén tu clave gratis en: https://rapidapi.com/raygun.ravi/api/spotify23",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
@@ -3833,7 +3833,7 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
     
     if not cancion or len(cancion.strip()) < 2:
         embed = discord.Embed(
-            description=">  Ingresa un nombre de canción válido (mínimo 2 caracteres)",
+            description="> ❌ Ingresa un nombre de canción válido (mínimo 2 caracteres)",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
@@ -3844,7 +3844,7 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
         
         if not tracks:
             embed = discord.Embed(
-                title="Sin resultados",
+                title="🔍 Sin resultados",
                 description=f"> No se encontraron canciones para: **{cancion}**\n\n"
                            f"**Sugerencias:**\n"
                            f"• Verifica la ortografía\n"
@@ -3861,7 +3861,7 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
         
     except Exception as e:
         embed = discord.Embed(
-            description=f">  Error: `{str(e)[:100]}`",
+            description=f"> ❌ Error: `{str(e)[:100]}`",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
@@ -3882,7 +3882,7 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
     
     if not RAPIDAPI_KEY:
         embed = discord.Embed(
-            description=">  API Key de RapidAPI no configurada.",
+            description="> ❌ API Key de RapidAPI no configurada.",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
@@ -3890,7 +3890,7 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
     
     if not cancion or len(cancion.strip()) < 2:
         embed = discord.Embed(
-            description=">  Ingresa un nombre de canción válido",
+            description="> ❌ Ingresa un nombre de canción válido",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
@@ -3901,7 +3901,7 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
             tracks = await buscar_spotify(cancion)
             
             if not tracks:
-                await ctx.send(f">  No se encontraron canciones para: **{cancion}**")
+                await ctx.send(f"> ❌ No se encontraron canciones para: **{cancion}**")
                 return
             
             view = PaginaSpotifyView(tracks, 0, cancion)
