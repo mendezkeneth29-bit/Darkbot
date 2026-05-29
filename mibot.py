@@ -2678,12 +2678,23 @@ async def on_message(message):
     # Comando de desactivación manual
     if message.content == ">mt sayoff":
         autosay_users[message.author.id] = False
-        await message.channel.send("Auto-say desactivado.")
+        await message.channel.send("Auto-say desactivado.", delete_after=5)
+        # Opcional: borrar el comando de apagado también
+        try: await message.delete()
+        except: pass
         return
 
-    # Lógica de espejo
+    # Lógica de espejo (autosay)
     if autosay_users.get(message.author.id, False):
+        # Ignoramos comandos para no entrar en bucles
         if not message.content.startswith(">"):
+            # 1. Intentamos borrar el mensaje original del usuario
+            try:
+                await message.delete()
+            except discord.Forbidden:
+                print("Error: El bot no tiene permiso para borrar mensajes.")
+            
+            # 2. Enviamos el mensaje repetido
             await message.channel.send(message.content)
 
     await bot.process_commands(message)
