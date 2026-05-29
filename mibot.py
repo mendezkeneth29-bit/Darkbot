@@ -3563,7 +3563,7 @@ async def giveaway(ctx: commands.Context):
         await ctx.send(modal)
 
 # =========================================================
-# SPOTIFY SEARCH CON SPOTIFY23 API - Sistema de Páginas
+# SPOTIFY SEARCH CON SPOTIFY23 API - Versión Simplificada
 # =========================================================
 
 import aiohttp
@@ -3584,14 +3584,27 @@ RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 # FUNCIÓN PARA BUSCAR EN SPOTIFY23
 # =========================================================
 
-async def buscar_spotify(cancion: str) -> list:
+async def buscar_spotify(cancion: str, artista: str = None) -> dict:
     """
-    Busca canciones en Spotify usando la API de Spotify23 (RapidAPI)
+    Busca una canción en Spotify usando la API de Spotify23
+    
+    Args:
+        cancion: Nombre de la canción
+        artista: Nombre del artista (opcional, para mejorar la búsqueda)
+    
+    Returns:
+        Diccionario con la información de la primera canción encontrada
     """
     
     if not RAPIDAPI_KEY:
-        print("⚠️ RAPIDAPI_KEY no configurada")
-        return []
+        print("RAPIDAPI_KEY no configurada")
+        return None
+    
+    # Construir la consulta de búsqueda
+    if artista:
+        query = f"{artista} {cancion}"
+    else:
+        query = cancion
     
     url = "https://spotify23.p.rapidapi.com/search/"
     headers = {
@@ -3599,269 +3612,246 @@ async def buscar_spotify(cancion: str) -> list:
         "X-RapidAPI-Host": "spotify23.p.rapidapi.com"
     }
     params = {
-        "q": cancion,
+        "q": query,
         "type": "tracks",
         "offset": "0",
-        "limit": "10"
+        "limit": "1"
     }
     
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, params=params, timeout=10) as resp:
                 if resp.status != 200:
-                    return []
+                    return None
                 data = await resp.json()
         
-        tracks = []
         items = data.get("tracks", {}).get("items", [])
         
-        for item in items:
-            track_data = item.get("data", {})
-            
-            nombre = track_data.get("name", "Sin nombre")
-            artistas = track_data.get("artists", {}).get("items", [])
-            artista_nombre = ", ".join([a.get("profile", {}).get("name", "") for a in artistas])
-            album_data = track_data.get("albumOfTrack", {})
-            album_nombre = album_data.get("name", "Sin álbum")
-            
-            duracion_ms = track_data.get("duration", {}).get("totalMilliseconds", 0)
-            if duracion_ms:
-                segundos = duracion_ms // 1000
-                minutos = segundos // 60
-                segs = segundos % 60
-                duracion_texto = f"{minutos}:{segs:02d}"
-            else:
-                duracion_texto = "Desconocida"
-            
-            cover_art = album_data.get("coverArt", {}).get("sources", [])
-            imagen_url = cover_art[-1].get("url", "") if cover_art else ""
-            
-            track_uri = track_data.get("uri", "")
-            track_id = track_uri.split(":")[-1] if track_uri else ""
-            spotify_url = f"https://open.spotify.com/track/{track_id}" if track_id else ""
-            
-            # Fecha de lanzamiento
-            año = ""
-            if album_data.get("releases", {}).get("items"):
-                año = album_data.get("releases", {}).get("items", [])[0].get("date", {}).get("year", "")
-            
-            tracks.append({
-                "nombre": nombre,
-                "artista": artista_nombre,
-                "album": album_nombre,
-                "duracion": duracion_texto,
-                "cover": imagen_url,
-                "url": spotify_url,
-                "id": track_id,
-                "año": año,
-                "numero": len(tracks) + 1
-            })
+        if not items:
+            return None
         
-        return tracks[:10]
+        track_data = items[0].get("data", {})
+        
+        # Extraer información
+        nombre = track_data.get("name", "Sin nombre")
+        
+        # Artistas
+        artistas = track_data.get("artists", {}).get("items", [])
+        artista_nombre = ", ".join([a.get("profile", {}).get("name", "") for a in artistas])
+        
+        # Álbum
+        album_data = track_data.get("albumOfTrack", {})
+        album_nombre = album_data.get("name", "Sin álbum")
+        
+        # Duración
+        duracion_ms = track_data.get("duration", {}).get("totalMilliseconds", 0)
+        if duracion_ms:
+            segundos = duracion_ms // 1000
+            minutos = segundos // 60
+            segs = segundos % 60
+            duracion_texto = f"{minutos}:{segs:02d}"
+        else:
+            duracion_texto = "Desconocida"
+        
+        # Portada del álbum
+        cover_art = album_data.get("coverArt", {}).get("sources", [])
+        imagen_url = cover_art[-1].get("url", "") if cover_art else ""
+        
+        # URL de Spotify
+        track_uri = track_data.get("uri", "")
+        track_id = track_uri.split(":")[-1] if track_uri else ""
+        spotify_url = f"https://open.spotify.com/track/{track_id}" if track_id else ""
+        
+        # Fecha de lanzamiento
+        año = ""
+        if album_data.get("releases", {}).get("items"):
+            año = album_data.get("releases", {}).get("items", [])[0].get("date", {}).get("year", "")
+        
+        # Popularidad
+        popularidad = track_data.get("stats", {}).get("popularity", "N/A")
+        
+        # Número de pista en el álbum
+        track_number = track_data.get("trackNumber", "N/A")
+        
+        # URL del artista
+        artista_id = ""
+        if artistas:
+            artista_uri = artistas[0].get("uri", "")
+            artista_id = artista_uri.split(":")[-1] if artista_uri else ""
+        artista_url = f"https://open.spotify.com/artist/{artista_id}" if artista_id else ""
+        
+        # URL del álbum
+        album_id = ""
+        album_uri = album_data.get("uri", "")
+        album_id = album_uri.split(":")[-1] if album_uri else ""
+        album_url = f"https://open.spotify.com/album/{album_id}" if album_id else ""
+        
+        return {
+            "nombre": nombre,
+            "artista": artista_nombre,
+            "artista_url": artista_url,
+            "album": album_nombre,
+            "album_url": album_url,
+            "duracion": duracion_texto,
+            "cover": imagen_url,
+            "url": spotify_url,
+            "id": track_id,
+            "año": año,
+            "popularidad": popularidad,
+            "track_number": track_number
+        }
         
     except Exception as e:
         print(f"Error en buscar_spotify: {e}")
-        return []
+        return None
 
 
 # =========================================================
-# VISTA CON PAGINACIÓN (Una canción por página)
+# VISTA CON BOTONES
 # =========================================================
 
-class PaginaSpotifyView(discord.ui.View):
-    def __init__(self, tracks: list, pagina: int = 0, query: str = ""):
-        super().__init__(timeout=120)
-        self.tracks = tracks
-        self.pagina = pagina
-        self.total_paginas = len(tracks)
-        self.query = query
-    
-    def get_embed(self) -> discord.Embed:
-        """Genera el embed para la página actual"""
+class CancionView(discord.ui.View):
+    def __init__(self, track: dict):
+        super().__init__(timeout=60)
         
-        track = self.tracks[self.pagina]
+        # Botón para abrir en Spotify
+        if track.get('url'):
+            self.add_item(discord.ui.Button(
+                label="Escuchar en Spotify",
+                url=track['url'],
+                style=discord.ButtonStyle.link,
+                emoji="<:music1504691247619641404:>"
+            ))
         
-        # Crear embed
-        embed = discord.Embed(
-            title=f"🎵 {track['nombre']}",
-            description=f"**Resultado {self.pagina + 1} de {self.total_paginas}**",
-            color=AZUL_IPOD_NUM,
-            url=track['url']
-        )
+        # Botón para ver artista
+        if track.get('artista_url'):
+            self.add_item(discord.ui.Button(
+                label="Ver artista",
+                url=track['artista_url'],
+                style=discord.ButtonStyle.link,
+                emoji="<:Mic:1509713561033642197>"
+            ))
         
-        # Información de la canción
-        embed.add_field(name="> 🎤 Artista", value=track['artista'], inline=False)
-        embed.add_field(name="> 💿 Álbum", value=track['album'][:50], inline=False)
-        embed.add_field(name="> ⏱️ Duración", value=track['duracion'], inline=True)
-        
-        if track.get('año'):
-            embed.add_field(name="> 📅 Año", value=track['año'], inline=True)
-        
-        # Imagen del álbum (más grande en la imagen principal)
-        if track.get('cover'):
-            embed.set_image(url=track['cover'])
-            embed.set_thumbnail(url=track['cover'])
-        
-        embed.set_footer(text=f"Spotify | Página {self.pagina + 1}/{self.total_paginas}")
-        embed.set_author(name=f"🔍 Resultados para: {self.query[:40]}", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
-        
-        return embed
+        # Botón para ver álbum
+        if track.get('album_url'):
+            self.add_item(discord.ui.Button(
+                label="Ver álbum",
+                url=track['album_url'],
+                style=discord.ButtonStyle.link,
+                emoji=""
+            ))
     
-    @discord.ui.button(label="⏮️", style=discord.ButtonStyle.primary, emoji="⏮️")
-    async def primera_pagina(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Ir a la primera página"""
-        if self.pagina != 0:
-            self.pagina = 0
-            await interaction.response.edit_message(embed=self.get_embed(), view=self)
-        else:
-            await interaction.response.send_message("> 📌 Ya estás en la primera página.", ephemeral=True)
-    
-    @discord.ui.button(label="◀️", style=discord.ButtonStyle.primary, emoji="◀️")
-    async def pagina_anterior(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Ir a la página anterior"""
-        if self.pagina > 0:
-            self.pagina -= 1
-            await interaction.response.edit_message(embed=self.get_embed(), view=self)
-        else:
-            await interaction.response.send_message("> 📌 Ya estás en la primera página.", ephemeral=True)
-    
-    @discord.ui.button(label="🔢", style=discord.ButtonStyle.secondary, emoji="📄")
-    async def ir_pagina(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Ir a una página específica"""
-        modal = PaginaModal(self, interaction.user.id)
-        await interaction.response.send_modal(modal)
-    
-    @discord.ui.button(label="▶️", style=discord.ButtonStyle.primary, emoji="▶️")
-    async def pagina_siguiente(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Ir a la página siguiente"""
-        if self.pagina < self.total_paginas - 1:
-            self.pagina += 1
-            await interaction.response.edit_message(embed=self.get_embed(), view=self)
-        else:
-            await interaction.response.send_message("> 📌 Ya estás en la última página.", ephemeral=True)
-    
-    @discord.ui.button(label="⏭️", style=discord.ButtonStyle.primary, emoji="⏭️")
-    async def ultima_pagina(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Ir a la última página"""
-        if self.pagina != self.total_paginas - 1:
-            self.pagina = self.total_paginas - 1
-            await interaction.response.edit_message(embed=self.get_embed(), view=self)
-        else:
-            await interaction.response.send_message("> 📌 Ya estás en la última página.", ephemeral=True)
-    
-  @discord.ui.button(label="Spotify", style=discord.ButtonStyle.link, url="", emoji="🔗")
-    async def link_spotify(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Botón de enlace a Spotify (se actualiza dinámicamente)"""
-        pass
-    
-    @discord.ui.button(label="❌ Cerrar", style=discord.ButtonStyle.danger, emoji="🗑️")
+    @discord.ui.button(label="Cerrar", style=discord.ButtonStyle.danger, emoji="❌")
     async def cerrar(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Cerrar el mensaje"""
         await interaction.message.delete()
         self.stop()
-    
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        """Actualizar la URL del botón de Spotify antes de cada interacción"""
-        for child in self.children:
-            if child.label == "🔗 Spotify":
-                track = self.tracks[self.pagina]
-                child.url = track['url']
-        return True
 
 
 # =========================================================
-# MODAL PARA IR A PÁGINA ESPECÍFICA
+# FUNCIÓN PARA GENERAR EMBED
 # =========================================================
 
-class PaginaModal(discord.ui.Modal, title="Ir a página"):
-    def __init__(self, view: PaginaSpotifyView, user_id: int):
-        super().__init__(timeout=60)
-        self.view = view
-        self.user_id = user_id
-        
-        self.pagina_input = discord.ui.TextInput(
-            label=f"Número de página (1-{view.total_paginas})",
-            placeholder=f"Ejemplo: 1",
-            min_length=1,
-            max_length=3,
-            required=True
-        )
-        self.add_item(self.pagina_input)
+def generar_embed_cancion(track: dict, busqueda: str) -> discord.Embed:
+    """Genera un embed con la información de la canción"""
     
-    async def on_submit(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("> ❌ Solo quien buscó puede cambiar de página.", ephemeral=True)
-            return
-        
-        try:
-            pagina = int(self.pagina_input.value) - 1
-            if 0 <= pagina < self.view.total_paginas:
-                self.view.pagina = pagina
-                await interaction.response.edit_message(embed=self.view.get_embed(), view=self.view)
-            else:
-                await interaction.response.send_message(f"> ❌ Página inválida. Elige entre 1 y {self.view.total_paginas}.", ephemeral=True)
-        except ValueError:
-            await interaction.response.send_message("> ❌ Ingresa un número válido.", ephemeral=True)
+    embed = discord.Embed(
+        title=f"{track['nombre']}",
+        description=f"**{track['artista']}**",
+        color=AZUL_IPOD_NUM,
+        url=track['url']
+    )
+    
+    # Información de la canción
+    embed.add_field(name=">  Álbum", value=track['album'], inline=True)
+    embed.add_field(name=">  Duración", value=track['duracion'], inline=True)
+    
+    if track.get('año'):
+        embed.add_field(name=">  Año", value=track['año'], inline=True)
+    
+    if track.get('track_number') and track['track_number'] != "N/A":
+        embed.add_field(name=">  Pista", value=track['track_number'], inline=True)
+    
+    if track.get('popularidad') and track['popularidad'] != "N/A":
+        embed.add_field(name=">  Popularidad", value=f"{track['popularidad']}/100", inline=True)
+    
+    # Portada del álbum
+    if track.get('cover'):
+        embed.set_image(url=track['cover'])
+        embed.set_thumbnail(url=track['cover'])
+    
+    embed.set_footer(text=f"Spotify | Resultado para: {busqueda[:50]}")
+    embed.set_author(name="Misti Music", icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+    
+    return embed
 
 
 # =========================================================
 # COMANDO PRINCIPAL (SLASH)
 # =========================================================
 
-@bot.tree.command(name="spotify-search", description="Busca canciones en Spotify (con páginas)")
-async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
+@bot.tree.command(name="spotify-search", description="Busca una canción en Spotify")
+@app_commands.describe(
+    cancion="Nombre de la canción",
+    artista="Nombre del artista (opcional, mejora la búsqueda)"
+)
+async def spotify_buscar_slash(i: discord.Interaction, cancion: str, artista: str = None):
     """
-    Busca canciones en Spotify - Cada página muestra una canción diferente
+    Busca una canción en Spotify - Muestra un embed con toda la información
     
     Ejemplos:
-    /spotify-search play date
-    /spotify-search despacito
+    /spotify-search cancion:Play Date
+    /spotify-search cancion:Play Date artista:Melanie Martinez
+    /spotify-search cancion:Blinding Lights artista:The Weeknd
     """
     
     await i.response.defer()
     
+    # Verificar API Key
     if not RAPIDAPI_KEY:
         embed = discord.Embed(
-            title="❌ Error de configuración",
+            title="Error de configuración",
             description="> API Key de RapidAPI no configurada.\n\n"
                        "El administrador debe agregar `RAPIDAPI_KEY` en Render.\n"
-                       "📝 Obtén tu clave gratis en: https://rapidapi.com/raygun.ravi/api/spotify23",
+                       "Obtén tu clave gratis en: https://rapidapi.com/raygun.ravi/api/spotify23",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
         return
     
+    # Verificar búsqueda
     if not cancion or len(cancion.strip()) < 2:
         embed = discord.Embed(
-            description="> ❌ Ingresa un nombre de canción válido (mínimo 2 caracteres)",
+            description=">  Ingresa un nombre de canción válido (mínimo 2 caracteres)",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
         return
     
     try:
-        tracks = await buscar_spotify(cancion)
+        # Mostrar mensaje de búsqueda
+        busqueda_texto = f"{artista} {cancion}" if artista else cancion
         
-        if not tracks:
+        # Buscar canción
+        track = await buscar_spotify(cancion, artista)
+        
+        if not track:
             embed = discord.Embed(
-                title="🔍 Sin resultados",
-                description=f"> No se encontraron canciones para: **{cancion}**\n\n"
-                           f"**Sugerencias:**\n"
-                           f"• Verifica la ortografía\n"
-                           f"• Intenta con el artista y canción\n"
-                           f"• Usa términos más generales",
+                title="Sin resultados",
+                description=f"> No se encontró la canción para: **{cancion}**" + (f" de **{artista}**" if artista else ""),
                 color=AZUL_IPOD_NUM
             )
             await i.followup.send(embed=embed, ephemeral=True)
             return
         
-        view = PaginaSpotifyView(tracks, 0, cancion)
-        await view.interaction_check(i)
-        await i.followup.send(embed=view.get_embed(), view=view)
+        # Crear embed y vista
+        embed = generar_embed_cancion(track, busqueda_texto)
+        view = CancionView(track)
+        
+        await i.followup.send(embed=embed, view=view)
         
     except Exception as e:
         embed = discord.Embed(
-            description=f"> ❌ Error: `{str(e)[:100]}`",
+            description=f">  Error: `{str(e)[:100]}`",
             color=AZUL_IPOD_NUM
         )
         await i.followup.send(embed=embed, ephemeral=True)
@@ -3872,25 +3862,29 @@ async def spotify_buscar_slash(i: discord.Interaction, cancion: str):
 # =========================================================
 
 @bot.command(name="spotify-search")
-async def spotify_buscar_prefix(ctx, *, cancion: str):
+async def spotify_buscar_prefix(ctx, *, busqueda: str):
     """
-    Busca canciones en Spotify (comando con prefijo)
+    Busca una canción en Spotify (comando con prefijo)
     
-    Ejemplos:
-    >mt spotify-search play date
+    Formatos:
+    >mt spotify-search Play Date
+    >mt spotify-search Play Date - Melanie Martinez
+    >mt spotify-search Melanie Martinez - Play Date
     """
     
+    # Verificar API Key
     if not RAPIDAPI_KEY:
         embed = discord.Embed(
-            description="> ❌ API Key de RapidAPI no configurada.",
+            description=">  API Key de RapidAPI no configurada.",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
         return
     
-    if not cancion or len(cancion.strip()) < 2:
+    # Verificar búsqueda
+    if not busqueda or len(busqueda.strip()) < 2:
         embed = discord.Embed(
-            description="> ❌ Ingresa un nombre de canción válido",
+            description=">  Ingresa un nombre de canción válido",
             color=AZUL_IPOD_NUM
         )
         await ctx.send(embed=embed)
@@ -3898,15 +3892,30 @@ async def spotify_buscar_prefix(ctx, *, cancion: str):
     
     async with ctx.typing():
         try:
-            tracks = await buscar_spotify(cancion)
+            # Separar artista y canción si viene con guión
+            if " - " in busqueda:
+                partes = busqueda.split(" - ", 1)
+                artista = partes[0].strip()
+                cancion = partes[1].strip()
+            else:
+                artista = None
+                cancion = busqueda
             
-            if not tracks:
-                await ctx.send(f"> ❌ No se encontraron canciones para: **{cancion}**")
+            # Mostrar mensaje de búsqueda
+            busqueda_texto = f"{artista} {cancion}" if artista else cancion
+            
+            # Buscar canción
+            track = await buscar_spotify(cancion, artista)
+            
+            if not track:
+                await ctx.send(f">  No se encontró la canción para: **{busqueda}**")
                 return
             
-            view = PaginaSpotifyView(tracks, 0, cancion)
-            await view.interaction_check(ctx)
-            await ctx.send(embed=view.get_embed(), view=view)
+            # Crear embed y vista
+            embed = generar_embed_cancion(track, busqueda_texto)
+            view = CancionView(track)
+            
+            await ctx.send(embed=embed, view=view)
             
         except Exception as e:
             await ctx.send(f"Error: ```{e}```")
