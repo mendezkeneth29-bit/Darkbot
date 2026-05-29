@@ -3817,7 +3817,136 @@ async def spotify_buscar_prefix(ctx, *, texto: str = None):
             await ctx.send(f"> Error: ```{str(e)[:100]}```")
 
 # =========================================================
-# BUSCAR ARTISTA — Last.fm
+# HELPER — Obtener foto real del artista
+# =========================================================
+
+async def obtener_foto_artista(nombre_artista: str) -> str:
+    """
+    Intenta obtener la foto del artista en este orden:
+    1. Last.fm (imagen extragrande)
+    2. MusicBrainz + Wikimedia (más fiable)
+    Devuelve la URL de la imagen o string vacío si no encuentra.
+    """
+
+    # ── Intento 1: Last.fm ──────────────────────────────────
+    if LASTFM_API_KEY:
+        try:
+            url = (
+                "http://ws.audioscrobbler.com/2.0/"
+                f"?method=artist.getInfo"
+                f"&api_key={LASTFM_API_KEY}"
+                f"&artist={urllib.parse.quote(nombre_artista.strip())}"
+                f"&format=json"
+            )
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    if resp.status == 200:
+                        data     = await resp.json()
+                        imagenes = data.get("artist", {}).get("image", [])
+                        PLACEHOLDER = "2a96cbd8b46e442fc41c2b86b821562f"
+                        for img in reversed(imagenes):
+                            texto = img.get("#text", "")
+                            if texto and PLACEHOLDER not in texto:
+                                return texto
+        except Exception:
+            pass
+
+    # ── Intento 2: MusicBrainz → Wikimedia ─────────────────
+    try:
+        # Buscar el MBID del artista en MusicBrainz
+        mb_url = (
+            "https://musicbrainz.org/ws/2/artist/"
+            f"?query=artist:{urllib.parse.quote(nombre_artista.strip())}"
+            f"&fmt=json&limit=1"
+        )
+        headers = {"User-Agent": "MistiBot/1.0 (discord bot)"}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(mb_url, headers=headers, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status != 200:
+                    return ""
+                mb_data  = await resp.json()
+                artistas = mb_data.get("artists", [])
+                if not artistas:
+                    return ""
+                mbid = artistas[0].get("id", "")
+
+            if not mbid:
+                return ""
+
+            # Buscar relaciones del artista (incluye link a Wikipedia/Wikidata)
+            rel_url = f"https://musicbrainz.org/ws/2/artist/{mbid}?inc=url-rels&fmt=json"
+            async with session.get(rel_url, headers=headers, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status != 200:
+                    return ""
+                rel_data  = await resp.json()
+                relaciones = rel_data.get("relations", [])
+
+            # Buscar el link de Wikidata
+            wikidata_id = ""
+            wiki_title  = ""
+            for rel in relaciones:
+                url_rel = rel.get("url", {}).get("resource", "")
+                if "wikidata.org/wiki/" in url_rel:
+                    wikidata_id = url_rel.split("/wiki/")[-1]
+                if "wikipedia.org/wiki/" in url_rel and not wiki_title:
+                    wiki_title = url_rel.split("/wiki/")[-1]
+
+            # ── Ruta A: Wikidata → imagen directa ───────────
+            if wikidata_id:
+                wd_url = (
+                    f"https://www.wikidata.org/wiki/Special:EntityData/{wikidata_id}.json"
+                )
+                async with session.get(wd_url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    if resp.status == 200:
+                        wd_data    = await resp.json()
+                        entidades  = wd_data.get("entities", {})
+                        entidad    = entidades.get(wikidata_id, {})
+                        claims     = entidad.get("claims", {})
+
+                        # P18 = propiedad "imagen" en Wikidata
+                        imagenes_wd = claims.get("P18", [])
+                        if imagenes_wd:
+                            nombre_archivo = (
+                                imagenes_wd[0]
+                                .get("mainsnak", {})
+                                .get("datavalue", {})
+                                .get("value", "")
+                            )
+                            if nombre_archivo:
+                                # Convertir nombre de archivo a URL de Wikimedia
+                                nombre_enc = nombre_archivo.replace(" ", "_")
+                                import hashlib
+                                md5        = hashlib.md5(nombre_enc.encode()).hexdigest()
+                                img_url    = (
+                                    f"https://upload.wikimedia.org/wikipedia/commons/"
+                                    f"{md5[0]}/{md5[0:2]}/{urllib.parse.quote(nombre_enc)}"
+                                )
+                                return img_url
+
+            # ── Ruta B: Wikipedia → thumbnail ───────────────
+            if wiki_title:
+                wp_url = (
+                    f"https://en.wikipedia.org/api/rest_v1/page/summary/"
+                    f"{wiki_title}"
+                )
+                async with session.get(wp_url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    if resp.status == 200:
+                        wp_data    = await resp.json()
+                        thumbnail  = wp_data.get("thumbnail", {}).get("source", "")
+                        if thumbnail:
+                            # Pedir versión más grande (800px)
+                            thumbnail = re.sub(r'/\d+px-', '/800px-', thumbnail)
+                            return thumbnail
+
+    except Exception as e:
+        print(f"[obtener_foto_artista] Error MusicBrainz/Wikimedia: {e}")
+
+    return ""
+
+
+# =========================================================
+# BUSCAR ARTISTA — Last.fm + foto real
 # =========================================================
 
 @bot.hybrid_command(name="buscar-artista", description="Busca información de un artista en Last.fm")
@@ -3846,7 +3975,7 @@ async def buscar_artista(ctx: commands.Context, *, artista: str):
         return
 
     try:
-        # ── Petición a Last.fm ──────────────────────────────
+        # ── Petición info artista a Last.fm ────────────────
         url = (
             "http://ws.audioscrobbler.com/2.0/"
             f"?method=artist.getInfo"
@@ -3865,7 +3994,6 @@ async def buscar_artista(ctx: commands.Context, *, artista: str):
                     return
                 data = await resp.json()
 
-        # ── Verificar errores de la API ─────────────────────
         if "error" in data:
             await ctx.send(embed=discord.Embed(
                 description=f"> Artista **{artista}** no encontrado en Last.fm.",
@@ -3886,34 +4014,30 @@ async def buscar_artista(ctx: commands.Context, *, artista: str):
         url_lastfm = info.get("url", "")
 
         # Estadísticas
-        stats      = info.get("stats", {})
+        stats = info.get("stats", {})
         try:
-            oyentes_num = int(stats.get("listeners", 0))
-            oyentes     = f"{oyentes_num:,}".replace(",", ".")
+            oyentes = f"{int(stats.get('listeners', 0)):,}".replace(",", ".")
         except (ValueError, TypeError):
             oyentes = "N/A"
-
         try:
-            reproducciones_num = int(stats.get("playcount", 0))
-            reproducciones     = f"{reproducciones_num:,}".replace(",", ".")
+            reproducciones = f"{int(stats.get('playcount', 0)):,}".replace(",", ".")
         except (ValueError, TypeError):
             reproducciones = "N/A"
 
-        # Biografía
-        bio_raw = info.get("bio", {}).get("summary", "Sin biografía disponible.")
-        # Limpiar el enlace de Last.fm que viene al final
-        bio     = re.sub(r'<a href="[^"]*">[^<]*</a>', '', bio_raw).strip()
-        bio     = re.sub(r'<[^>]+>', '', bio).strip()  # quitar cualquier otro HTML
+        # Biografía (limpiar HTML)
+        bio_raw = info.get("bio", {}).get("summary", "")
+        bio     = re.sub(r'<a href="[^"]*">[^<]*</a>', '', bio_raw)
+        bio     = re.sub(r'<[^>]+>', '', bio).strip()
         if len(bio) > 500:
             bio = bio[:500] + "..."
         if not bio:
             bio = "Sin biografía disponible."
 
         # Tags / géneros
-        tags_raw  = info.get("tags", {}).get("tag", [])
-        if isinstance(tags_raw, dict):   # a veces viene como dict si solo hay uno
+        tags_raw = info.get("tags", {}).get("tag", [])
+        if isinstance(tags_raw, dict):
             tags_raw = [tags_raw]
-        generos   = ", ".join([t.get("name", "") for t in tags_raw[:5]]) or "Sin géneros"
+        generos = ", ".join([t.get("name", "") for t in tags_raw[:5]]) or "Sin géneros"
 
         # Artistas similares
         similares_raw = info.get("similar", {}).get("artist", [])
@@ -3921,15 +4045,8 @@ async def buscar_artista(ctx: commands.Context, *, artista: str):
             similares_raw = [similares_raw]
         similares = ", ".join([a.get("name", "") for a in similares_raw[:4]]) or "N/A"
 
-        # Imagen del artista (thumbnail)
-        imagenes  = info.get("image", [])
-        imagen_url = ""
-        for img in reversed(imagenes):
-            texto = img.get("#text", "")
-            if texto and "2a96cbd8b46e442fc41c2b86b821562f" not in texto:
-                # Last.fm a veces devuelve un placeholder con ese hash, lo ignoramos
-                imagen_url = texto
-                break
+        # ── Obtener foto real del artista ───────────────────
+        imagen_url = await obtener_foto_artista(nombre)
 
         # ── Construir embed ─────────────────────────────────
         embed = discord.Embed(
@@ -3938,11 +4055,9 @@ async def buscar_artista(ctx: commands.Context, *, artista: str):
             color=AZUL_IPOD_NUM,
             url=url_lastfm or None
         )
-
         embed.add_field(name="> Oyentes mensuales", value=oyentes,        inline=True)
         embed.add_field(name="> Reproducciones",    value=reproducciones, inline=True)
         embed.add_field(name="> Géneros",           value=generos,        inline=False)
-
         if similares != "N/A":
             embed.add_field(name="> Artistas similares", value=similares, inline=False)
 
@@ -3950,15 +4065,14 @@ async def buscar_artista(ctx: commands.Context, *, artista: str):
             embed.set_thumbnail(url=imagen_url)
 
         embed.set_footer(
-            text=f"Last.fm | Solicitado por {ctx.author.display_name}",
+            text=f"Last.fm • Solicitado por {ctx.author.display_name}",
             icon_url=ctx.author.display_avatar.url
         )
         embed.set_author(
-            name="Misti Music",
-            icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
+            name="Misti Music")
         )
 
-        # ── Vista con botón ─────────────────────────────────
+        # ── Botón ───────────────────────────────────────────
         view = discord.ui.View()
         if url_lastfm:
             view.add_item(discord.ui.Button(
