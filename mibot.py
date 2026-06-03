@@ -133,8 +133,8 @@ RAPIDAPI_KEY  = os.getenv("RAPIDAPI_KEY")
 LASTFM_API_KEY = os.getenv("LASTFM_API_KEY")
 
 AZUL_OSCURO   = (35, 63, 98)
-AZUL_IPOD     = (35, 63, 98)
-AZUL_IPOD_NUM = 0x233f62
+AZUL_IPOD     = (0, 71, 224)
+AZUL_IPOD_NUM = 0x0047e0
 BLANCO        = (255, 255, 255)
 FONDO_G       = (10, 10, 10)
 GRIS_G        = (42, 42, 42)
@@ -2777,13 +2777,13 @@ async def banana(ctx: commands.Context, usuario: discord.Member = None):
     # Crear embed
     embed = discord.Embed(
         title=f"**banana**",
-        description=f"**{usuario.display_name}** tiene una banana de...",
-        color=color
+        description=f"> {usuario.display_name} tiene una banana de...",
+        color= AZUL_IPOD_NUM
     )
     
     embed.add_field(
         name="**Medida oficial**",
-        value=f"**{medida} cm**",
+        value=f"`{medida} cm`",
         inline=False
     )
     
@@ -2794,7 +2794,7 @@ async def banana(ctx: commands.Context, usuario: discord.Member = None):
     )
     
     embed.set_image(url=gif)
-    embed.set_footer(text="Medición 100% precisa (no, no lo es)")
+    embed.set_footer(text="Medida 100% precisa")
     
     await ctx.send(embed=embed)
 
