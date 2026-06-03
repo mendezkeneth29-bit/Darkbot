@@ -132,9 +132,9 @@ TOKEN         = os.getenv("TOKEN")
 RAPIDAPI_KEY  = os.getenv("RAPIDAPI_KEY")
 LASTFM_API_KEY = os.getenv("LASTFM_API_KEY")
 
-AZUL_OSCURO   = (35, 63, 98)
-AZUL_IPOD     = (0, 71, 224)
-AZUL_IPOD_NUM = 0x0047e0
+AZUL_OSCURO   = (25, 66, 156)
+AZUL_IPOD     = (25, 66, 156)
+AZUL_IPOD_NUM = 0x19429c
 BLANCO        = (255, 255, 255)
 FONDO_G       = (10, 10, 10)
 GRIS_G        = (42, 42, 42)
