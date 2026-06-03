@@ -2770,7 +2770,7 @@ async def banana(ctx: commands.Context, usuario: discord.Member = None):
     
     # GIFs de banana
     gifs_banana = [
-        "https://media.giphy.com/media/09vZMOkpKaey4kXbF2/giphy.gif"
+        "https://media.giphy.com/media/FTghRAA7rWeBRGSN7q/giphy.gif"
     ]
     gif = random.choice(gifs_banana)
     
