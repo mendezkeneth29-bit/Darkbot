@@ -2731,6 +2731,82 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # =========================================================
+# COMANDO BANANA - Mide la banana del usuario (broma)
+# =========================================================
+
+import random
+
+@bot.hybrid_command(name="banana", description="Mide la banana de un usuario")
+async def banana(ctx: commands.Context, usuario: discord.Member = None):
+    """
+    Mide la banana de un usuario (broma)
+    
+    Ejemplos:
+    >mt banana
+    >mt banana @usuario
+    """
+    
+    usuario = usuario or ctx.author
+    
+    # Generar medida aleatoria entre 1 y 30 cm
+    medida = random.randint(1, 30)
+    
+    # Crear barra de progreso
+    barras = "‖" * (medida // 2) + "💨" * (15 - (medida // 2))
+    barra_completa = f"|{barras}|"
+    
+    # Mensajes según la medida
+    if medida >= 25:
+        mensaje = "> **¡INCREÍBLE!** Tienes una banana enorme"
+        color = AZUL_IPOD_NUM
+    elif medida >= 20:
+        mensaje = "**> ¡RESPETABLE!** Se gana el respeto de todos"
+        color = AZUL_IPOD_NUM
+    elif medida >= 15:
+        mensaje = "> Está bien... nada del otro mundo"
+        color = AZUL_IPOD_NUM
+    elif medida >= 10:
+        mensaje = "> Podría ser peor... pero tampoco es para alardear"
+        color = AZUL_IPOD_NUM
+    else:
+        mensaje = "> Ay... la naturaleza fue cruel contigo"
+        color = AZUL_IPOD_NUM
+    
+    # GIFs de banana
+    gifs_banana = [
+        "https://media.tenor.com/cRkSgNWxnwUAAAAi/banana-dance.gif",
+        "https://media.tenor.com/5RSZfCkb5B4AAAAi/banana.gif",
+        "https://media.tenor.com/x8v1o3ZWVtoAAAAi/banana-dance.gif",
+        "https://media.tenor.com/YbI-fZfEPr8AAAAi/banana-dance.gif",
+        "https://media.tenor.com/_nJ-KvLZf2IAAAAi/banana-peeling.gif",
+    ]
+    gif = random.choice(gifs_banana)
+    
+    # Crear embed
+    embed = discord.Embed(
+        title=f"Medición de tu banana",
+        description=f"**{usuario.display_name}** tiene una banana de...",
+        color=color
+    )
+    
+    embed.add_field(
+        name="Medida oficial",
+        value=f"```\n{barra_completa}\n{medida} cm\n```",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="Veredicto",
+        value=mensaje,
+        inline=False
+    )
+    
+    embed.set_image(url=gif)
+    embed.set_footer(text="Medición 100% precisa (no, no lo es)")
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
 # FLASK WEB
 # =========================================================
 
