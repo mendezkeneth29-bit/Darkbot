@@ -2736,7 +2736,7 @@ async def on_message(message):
 
 import random
 
-@bot.hybrid_command(name="banana", description="Mide la banana de un usuario")
+@bot.hybrid_command(name="banana", description="¿cuánto mide la banana de un usuario?")
 async def banana(ctx: commands.Context, usuario: discord.Member = None):
     """
     Mide la banana de un usuario (broma)
@@ -2751,17 +2751,13 @@ async def banana(ctx: commands.Context, usuario: discord.Member = None):
     # Generar medida aleatoria entre 1 y 30 cm
     medida = random.randint(1, 30)
     
-    # Crear barra de progreso
-    barras = "‖" * (medida // 2) + "💨" * (15 - (medida // 2))
-    barra_completa = f"|{barras}|"
-    
     # Mensajes según la medida
     if medida >= 25:
-        mensaje = "> **¡INCREÍBLE!** Tienes una banana enorme"
+        mensaje = "> **¡INCREÍBLE!** Tiene una banana de nivel legendario"
         color = AZUL_IPOD_NUM
     elif medida >= 20:
-        mensaje = "**> ¡RESPETABLE!** Se gana el respeto de todos"
-        color = AZUL_IPOD_NUM
+        mensaje = "> **¡RESPETABLE!** Se gana el respeto de todos"
+        color = AZUL_iPOD_NUM
     elif medida >= 15:
         mensaje = "> Está bien... nada del otro mundo"
         color = AZUL_IPOD_NUM
@@ -2774,29 +2770,25 @@ async def banana(ctx: commands.Context, usuario: discord.Member = None):
     
     # GIFs de banana
     gifs_banana = [
-        "https://media.tenor.com/cRkSgNWxnwUAAAAi/banana-dance.gif",
-        "https://media.tenor.com/5RSZfCkb5B4AAAAi/banana.gif",
-        "https://media.tenor.com/x8v1o3ZWVtoAAAAi/banana-dance.gif",
-        "https://media.tenor.com/YbI-fZfEPr8AAAAi/banana-dance.gif",
-        "https://media.tenor.com/_nJ-KvLZf2IAAAAi/banana-peeling.gif",
+        "https://media.giphy.com/media/09vZMOkpKaey4kXbF2/giphy.gif"
     ]
     gif = random.choice(gifs_banana)
     
     # Crear embed
     embed = discord.Embed(
-        title=f"Medición de tu banana",
+        title=f"**banana**",
         description=f"**{usuario.display_name}** tiene una banana de...",
         color=color
     )
     
     embed.add_field(
-        name="Medida oficial",
-        value=f"```\n{barra_completa}\n{medida} cm\n```",
+        name="**Medida oficial**",
+        value=f"**{medida} cm**",
         inline=False
     )
     
     embed.add_field(
-        name="Veredicto",
+        name="**Veredicto**",
         value=mensaje,
         inline=False
     )
