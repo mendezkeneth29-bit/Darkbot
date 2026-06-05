@@ -2799,6 +2799,94 @@ async def banana(ctx: commands.Context, usuario: discord.Member = None):
     await ctx.send(embed=embed)
 
 # =========================================================
+# COMANDO MUSICA - Busca canción en YouTube y envía enlace
+# =========================================================
+
+@bot.hybrid_command(name="musica", description="Busca una canción y envía el enlace para escucharla")
+async def musica(ctx: commands.Context, *, cancion: str):
+    """
+    Busca una canción en YouTube y envía el enlace para escucharla
+    """
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    # Buscar el video en YouTube
+    query = urllib.parse.quote(cancion)
+    url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q={query}&key=AIzaSyDZB7wWZAMKgKZyZ6GpVqBdYQpV7SqFw3g"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+        
+        items = data.get('items', [])
+        
+        if not items:
+            embed = discord.Embed(
+                description=f"> No se encontró la canción: **{cancion}**",
+                color=AZUL_IPOD_NUM
+            )
+            await ctx.send(embed=embed)
+            return
+        
+        video_id = items[0]['id']['videoId']
+        titulo = items[0]['snippet']['title']
+        canal = items[0]['snippet']['channelTitle']
+        enlace = f"https://youtube.com/watch?v={video_id}"
+        
+        embed = discord.Embed(
+            title=f"🎵 {titulo}",
+            description=f"**Artista/Canal:** {canal}\n\n🔗 [Escuchar en YouTube]({enlace})",
+            color=AZUL_IPOD_NUM
+        )
+        embed.set_footer(text=f"Buscado por {ctx.author.display_name}")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        embed = discord.Embed(
+            description=f"> Error: `{str(e)[:100]}`",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="buscar-musica", description="Busca una canción en Spotify")
+async def buscar_musica(ctx: commands.Context, *, cancion: str):
+    """
+    Busca una canción en Spotify y envía el enlace para escucharla
+    """
+    
+    await ctx.defer() if ctx.interaction else None
+    
+    # Aquí puedes usar la función buscar_spotify que ya tienes
+    tracks = await buscar_spotify(cancion)
+    
+    if not tracks:
+        embed = discord.Embed(
+            description=f"> No se encontró la canción: **{cancion}**",
+            color=AZUL_IPOD_NUM
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    track = tracks[0]
+    
+    embed = discord.Embed(
+        title=f"🎵 {track['nombre']}",
+        description=f"**Artista:** {track['artista']}\n**Álbum:** {track['album']}",
+        color=AZUL_IPOD_NUM,
+        url=track['url']
+    )
+    
+    if track.get('cover'):
+        embed.set_thumbnail(url=track['cover'])
+    
+    embed.add_field(name="🔗 Escuchar", value=f"[Abrir en Spotify]({track['url']})", inline=False)
+    embed.set_footer(text=f"Buscado por {ctx.author.display_name}")
+    
+    await ctx.send(embed=embed)
+
+# =========================================================
 # FLASK WEB
 # =========================================================
 
